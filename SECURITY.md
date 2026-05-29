@@ -10,7 +10,7 @@
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability, please report it privately
-by emailing **erik@turva.dev**.
+by emailing **info@turva.dev**.
 
 Please do not open a public issue for security reports.
 
