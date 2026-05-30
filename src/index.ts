@@ -78,8 +78,18 @@ const SECURITY_EVIDENCE = {
   domain: &quot;turva.dev&quot;,
   measured_at: &quot;2026-05-30&quot;,
   scans: [
-    { provider: &quot;Internet.nl&quot;, score: 98, scale: &quot;0-100&quot;, url: &quot;https://internet.nl/site/turva.dev/&quot; },
-    { provider: &quot;Hardenize&quot;, score: &quot;passed&quot;, scale: &quot;all categories passed&quot;, url: &quot;https://www.hardenize.com/report/turva.dev/&quot; },
+    {
+      provider: &quot;Hardenize&quot;,
+      result: &quot;13/13 categories passed&quot;,
+      url: &quot;https://www.hardenize.com/report/turva.dev/&quot;,
+    },
+    {
+      provider: &quot;Internet.nl&quot;,
+      score: 98,
+      scale: &quot;0-100&quot;,
+      note: &quot;The missing 2 points are a deliberate tradeoff: TLS 1.2 is kept enabled for broad client compatibility. Everything else passes.&quot;,
+      url: &quot;https://internet.nl/site/turva.dev/&quot;,
+    },
   ],
   note: &quot;We publish our own domain&#x27;s scan results as proof that we follow the same practices we recommend to clients.&quot;,
 } as const;
@@ -112,7 +122,7 @@ export class TurvaMCP extends McpAgent {
     );
     this.server.tool(
       &quot;get_security_evidence&quot;,
-      &quot;Returns the latest public web-security scan results for turva.dev&#x27;s own domain (Internet.nl, Hardenize), with the scan date.&quot;,
+      &quot;Returns the latest public web-security scan results for turva.dev&#x27;s own domain (Hardenize, Internet.nl), with the scan date.&quot;,
       {},
       async () =&gt; ({ content: [{ type: &quot;text&quot;, text: JSON.stringify(SECURITY_EVIDENCE, null, 2) }] }),
     );

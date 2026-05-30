@@ -22,10 +22,19 @@ Four read-only tools. There are no write tools and no transaction tools. Each re
 |---|---|
 | `get_services` | The service catalog (audit, advisory, implementation, MCP server design, workshops), the engagement model, and the pricing model (quote on request) |
 | `get_agent_readiness` | turva.dev&#x27;s own agent-readiness scores from independent scanners, with the measurement date and verification links |
-| `get_security_evidence` | Public web-security scan results for turva.dev&#x27;s own domain (Internet.nl, Hardenize), with the scan date |
+| `get_security_evidence` | Public web-security scan results for turva.dev&#x27;s own domain (Hardenize, Internet.nl), with the scan date |
 | `get_principles` | The engagement principles: async-only, least access, results measured in scanner numbers, open and verifiable |
 
 Data is served from static TypeScript objects bundled with the Worker, so every response is deterministic and depends on no external state. Scores carry a `measured_at` date and verification links, so any reader can compare a stored snapshot against a fresh scan.
+
+## Evidence
+
+turva.dev publishes its own scan results so the work is verifiable, not just claimed.
+
+- Agent-readiness: 100/100 on both independent scanners (startuphub.ai, where it ranks #1 of the top 100 sites, and isitagentready.com, Level 5 Agent-Native).
+- Web security: Hardenize passes all 13 categories. Internet.nl scores 98/100; the missing 2 points are a deliberate tradeoff, since TLS 1.2 is kept enabled for broad client compatibility while everything else passes.
+
+All scores carry a measurement date and a live link, so a reader can re-run any scan and compare.
 
 ## Endpoints
 
@@ -63,8 +72,8 @@ Everything the tools return is publicly auditable. Re-run the scans and open the
 
 - StartupHub leaderboard: https://www.startuphub.ai/agent-readiness
 - isitagentready scan: https://isitagentready.com/turva.dev
-- Internet.nl report: https://internet.nl/site/turva.dev/
 - Hardenize report: https://www.hardenize.com/report/turva.dev/
+- Internet.nl report: https://internet.nl/site/turva.dev/
 - Company (Finnish Business Information System): https://tietopalvelu.ytj.fi/yritys/3600281-7
 
 ## How it works
