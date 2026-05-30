@@ -1,4 +1,3 @@
-````typescript
 import { McpAgent } from &quot;agents/mcp&quot;;
 import { McpServer } from &quot;;
 
@@ -186,4 +185,3 @@ export default {
     return withCors(new Response(&quot;Not found&quot;, { status: 404 }));
   },
 } satisfies ExportedHandler&lt;Env&gt;;
-````
