@@ -21,7 +21,7 @@ Four read-only tools. There are no write tools and no transaction tools. Each re
 | Tool | Returns |
 |---|---|
 | `get_services` | The service catalog (audit, advisory, implementation, MCP server design, workshops), the engagement model, and the pricing model (quote on request) |
-| `get_agent_readiness` | turva.dev&#x27;s own agent-readiness scores from independent scanners, with the measurement date and verification links |
+| `get_agent_readiness` | turva.dev&#x27;s own agent-readiness scores from independent scanners, with per-scanner sub-scores, leaderboard rank, notable wins, the measurement date, and verification links |
 | `get_security_evidence` | Public web-security scan results for turva.dev&#x27;s own domain (Hardenize, Internet.nl), with the scan date |
 | `get_principles` | The engagement principles: async-only, least access, results measured in scanner numbers, open and verifiable |
 
@@ -31,8 +31,15 @@ Data is served from static TypeScript objects bundled with the Worker, so every 
 
 turva.dev publishes its own scan results so the work is verifiable, not just claimed.
 
-- Agent-readiness: 100/100 on both independent scanners (startuphub.ai, where it ranks #1 of the top 100 sites, and isitagentready.com, Level 5 Agent-Native).
-- Web security: Hardenize passes all 13 categories. Internet.nl scores 98/100; the missing 2 points are a deliberate tradeoff, since TLS 1.2 is kept enabled for broad client compatibility while everything else passes.
+**Agent-readiness: 100/100 on both independent scanners.**
+
+- startuphub.ai: 100/100 (A+), ranked #1 of the top 100 publicly scanned sites. The runner-up scores 97, and the scanner&#x27;s own site ranks #3 at 95. All six sub-scores are perfect: Discoverability, Content, Access Control, Capabilities, Commerce, and Quality. Notable wins: an MCP Server Card (under 0.01% of sites have one), an llms.txt guide (top 3%), declared Content Signals (top 4%), and Markdown content negotiation (top 4%).
+- isitagentready.com (the same scanner as Cloudflare Agent-Ready): 100/100, Level 5 (Agent-Native). Discoverability, Content, Bot Access Control, and API/Auth/MCP/Skill Discovery all pass fully. Commerce is optional and is not required for the perfect overall score.
+
+**Web security: measured and explained.**
+
+- Hardenize passes all 13 categories.
+- Internet.nl scores 98/100. The missing 2 points are a deliberate tradeoff, since TLS 1.2 is kept enabled for broad client compatibility while everything else passes.
 
 All scores carry a measurement date and a live link, so a reader can re-run any scan and compare.
 

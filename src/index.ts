@@ -49,26 +49,40 @@ const SERVICES = {
 
 const AGENT_READINESS = {
   domain: &quot;turva.dev&quot;,
-  measured_at: &quot;2026-05-28&quot;,
-  note: &quot;Scores are a point-in-time reading by independent public scanners, not a permanent state. Always verify against the live links below.&quot;,
+  measured_at: &quot;2026-05-30&quot;,
+  note: &quot;Scores are a point-in-time reading by independent public scanners, not a permanent state. Each scanner uses its own category scheme. Always verify against the live links below.&quot;,
   scans: [
     {
       provider: &quot;startuphub.ai&quot;,
-      result: &quot;100/100 (A+), #1 of top 100 sites&quot;,
+      result: &quot;100/100 (A+)&quot;,
+      leaderboard: &quot;#1 of the top 100 publicly scanned sites. Next is wyrm.ai at 97; the scanner&#x27;s own site, startuphub.ai, is #3 at 95.&quot;,
       categories: {
-        discoverability: &quot;100/100&quot;,
-        content: &quot;100/100&quot;,
-        access_control: &quot;100/100&quot;,
-        capabilities: &quot;100/100&quot;,
-        commerce: &quot;100/100&quot;,
-        quality: &quot;100/100&quot;,
+        discoverability: &quot;100/100 (3/3 checks)&quot;,
+        content: &quot;100/100 (3/3 checks)&quot;,
+        access_control: &quot;100/100 (2/2 checks)&quot;,
+        capabilities: &quot;100/100 (6/6 checks)&quot;,
+        commerce: &quot;100/100 (6/6 checks)&quot;,
+        quality: &quot;100/100 (4/4 checks)&quot;,
       },
+      highlights: [
+        &quot;MCP Server Card present, under 0.01% of sites have one&quot;,
+        &quot;llms.txt guide, top 3% of sites&quot;,
+        &quot;Content Signals declared, top 4% of sites&quot;,
+        &quot;Markdown content negotiation, top 4% of sites&quot;,
+      ],
       url: &quot;https://www.startuphub.ai/agent-readiness&quot;,
     },
     {
       provider: &quot;isitagentready.com&quot;,
       result: &quot;100/100, Level 5 (Agent-Native)&quot;,
-      note: &quot;Cloudflare Agent-Ready and isitagentready.com are the same scanner on two domains.&quot;,
+      note: &quot;Cloudflare Agent-Ready and isitagentready.com are the same scanner on two domains. This scanner uses a different category scheme from startuphub.ai.&quot;,
+      categories: {
+        discoverability: &quot;100 (4/4 checks)&quot;,
+        content: &quot;100 (1/1 checks)&quot;,
+        bot_access_control: &quot;100 (2/2 checks)&quot;,
+        api_auth_mcp_skill_discovery: &quot;100 (7/7 checks)&quot;,
+        commerce: &quot;50 (optional, not required for the perfect overall score)&quot;,
+      },
       url: &quot;https://isitagentready.com/turva.dev&quot;,
     },
   ],
@@ -116,7 +130,7 @@ export class TurvaMCP extends McpAgent {
     );
     this.server.tool(
       &quot;get_agent_readiness&quot;,
-      &quot;Returns turva.dev&#x27;s own agent-readiness scores from independent public scanners (startuphub.ai, isitagentready.com), with the measurement date and verification links.&quot;,
+      &quot;Returns turva.dev&#x27;s own agent-readiness scores from independent public scanners (startuphub.ai, isitagentready.com), including per-scanner sub-scores, leaderboard rank, and notable wins, with the measurement date and verification links.&quot;,
       {},
       async () =&gt; ({ content: [{ type: &quot;text&quot;, text: JSON.stringify(AGENT_READINESS, null, 2) }] }),
     );
