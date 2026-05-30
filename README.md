@@ -108,7 +108,7 @@ If you want an agent-readiness audit of your own domain, see [turva.dev](https:/
 
 ## Security
 
-Responsible disclosure: see [SECURITY.md](SECURITY.md). Contact: <mailto:info@turva.dev>
+Responsible disclosure: see [SECURITY.md](SECURITY.md). Contact: [info@turva.dev](mailto:info@turva.dev)
 
 ## License
 
