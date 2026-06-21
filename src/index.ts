@@ -48,13 +48,13 @@ const SERVICES = {
 
 const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-05-30",
+  measured_at: "2026-06-21",
   note: "Scores are a point-in-time reading by independent public scanners, not a permanent state. Each scanner uses its own category scheme. Always verify against the live links below.",
   scans: [
     {
       provider: "startuphub.ai",
       result: "100/100 (A+)",
-      leaderboard: "#1 of the top 100 publicly scanned sites. Next is wyrm.ai at 97; the scanner's own site, startuphub.ai, is #3 at 95.",
+      leaderboard: "#1 of the top 100 publicly scanned sites on the startuphub.ai leaderboard.",
       categories: {
         discoverability: "100/100 (3/3 checks)",
         content: "100/100 (3/3 checks)",
@@ -89,7 +89,7 @@ const AGENT_READINESS = {
 
 const SECURITY_EVIDENCE = {
   domain: "turva.dev",
-  measured_at: "2026-05-30",
+  measured_at: "2026-06-20",
   scans: [
     {
       provider: "Hardenize",
