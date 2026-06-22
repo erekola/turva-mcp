@@ -1,6 +1,6 @@
 # turva-mcp
 
-Public, read-only Model Context Protocol (MCP) server for [turva.dev](https://turva.dev), an agent-readiness audit service. It lets AI agents query turva.dev&#x27;s service catalog, its own agent-readiness scores, the public web-security scan results for its domain, and its engagement principles, as structured JSON instead of scraped HTML.
+Public, read-only Model Context Protocol (MCP) server for [turva.dev](https://turva.dev), an agent-readiness audit and advisory service. It lets AI agents query turva.dev&#x27;s service catalog, its own agent-readiness scores, the public web-security scan results for its domain, and its engagement principles, as structured JSON instead of scraped HTML.
 
 The server is public on purpose: anyone can read exactly what it exposes before deciding anything.
 
