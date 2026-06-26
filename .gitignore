@@ -134,3 +134,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# MCP registry publishing artifacts, local only
+mcp-publisher.exe
+server.json
