@@ -2,8 +2,10 @@ import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 const SERVICES = {
-  pricing_model: "quote_on_request",
-  pricing_note: "Scope and price are agreed per engagement. Request a quote: turva.dev",
+  pricing_model: "fixed_list_prices",
+  pricing_note: "Audit, advisory and implementation have fixed list prices in EUR, VAT not included. MCP server design and internal workshops are scoped and quoted per engagement. Request a quote: turva.dev",
+  currency: "EUR",
+  vat_included: false,
   engagement: {
     communication: "async_only",
     notes: [
@@ -16,30 +18,40 @@ const SERVICES = {
     {
       id: "audit",
       name: "Agent-Readiness Audit",
+      price: 6500,
+      unit: "fixed",
+      duration: "2-3 weeks",
       summary: "Fixed scope. Two independent scanners run against the site or API, followed by a written report with a prioritized fix list.",
       deliverable: "A measured baseline and a clear plan for what to fix first.",
     },
     {
       id: "advisory",
       name: "Advisory",
+      price: 3000,
+      unit: "month",
+      minimum_commitment: "3 months",
       summary: "Monthly retainer, async-only. Ongoing review as the site, API, or product evolves.",
       deliverable: "Each scanner cycle reads higher than the last, or the report explains why a tradeoff was kept on purpose.",
     },
     {
       id: "implementation",
       name: "Implementation",
+      price: 1500,
+      unit: "day",
       summary: "On request. Worker-level changes, well-known manifests, MCP server work, JSON-LD and Schema fixes.",
       deliverable: "The improvement is verifiable against the audit baseline in the next scan.",
     },
     {
       id: "mcp-server-design",
       name: "MCP Server Design",
+      price: "on request",
       summary: "On request. Read-only discovery tools over Streamable HTTP. No auth surface and no logging by default.",
       deliverable: "An endpoint that stays readable for agents without becoming an abuse vector.",
     },
     {
       id: "internal-workshops",
       name: "Internal Workshops",
+      price: "on request",
       summary: "On request, async-first. How scanners read a site, what the commerce protocols require in practice, and how to keep agent-readiness intact after the audit ends.",
       deliverable: "A recorded session or a written guide.",
     },
@@ -123,7 +135,7 @@ export class TurvaMCP extends McpAgent {
   async init() {
     this.server.tool(
       "get_services",
-      "Returns turva.dev's service catalog: agent-readiness audit, advisory, implementation, MCP server design, and internal workshops, plus the engagement model and pricing (quote on request).",
+      "Returns turva.dev's service catalog: agent-readiness audit, advisory, implementation, MCP server design, and internal workshops, plus the engagement model and pricing (fixed list prices for audit, advisory and implementation; MCP server design and workshops on request).",
       {},
       async () => ({ content: [{ type: "text", text: JSON.stringify(SERVICES, null, 2) }] }),
     );
