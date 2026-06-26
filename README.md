@@ -34,7 +34,7 @@ Measured on turva.dev: agent-readiness on 2026-06-26, web security on 2026-06-26
 
 **Agent-readiness: 100/100 on both independent scanners.**
 
-- startuphub.ai: 100/100 (A+), ranked first of all publicly-scanned sites on the startuphub.ai agent-readiness leaderboard. All six sub-scores are perfect: Discoverability, Content, Access Control, Capabilities, Commerce, and Quality. Notable wins: an MCP Server Card (under 0.01% of sites have one), an llms.txt guide (top 3%), declared Content Signals (top 4%), and Markdown content negotiation (top 4%).
+- startuphub.ai: 100/100 (A+), ranked first of publicly-scanned sites on the startuphub.ai agent-readiness leaderboard. All six sub-scores are perfect: Discoverability, Content, Access Control, Capabilities, Commerce, and Quality. Notable wins: an MCP Server Card (under 0.01% of sites have one), an llms.txt guide (top 3%), declared Content Signals (top 4%), and Markdown content negotiation (top 4%).
 - isitagentready.com (the same scanner as Cloudflare Agent-Ready): 100/100, Level 5 (Agent-Native). Discoverability, Content, Bot Access Control, and API/Auth/MCP/Skill Discovery all pass fully. Commerce is optional and is not required for the perfect overall score.
 
 **Web security: measured and explained.**

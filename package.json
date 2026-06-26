@@ -9,8 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Erik Rekola",
+  "license": "MIT",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260523.1",
     "typescript": "^6.0.3",

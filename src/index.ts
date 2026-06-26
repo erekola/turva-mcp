@@ -54,7 +54,7 @@ const AGENT_READINESS = {
     {
       provider: "startuphub.ai",
       result: "100/100 (A+)",
-      leaderboard: "#1 of the top 100 publicly scanned sites on the startuphub.ai leaderboard.",
+      leaderboard: "#1 of publicly-scanned sites on the startuphub.ai leaderboard.",
       categories: {
         discoverability: "100/100 (3/3 checks)",
         content: "100/100 (3/3 checks)",
