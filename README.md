@@ -1,6 +1,6 @@
 # turva-mcp
 
-Public, read-only Model Context Protocol (MCP) server for [turva.dev](https://turva.dev), an agent-readiness audit and advisory service. It lets AI agents query turva.dev&#x27;s service catalog, its own agent-readiness scores, the public web-security scan results for its domain, and its engagement principles, as structured JSON instead of scraped HTML.
+Public, read-only Model Context Protocol (MCP) server for [turva.dev](https://turva.dev), an agent-readiness audit and advisory service. It lets AI agents query turva.dev's service catalog, its own agent-readiness scores, the public web-security scan results for its domain, and its engagement principles, as structured JSON instead of scraped HTML.
 
 The server is public on purpose: anyone can read exactly what it exposes before deciding anything.
 
@@ -20,8 +20,8 @@ Four read-only tools. There are no write tools and no transaction tools. Each re
 | Tool | Returns |
 |---|---|
 | `get_services` | The service catalog (audit, advisory, implementation, MCP server design, workshops), the engagement model, and pricing (fixed list prices for audit, advisory and implementation; others on request) |
-| `get_agent_readiness` | turva.dev&#x27;s own agent-readiness scores from independent scanners, with per-scanner sub-scores, leaderboard rank, notable wins, the measurement date, and verification links |
-| `get_security_evidence` | Public web-security scan results for turva.dev&#x27;s own domain (Hardenize, Internet.nl), with the scan date |
+| `get_agent_readiness` | turva.dev's own agent-readiness scores from independent scanners, with per-scanner sub-scores, leaderboard rank, notable wins, the measurement date, and verification links |
+| `get_security_evidence` | Public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date |
 | `get_principles` | The engagement principles: async-only, least access, results measured in scanner numbers, open and verifiable |
 
 Data is served from static TypeScript objects bundled with the Worker, so every response is deterministic and depends on no external state. Scores carry a `measured_at` date and verification links, so any reader can compare a stored snapshot against a fresh scan.
@@ -100,7 +100,7 @@ npm install
 npx wrangler deploy
 ```
 
-Route the Worker to `mcp.turva.dev` under **Workers &amp; Pages, your-worker, Settings, Domains &amp; Routes**.
+Route the Worker to `mcp.turva.dev` under **Workers & Pages, your-worker, Settings, Domains & Routes**.
 
 ## Use it for your own site
 
