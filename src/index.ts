@@ -60,7 +60,7 @@ const SERVICES = {
 
 const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-06-26",
+  measured_at: "2026-06-27",
   note: "Scores are a point-in-time reading by independent public scanners, not a permanent state. Each scanner uses its own category scheme. Always verify against the live links below.",
   scans: [
     {
