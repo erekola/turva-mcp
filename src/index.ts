@@ -106,8 +106,7 @@ const SECURITY_EVIDENCE = {
     {
       provider: "Hardenize",
       result: "13/13 categories passed",
-      note: "Hardenize keeps no stable per-domain report URL; the result is re-runnable at the link.",
-      url: "https://www.hardenize.com/",
+      url: "https://www.hardenize.com/report/turva.dev",
     },
     {
       provider: "Internet.nl",
