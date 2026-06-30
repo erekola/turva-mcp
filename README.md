@@ -30,7 +30,7 @@ Data is served from static TypeScript objects bundled with the Worker, so every 
 
 turva.dev publishes its own scan results so the work is verifiable, not just claimed.
 
-Measured on turva.dev: agent-readiness on 2026-06-27, web security on 2026-06-26.
+Measured on turva.dev: agent-readiness on 2026-06-30, web security on 2026-06-30.
 
 **Agent-readiness: 100/100 on both independent scanners.**
 
@@ -40,7 +40,7 @@ Measured on turva.dev: agent-readiness on 2026-06-27, web security on 2026-06-26
 **Web security: measured and explained.**
 
 - Hardenize passes all 13 categories.
-- Internet.nl scores 98/100. The missing 2 points are a deliberate tradeoff, since TLS 1.2 is kept enabled for broad client compatibility while everything else passes.
+- Internet.nl scores 98/100. IPv6, DNSSEC and RPKI pass in full; the single deduction is one HTTPS sub-test, the hash function for key exchange.
 
 All scores carry a measurement date and a live link, so a reader can re-run any scan and compare.
 
@@ -80,7 +80,7 @@ Everything the tools return is publicly auditable. Re-run the scans and open the
 
 - StartupHub leaderboard: https://www.startuphub.ai/agent-readiness
 - isitagentready scan: https://isitagentready.com/turva.dev
-- Hardenize report: https://www.hardenize.com/report/turva.dev/
+- Hardenize report: https://www.hardenize.com/ (re-runnable public report; Hardenize keeps no stable per-domain URL)
 - Internet.nl report: https://internet.nl/site/turva.dev/
 - Company (Finnish Business Information System): https://tietopalvelu.ytj.fi/yritys/3600281-7
 

@@ -60,7 +60,7 @@ const SERVICES = {
 
 const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-06-27",
+  measured_at: "2026-06-30",
   note: "Scores are a point-in-time reading by independent public scanners, not a permanent state. Each scanner uses its own category scheme. Always verify against the live links below.",
   scans: [
     {
@@ -73,7 +73,7 @@ const AGENT_READINESS = {
         access_control: "100/100 (2/2 checks)",
         capabilities: "100/100 (6/6 checks)",
         commerce: "100/100 (6/6 checks)",
-        quality: "100/100 (4/4 checks)",
+        quality: "100/100 (5/5 checks)",
       },
       highlights: [
         "MCP Server Card present, under 0.01% of sites have one",
@@ -101,18 +101,19 @@ const AGENT_READINESS = {
 
 const SECURITY_EVIDENCE = {
   domain: "turva.dev",
-  measured_at: "2026-06-26",
+  measured_at: "2026-06-30",
   scans: [
     {
       provider: "Hardenize",
       result: "13/13 categories passed",
-      url: "https://www.hardenize.com/report/turva.dev/",
+      note: "Hardenize keeps no stable per-domain report URL; the result is re-runnable at the link.",
+      url: "https://www.hardenize.com/",
     },
     {
       provider: "Internet.nl",
       score: 98,
       scale: "0-100",
-      note: "The missing 2 points are a deliberate tradeoff: TLS 1.2 is kept enabled for broad client compatibility. Everything else passes.",
+      note: "IPv6, DNSSEC and RPKI pass in full. The single deduction is one HTTPS sub-test, the hash function for key exchange.",
       url: "https://internet.nl/site/turva.dev/",
     },
   ],
