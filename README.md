@@ -30,7 +30,7 @@ Data is served from static TypeScript objects bundled with the Worker, so every 
 
 turva.dev publishes its own scan results so the work is verifiable, not just claimed.
 
-Measured on turva.dev: agent-readiness on 2026-06-30, web security on 2026-06-30.
+Measured on turva.dev: agent-readiness on 2026-07-01, web security on 2026-07-01.
 
 **Agent-readiness: 100/100 on both independent scanners.**
 
