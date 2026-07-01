@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 const SERVICES = {
   pricing_model: "fixed_list_prices",
-  pricing_note: "Audit, advisory and implementation have fixed list prices in EUR, VAT not included. MCP server design and internal workshops are scoped and quoted per engagement. Request a quote: turva.dev",
+  pricing_note: "Audit, advisory and implementation have fixed list prices in EUR, VAT not included. Agent operations and MCP server design are scoped and quoted per engagement. Request a quote: turva.dev",
   currency: "EUR",
   vat_included: false,
   engagement: {
@@ -42,18 +42,18 @@ const SERVICES = {
       deliverable: "The improvement is verifiable against the audit baseline in the next scan.",
     },
     {
+      id: "agent-operations",
+      name: "Agent Operations",
+      price: "on request",
+      summary: "On request. The work beyond readiness: the data path an agent acts on, and the decision envelope of permissions and thresholds that bounds what it may decide.",
+      deliverable: "A data path that holds under real conditions and a decision envelope that does exactly what it claims.",
+    },
+    {
       id: "mcp-server-design",
       name: "MCP Server Design",
       price: "on request",
       summary: "On request. Read-only discovery tools over Streamable HTTP. No auth surface and no logging by default.",
       deliverable: "An endpoint that stays readable for agents without becoming an abuse vector.",
-    },
-    {
-      id: "internal-workshops",
-      name: "Internal Workshops",
-      price: "on request",
-      summary: "On request, async-first. How scanners read a site, what the commerce protocols require in practice, and how to keep agent-readiness intact after the audit ends.",
-      deliverable: "A recorded session or a written guide.",
     },
   ],
 } as const;
@@ -130,12 +130,12 @@ const PRINCIPLES = {
 } as const;
 
 export class TurvaMCP extends McpAgent {
-  server = new McpServer({ name: "turva-mcp", version: "1.1.0" });
+  server = new McpServer({ name: "turva-mcp", version: "1.2.0" });
 
   async init() {
     this.server.tool(
       "get_services",
-      "Returns turva.dev's service catalog: agent-readiness audit, advisory, implementation, MCP server design, and internal workshops, plus the engagement model and pricing (fixed list prices for audit, advisory and implementation; MCP server design and workshops on request).",
+      "Returns turva.dev's service catalog: agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for audit, advisory and implementation; agent operations and MCP server design on request).",
       {},
       async () => ({ content: [{ type: "text", text: JSON.stringify(SERVICES, null, 2) }] }),
     );

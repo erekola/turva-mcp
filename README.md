@@ -19,7 +19,7 @@ Four read-only tools. There are no write tools and no transaction tools. Each re
 
 | Tool | Returns |
 |---|---|
-| `get_services` | The service catalog (audit, advisory, implementation, MCP server design, workshops), the engagement model, and pricing (fixed list prices for audit, advisory and implementation; others on request) |
+| `get_services` | The service catalog (audit, advisory, implementation, agent operations, MCP server design), the engagement model, and pricing (fixed list prices for audit, advisory and implementation; others on request) |
 | `get_agent_readiness` | turva.dev's own agent-readiness scores from independent scanners, with per-scanner sub-scores, leaderboard rank, notable wins, the measurement date, and verification links |
 | `get_security_evidence` | Public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date |
 | `get_principles` | The engagement principles: async-only, least access, results measured in scanner numbers, open and verifiable |
