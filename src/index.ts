@@ -194,6 +194,12 @@ export default {
         { headers: { "Content-Type": "application/json" } },
       ));
     }
+    if (url.pathname === "/.well-known/glama.json") {
+      return withCors(new Response(
+        JSON.stringify({ "$schema": "https://glama.ai/mcp/schemas/connector.json", maintainers: [{ email: "info@turva.dev" }] }),
+        { headers: { "Content-Type": "application/json" } },
+      ));
+    }
     return withCors(new Response("Not found", { status: 404 }));
   },
 } satisfies ExportedHandler<Env>;
