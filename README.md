@@ -51,6 +51,7 @@ All scores carry a measurement date and a live link, so a reader can re-run any 
 | `POST /mcp` | MCP over Streamable HTTP |
 | `GET /` | Server card JSON (`name`, `transport`, `endpoint`) |
 | `GET /.well-known/mcp` | Server card JSON |
+| `GET /.well-known/glama.json` | Glama MCP directory domain verification |
 | `OPTIONS *` | `204` CORS preflight |
 | any other path | `404` |
 
