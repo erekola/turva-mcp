@@ -38,7 +38,7 @@ const SERVICES = {
       name: "Implementation",
       price: 1500,
       unit: "day",
-      summary: "On request. Worker-level changes, well-known manifests, MCP server work, JSON-LD and Schema fixes.",
+      summary: "Booked per day. Worker-level changes, well-known manifests, MCP server work, JSON-LD and Schema fixes.",
       deliverable: "The improvement is verifiable against the audit baseline in the next scan.",
     },
     {
@@ -162,8 +162,8 @@ export class TurvaMCP extends McpAgent {
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, mcp-session-id",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, mcp-session-id, mcp-protocol-version, last-event-id",
   "Access-Control-Expose-Headers": "mcp-session-id",
   "Access-Control-Max-Age": "86400",
 };

@@ -1,7 +1,7 @@
 {
   "name": "turva-mcp",
   "version": "1.2.0",
-  "description": "MCP server for turva.dev — exposes services, security evidence and principles to AI agents.",
+  "description": "MCP server for turva.dev. Exposes the service catalog, agent-readiness scores, security evidence and engagement principles to AI agents.",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

@@ -4,7 +4,7 @@ Public, read-only Model Context Protocol (MCP) server for [turva.dev](https://tu
 
 The server is public on purpose: anyone can read exactly what it exposes before deciding anything.
 
-## Endpoint
+## MCP endpoint
 ```
 https://mcp.turva.dev/mcp
 ```
@@ -55,6 +55,8 @@ All scores carry a measurement date and a live link, so a reader can re-run any 
 | `OPTIONS *` | `204` CORS preflight |
 | any other path | `404` |
 
+All methods on `/mcp` are handled by the Streamable HTTP transport (`GET` opens the SSE stream, `DELETE` ends a session). The card paths respond to any method.
+
 ## Connect
 
 Point any MCP client that supports Streamable HTTP at the endpoint. Example client config:
@@ -87,7 +89,7 @@ Everything the tools return is publicly auditable. Re-run the scans and open the
 
 ## How it works
 
-A single Cloudflare Worker built on the Cloudflare Agents SDK serves the MCP endpoint, backed by a Durable Object. Tool data lives in static TypeScript objects in the bundle. The server does no logging; errors are returned as MCP protocol error responses rather than written anywhere.
+A single Cloudflare Worker built on the Cloudflare Agents SDK serves the MCP endpoint, backed by a Durable Object. Tool data lives in static TypeScript objects in the bundle. The server does no logging; errors are returned as MCP protocol error responses rather than written anywhere. Cloudflare Workers observability is switched off in `wrangler.jsonc`, so the platform does not collect invocation logs either.
 
 The Worker is independent from the main turva.dev site, so an MCP change cannot affect the website.
 
