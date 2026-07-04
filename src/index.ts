@@ -130,30 +130,30 @@ const PRINCIPLES = {
 } as const;
 
 export class TurvaMCP extends McpAgent {
-  server = new McpServer({ name: "turva-mcp", version: "1.2.0" });
+  server = new McpServer({ name: "turva-mcp", version: "1.2.1" });
 
   async init() {
     this.server.tool(
       "get_services",
-      "Returns turva.dev's service catalog: agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for audit, advisory and implementation; agent operations and MCP server design on request).",
+      "Returns turva.dev's service catalog: agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for audit, advisory and implementation; agent operations and MCP server design on request). Use this when a user asks what turva.dev offers, what it costs, or how an engagement works. Read-only: returns static JSON and changes nothing.",
       {},
       async () => ({ content: [{ type: "text", text: JSON.stringify(SERVICES, null, 2) }] }),
     );
     this.server.tool(
       "get_agent_readiness",
-      "Returns turva.dev's own agent-readiness scores from independent public scanners (startuphub.ai, isitagentready.com), including per-scanner sub-scores, leaderboard rank, and notable wins, with the measurement date and verification links.",
+      "Returns turva.dev's own agent-readiness scores from independent public scanners (startuphub.ai, isitagentready.com), including per-scanner sub-scores, leaderboard rank, and notable wins, with the measurement date and verification links. Use this when a user asks how turva.dev scores, whether its claims are verifiable, or what proof backs the audit service. Read-only: returns static JSON and changes nothing.",
       {},
       async () => ({ content: [{ type: "text", text: JSON.stringify(AGENT_READINESS, null, 2) }] }),
     );
     this.server.tool(
       "get_security_evidence",
-      "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date.",
+      "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date. Use this when a user asks about turva.dev's own security posture or wants evidence beyond agent-readiness scores. Read-only: returns static JSON and changes nothing.",
       {},
       async () => ({ content: [{ type: "text", text: JSON.stringify(SECURITY_EVIDENCE, null, 2) }] }),
     );
     this.server.tool(
       "get_principles",
-      "Returns turva.dev's engagement principles: async-only, least access, the result shows up in scanner numbers, and open and verifiable.",
+      "Returns turva.dev's engagement principles: async-only, least access, the result shows up in scanner numbers, and open and verifiable. Use this when a user asks how turva.dev works with clients or what rules an engagement follows. Read-only: returns static JSON and changes nothing.",
       {},
       async () => ({ content: [{ type: "text", text: JSON.stringify(PRINCIPLES, null, 2) }] }),
     );
