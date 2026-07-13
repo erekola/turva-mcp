@@ -73,7 +73,7 @@ const AGENT_READINESS = {
         access_control: "100/100 (2/2 checks)",
         capabilities: "100/100 (6/6 checks)",
         commerce: "100/100 (6/6 checks)",
-        quality: "100/100 (5/5 checks)",
+        quality: "100/100 (8/8 checks)",
       },
       highlights: [
         "MCP Server Card present, under 0.01% of sites have one",
