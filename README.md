@@ -82,7 +82,7 @@ curl.exe https://mcp.turva.dev/
 Everything the tools return is publicly auditable. Re-run the scans and open the records yourself:
 
 - StartupHub leaderboard: https://www.startuphub.ai/agent-readiness
-- isitagentready scan: https://isitagentready.com/turva.dev
+- isitagentready scanner: https://isitagentready.com/
 - Hardenize report: https://www.hardenize.com/report/turva.dev
 - Internet.nl report: https://internet.nl/site/turva.dev/
 - Company (Finnish Business Information System): https://tietopalvelu.ytj.fi/yritys/3600281-7

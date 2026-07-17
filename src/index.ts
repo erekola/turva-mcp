@@ -91,10 +91,10 @@ const AGENT_READINESS = {
         discoverability: "100 (4/4 checks)",
         content: "100 (1/1 checks)",
         bot_access_control: "100 (2/2 checks)",
-        api_auth_mcp_skill_discovery: "100 (7/7 checks)",
+        api_auth_mcp_skill_discovery: "100 (8/8 checks)",
         commerce: "50 (optional, not required for the perfect overall score)",
       },
-      url: "https://isitagentready.com/turva.dev",
+      url: "https://isitagentready.com/",
     },
   ],
 } as const;
