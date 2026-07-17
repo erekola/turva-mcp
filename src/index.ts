@@ -60,12 +60,12 @@ const SERVICES = {
 
 const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-07-16",
+  measured_at: "2026-07-17",
   note: "Scores are a point-in-time reading by independent public scanners, not a permanent state. Each scanner uses its own category scheme. Always verify against the live links below.",
   scans: [
     {
       provider: "startuphub.ai",
-      result: "100/100 (A+)",
+      result: "99/100 (A+)",
       leaderboard: "#1 of publicly-scanned sites on the startuphub.ai leaderboard.",
       categories: {
         discoverability: "100/100 (3/3 checks)",
@@ -73,7 +73,7 @@ const AGENT_READINESS = {
         access_control: "100/100 (2/2 checks)",
         capabilities: "100/100 (6/6 checks)",
         commerce: "100/100 (6/6 checks)",
-        quality: "100/100 (8/8 checks)",
+        quality: "96/100 (7/8 checks)",
       },
       highlights: [
         "MCP Server Card present, under 0.01% of sites have one",
