@@ -125,12 +125,12 @@ const PRINCIPLES = {
     { id: "async-only", title: "All communication is async", rationale: "No calls and no calendar links. Everything stays in writing, so the work and the trail are auditable end to end." },
     { id: "least-access", title: "No production credentials, scoped write access", rationale: "Read access is enough for the audit. Write access is scoped per task only if implementation is purchased separately." },
     { id: "measured-result", title: "The result shows up in scanner numbers", rationale: "The next scan reads higher than the previous one, in the categories the report named, by the dates it named." },
-    { id: "transparency", title: "Open and verifiable", rationale: "Backed by a registered company, Business ID 3600281-7, Finland. Our own domain's scores are publicly verifiable." },
+    { id: "transparency", title: "Open and verifiable", rationale: "Backed by a registered business, Business ID 3600281-7, Finland. Our own domain's scores are publicly verifiable." },
   ],
 } as const;
 
 export class TurvaMCP extends McpAgent {
-  server = new McpServer({ name: "turva-mcp", version: "1.2.1" });
+  server = new McpServer({ name: "turva-mcp", version: "1.2.2" });
 
   async init() {
     this.server.tool(
