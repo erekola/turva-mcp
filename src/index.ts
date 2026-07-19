@@ -64,29 +64,9 @@ const AGENT_READINESS = {
   note: "Scores are a point-in-time reading by independent public scanners, not a permanent state. Each scanner uses its own category scheme. Always verify against the live links below.",
   scans: [
     {
-      provider: "startuphub.ai",
-      result: "99/100 (A+)",
-      leaderboard: "#1 of publicly-scanned sites on the startuphub.ai leaderboard.",
-      categories: {
-        discoverability: "100/100 (3/3 checks)",
-        content: "100/100 (3/3 checks)",
-        access_control: "100/100 (2/2 checks)",
-        capabilities: "100/100 (6/6 checks)",
-        commerce: "100/100 (6/6 checks)",
-        quality: "96/100 (7/8 checks)",
-      },
-      highlights: [
-        "MCP Server Card present, under 0.01% of sites have one",
-        "llms.txt guide, top 3% of sites",
-        "Content Signals declared, top 4% of sites",
-        "Markdown content negotiation, top 4% of sites",
-      ],
-      url: "https://www.startuphub.ai/agent-readiness",
-    },
-    {
       provider: "isitagentready.com",
       result: "100/100, Level 5 (Agent-Native)",
-      note: "Cloudflare Agent-Ready and isitagentready.com are the same scanner on two domains. This scanner uses a different category scheme from startuphub.ai.",
+      note: "Cloudflare Agent-Ready and isitagentready.com are the same scanner on two domains.",
       categories: {
         discoverability: "100 (4/4 checks)",
         content: "100 (1/1 checks)",
@@ -130,7 +110,7 @@ const PRINCIPLES = {
 } as const;
 
 export class TurvaMCP extends McpAgent {
-  server = new McpServer({ name: "turva-mcp", version: "1.2.2" });
+  server = new McpServer({ name: "turva-mcp", version: "1.2.3" });
 
   async init() {
     this.server.tool(
@@ -141,7 +121,7 @@ export class TurvaMCP extends McpAgent {
     );
     this.server.tool(
       "get_agent_readiness",
-      "Returns turva.dev's own agent-readiness scores from independent public scanners (startuphub.ai, isitagentready.com), including per-scanner sub-scores, leaderboard rank, and notable wins, with the measurement date and verification links. Use this when a user asks how turva.dev scores, whether its claims are verifiable, or what proof backs the audit service. Read-only: returns static JSON and changes nothing.",
+      "Returns turva.dev's own agent-readiness score from an independent public scanner (isitagentready.com), including category sub-scores, with the measurement date and verification links. Use this when a user asks how turva.dev scores, whether its claims are verifiable, or what proof backs the audit service. Read-only: returns static JSON and changes nothing.",
       {},
       async () => ({ content: [{ type: "text", text: JSON.stringify(AGENT_READINESS, null, 2) }] }),
     );

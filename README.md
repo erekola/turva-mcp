@@ -20,7 +20,7 @@ Four read-only tools. There are no write tools and no transaction tools. Each re
 | Tool | Returns |
 |---|---|
 | `get_services` | The service catalog (audit, advisory, implementation, agent operations, MCP server design), the engagement model, and pricing (fixed list prices for audit, advisory and implementation; others on request) |
-| `get_agent_readiness` | turva.dev's own agent-readiness scores from independent scanners, with per-scanner sub-scores, leaderboard rank, notable wins, the measurement date, and verification links |
+| `get_agent_readiness` | turva.dev's own agent-readiness score from an independent scanner, with category sub-scores, notable wins, the measurement date, and verification links |
 | `get_security_evidence` | Public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date |
 | `get_principles` | The engagement principles: async-only, least access, results measured in scanner numbers, open and verifiable |
 
@@ -32,9 +32,8 @@ turva.dev publishes its own scan results so the work is verifiable, not just cla
 
 Measured on turva.dev: agent-readiness on 2026-07-17, web security on 2026-07-16.
 
-**Agent-readiness: 99/100 on startuphub.ai, 100/100 and Level 5 on isitagentready.com.**
+**Agent-readiness: 100/100 and Level 5 on isitagentready.com.**
 
-- startuphub.ai: 99/100 (A+), ranked first of publicly-scanned sites on the startuphub.ai agent-readiness leaderboard. Five sub-scores are perfect: Discoverability, Content, Access Control, Capabilities and Commerce. Quality is 96/100: the rate_limit_headers check reports no RateLimit headers while the site sends RateLimit-Policy, the field the active IETF draft defines. Notable wins: an MCP Server Card (under 0.01% of sites have one), an llms.txt guide (top 3%), declared Content Signals (top 4%), and Markdown content negotiation (top 4%).
 - isitagentready.com (the same scanner as Cloudflare Agent-Ready): 100/100, Level 5 (Agent-Native). Discoverability, Content, Bot Access Control, and API/Auth/MCP/Skill Discovery all pass fully. Commerce is optional and is not required for the perfect overall score.
 
 **Web security: measured and explained.**
@@ -81,7 +80,6 @@ curl.exe https://mcp.turva.dev/
 
 Everything the tools return is publicly auditable. Re-run the scans and open the records yourself:
 
-- StartupHub leaderboard: https://www.startuphub.ai/agent-readiness
 - isitagentready scanner: https://isitagentready.com/
 - Hardenize report: https://www.hardenize.com/report/turva.dev
 - Internet.nl report: https://internet.nl/site/turva.dev/
