@@ -60,7 +60,7 @@ const SERVICES = {
 
 const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-07-17",
+  measured_at: "2026-07-20",
   note: "Scores are a point-in-time reading by independent public scanners, not a permanent state. Each scanner uses its own category scheme. Always verify against the live links below.",
   scans: [
     {
@@ -81,7 +81,7 @@ const AGENT_READINESS = {
 
 const SECURITY_EVIDENCE = {
   domain: "turva.dev",
-  measured_at: "2026-07-16",
+  measured_at: "2026-07-20",
   scans: [
     {
       provider: "Hardenize",
