@@ -21,7 +21,7 @@ const SERVICES = {
       price: 6500,
       unit: "fixed",
       duration: "2-3 weeks",
-      summary: "Fixed scope. Two independent scanners run against the site or API, followed by a written report with a prioritized fix list.",
+      summary: "Fixed scope. An independent public scanner runs against the site or API, followed by a written report with a prioritized fix list.",
       deliverable: "A measured baseline and a clear plan for what to fix first.",
     },
     {
@@ -110,7 +110,7 @@ const PRINCIPLES = {
 } as const;
 
 export class TurvaMCP extends McpAgent {
-  server = new McpServer({ name: "turva-mcp", version: "1.2.3" });
+  server = new McpServer({ name: "turva-mcp", version: "1.2.4" });
 
   async init() {
     this.server.tool(
