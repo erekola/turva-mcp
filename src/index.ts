@@ -61,7 +61,7 @@ const SERVICES = {
 const AGENT_READINESS = {
   domain: "turva.dev",
   measured_at: "2026-07-20",
-  note: "Scores are a point-in-time reading by independent public scanners, not a permanent state. Each scanner uses its own category scheme. Always verify against the live links below.",
+  note: "Scores are a point-in-time reading by an independent public scanner, not a permanent state. Always verify against the live links below.",
   scans: [
     {
       provider: "isitagentready.com",
@@ -110,7 +110,7 @@ const PRINCIPLES = {
 } as const;
 
 export class TurvaMCP extends McpAgent {
-  server = new McpServer({ name: "turva-mcp", version: "1.2.4" });
+  server = new McpServer({ name: "turva-mcp", version: "1.2.5" });
 
   async init() {
     this.server.tool(
