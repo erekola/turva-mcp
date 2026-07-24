@@ -9,7 +9,7 @@ The server is public on purpose: anyone can read exactly what it exposes before 
 https://mcp.turva.dev/mcp
 ```
 
-Transport is Streamable HTTP. The MCP endpoint is `POST /mcp`; there is no SSE transport. A server card is published at `GET /` and `GET /.well-known/mcp`. CORS is open (`Access-Control-Allow-Origin: *`).
+Transport is Streamable HTTP. The MCP endpoint is `POST /mcp`. There is no SSE transport. A server card is published at `GET /` and `GET /.well-known/mcp`. CORS is open (`Access-Control-Allow-Origin: *`).
 
 No authentication and no API key are required. All exposed data is public and read-only.
 
@@ -17,7 +17,7 @@ No authentication and no API key are required. All exposed data is public and re
 
 Four read-only tools. There are no write tools and no transaction tools. Each returns JSON as text content.
 
-- `get_services`: the service catalog (audit, advisory, implementation, agent operations, MCP server design), the engagement model, and pricing (fixed list prices for audit, advisory and implementation; others on request).
+- `get_services`: the service catalog (audit, advisory, implementation, agent operations, MCP server design), the engagement model, and pricing (fixed list prices for audit, advisory and implementation, others on request).
 - `get_agent_readiness`: turva.dev's own agent-readiness score from an independent scanner, with category sub-scores, notable wins, the measurement date, and verification links.
 - `get_security_evidence`: public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date.
 - `get_principles`: the engagement principles, namely async-only, least access, results measured in scanner numbers, open and verifiable.
@@ -32,12 +32,12 @@ Measured on turva.dev: agent-readiness on 2026-07-20, web security on 2026-07-20
 
 **Agent-readiness: 100/100 and Level 5 on isitagentready.com.**
 
-- isitagentready.com (the same scanner as Cloudflare Agent-Ready): 100/100, Level 5 (Agent-Native). Discoverability, Content, Bot Access Control, and API/Auth/MCP/Skill Discovery all pass fully. Commerce is optional and is not required for the perfect overall score.
+- isitagentready.com (Cloudflare): 100/100, Level 5 (Agent-Native). Discoverability, Content, Bot Access Control and API/Auth/MCP/Skill Discovery all pass fully. Commerce is optional and is not required for the perfect overall score.
 
 **Web security: measured and explained.**
 
 - Hardenize passes all 13 categories.
-- Internet.nl scores 98/100. IPv6, DNSSEC and RPKI pass in full; the single deduction is one HTTPS sub-test, the hash function for key exchange.
+- Internet.nl scores 98/100. IPv6, DNSSEC and RPKI pass in full. The single deduction is one HTTPS sub-test, the hash function for key exchange.
 
 All scores carry a measurement date and a live link, so a reader can re-run any scan and compare.
 
@@ -85,7 +85,7 @@ Everything the tools return is publicly auditable. Re-run the scans and open the
 
 ## How it works
 
-A single Cloudflare Worker built on the Cloudflare Agents SDK serves the MCP endpoint, backed by a Durable Object. Tool data lives in static TypeScript objects in the bundle. The server does no logging; errors are returned as MCP protocol error responses rather than written anywhere. Cloudflare Workers observability is switched off in `wrangler.jsonc`, so the platform does not collect invocation logs either.
+A single Cloudflare Worker built on the Cloudflare Agents SDK serves the MCP endpoint, backed by a Durable Object. Tool data lives in static TypeScript objects in the bundle. The server does no logging. Errors are returned as MCP protocol error responses rather than written anywhere. Cloudflare Workers observability is switched off in `wrangler.jsonc`, so the platform does not collect invocation logs either.
 
 The Worker is independent from the main turva.dev site, so an MCP change cannot affect the website.
 
