@@ -110,7 +110,7 @@ const PRINCIPLES = {
 } as const;
 
 export class TurvaMCP extends McpAgent {
-  server = new McpServer({ name: "turva-mcp", version: "1.2.6" });
+  server = new McpServer({ name: "turva-mcp", version: "1.2.7" });
 
   async init() {
     this.server.tool(
@@ -176,38 +176,82 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Max-Age": "86400",
 };
 
-function withCors(res: Response): Response {
+// The same protections turva.dev applies to its agent-API responses. This endpoint is
+// public, unauthenticated and read cross-origin by agents, so Cross-Origin-Resource-Policy
+// is cross-origin while the rest is closed. Nothing here serves HTML or loads a subresource,
+// so the policy is default-src none. RateLimit-Policy is sent only because the limiter in
+// fetch() below actually enforces it; an advertised limit that no code enforces is exactly
+// the declared-but-unresolved surface this service audits for.
+const SECURITY_HEADERS: Record<string, string> = {
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+  "X-Frame-Options": "DENY",
+  "X-XSS-Protection": "0",
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+  "Permissions-Policy": "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=()",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "cross-origin",
+  "RateLimit-Policy": "\"default\";q=100;w=60",
+};
+
+function withHeaders(res: Response): Response {
   const headers = new Headers(res.headers);
   for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
+// Typed structurally rather than against an ambient binding type, so the shape this code
+// depends on is visible here and a workers-types bump cannot change it silently.
+interface RateLimiterBinding {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
 interface Env {
   MCP_OBJECT: DurableObjectNamespace<TurvaMCP>;
+  RATE_LIMITER?: RateLimiterBinding;
 }
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Enforced before anything else, so a burst cannot create Durable Object sessions on
+    // /mcp faster than the declared policy allows. Fail open: a missing or erroring binding
+    // serves the request normally instead of taking the endpoint down.
+    if (env.RATE_LIMITER) {
+      try {
+        const key = request.headers.get("CF-Connecting-IP") || "no-ip";
+        const { success } = await env.RATE_LIMITER.limit({ key });
+        if (!success) {
+          return withHeaders(new Response(
+            "429 Too Many Requests. This endpoint enforces its declared rate limit of 100 requests per 60 seconds per client IP. Retry after 60 seconds.\n",
+            { status: 429, headers: { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "60" } },
+          ));
+        }
+      } catch (err) {
+        console.error("Rate limiter error (failing open):", err instanceof Error ? err.stack : String(err));
+      }
+    }
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return withHeaders(new Response(null, { status: 204 }));
     }
     const url = new URL(request.url);
     if (url.pathname === "/mcp") {
       const res = await TurvaMCP.serve("/mcp").fetch(request, env, ctx);
-      return withCors(res);
+      return withHeaders(res);
     }
     if (url.pathname === "/" || url.pathname === "/.well-known/mcp") {
-      return withCors(new Response(
+      return withHeaders(new Response(
         JSON.stringify({ name: "turva-mcp", transport: "streamable-http", endpoint: "https://mcp.turva.dev/mcp" }),
         { headers: { "Content-Type": "application/json" } },
       ));
     }
     if (url.pathname === "/.well-known/glama.json") {
-      return withCors(new Response(
+      return withHeaders(new Response(
         JSON.stringify({ "$schema": "https://glama.ai/mcp/schemas/connector.json", maintainers: [{ email: "info@turva.dev" }] }),
         { headers: { "Content-Type": "application/json" } },
       ));
     }
-    return withCors(new Response("Not found", { status: 404 }));
+    return withHeaders(new Response("Not found", { status: 404 }));
   },
 } satisfies ExportedHandler<Env>;
