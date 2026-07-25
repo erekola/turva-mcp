@@ -7,6 +7,15 @@
 | 1.x     | :white_check_mark: |
 | < 1.0   | :x:                |
 
+## Open advisories
+
+Dependabot advisories on this repository come through `@modelcontextprotocol/sdk`,
+which pulls `@hono/node-server` transitively. That package is a Node HTTP adapter.
+This server runs on workerd through the Cloudflare Agents SDK and never imports it,
+so the adapter is not in the deployed bundle and the advisory does not reach
+production. Clearing it needs an SDK major, which is scheduled with the MCP
+specification revision migration rather than taken piecemeal. Checked 2026-07-26.
+
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability, please report it privately

@@ -9,9 +9,11 @@ The server is public on purpose: anyone can read exactly what it exposes before 
 https://mcp.turva.dev/mcp
 ```
 
-Transport is Streamable HTTP. The MCP endpoint is `POST /mcp`. There is no SSE transport. A server card is published at `GET /` and `GET /.well-known/mcp`. CORS is open (`Access-Control-Allow-Origin: *`).
+Listed in the official MCP registry as `dev.turva/turva-mcp`, and in the Glama MCP directory (domain verified at `/.well-known/glama.json`).
 
-No authentication and no API key are required. All exposed data is public and read-only.
+Implements MCP protocol revision 2025-11-25 and negotiates down to the older revisions the SDK supports. Transport is Streamable HTTP. The MCP endpoint is `POST /mcp`. There is no SSE transport. A server card is published at `GET /` and `GET /.well-known/mcp`. CORS is open (`Access-Control-Allow-Origin: *`).
+
+No authentication and no API key are required. All exposed data is public and read-only. Requests are rate limited to 100 per 60 seconds per client IP at the edge, answered with `429` and a `Retry-After` header past that, and the limiter fails open if it errors.
 
 ## Tools
 
@@ -26,20 +28,7 @@ Data is served from static TypeScript objects bundled with the Worker, so every 
 
 ## Evidence
 
-turva.dev publishes its own scan results so the work is verifiable, not just claimed.
-
-Measured on turva.dev: agent-readiness on 2026-07-20, web security on 2026-07-20.
-
-**Agent-readiness: 100/100 and Level 5 on isitagentready.com.**
-
-- isitagentready.com (Cloudflare): 100/100, Level 5 (Agent-Native). All five categories pass fully, including the optional Commerce checks.
-
-**Web security: measured and explained.**
-
-- Hardenize passes all 13 categories.
-- Internet.nl scores 98/100. IPv6, DNSSEC and RPKI pass in full. The single deduction is one HTTPS sub-test, the hash function for key exchange.
-
-All scores carry a measurement date and a live link, so a reader can re-run any scan and compare.
+The scores these tools return are turva.dev's own, measured by independent public scanners on 2026-07-20: 100/100 and Level 5 (Agent-Native) on isitagentready.com, Hardenize passing all 13 categories, and 98/100 on Internet.nl. Every response carries a `measured_at` date and a verification link, so a stored snapshot can be compared against a fresh scan. Re-run any scan yourself from the links in Verify below.
 
 ## Endpoints
 
@@ -68,11 +57,13 @@ Point any MCP client that supports Streamable HTTP at the endpoint. Example clie
 }
 ```
 
-Quick reachability check from PowerShell (returns the server card):
+Quick reachability check (returns the server card):
 
-```powershell
-curl.exe https://mcp.turva.dev/
 ```
+curl https://mcp.turva.dev/
+```
+
+On Windows PowerShell use `curl.exe`, since `curl` is an alias for Invoke-WebRequest.
 
 ## Verify
 
