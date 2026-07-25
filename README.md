@@ -32,7 +32,7 @@ Measured on turva.dev: agent-readiness on 2026-07-20, web security on 2026-07-20
 
 **Agent-readiness: 100/100 and Level 5 on isitagentready.com.**
 
-- isitagentready.com (Cloudflare): 100/100, Level 5 (Agent-Native). Discoverability, Content, Bot Access Control and API/Auth/MCP/Skill Discovery all pass fully. Commerce is optional and is not required for the perfect overall score.
+- isitagentready.com (Cloudflare): 100/100, Level 5 (Agent-Native). All five categories pass fully, including the optional Commerce checks.
 
 **Web security: measured and explained.**
 
