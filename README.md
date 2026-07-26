@@ -11,7 +11,7 @@ https://mcp.turva.dev/mcp
 
 Listed in the official MCP registry as `dev.turva/turva-mcp`, and in the Glama MCP directory (domain verified at `/.well-known/glama.json`).
 
-Implements MCP protocol revision 2025-11-25 and negotiates down to the older revisions the SDK supports. Transport is Streamable HTTP. The MCP endpoint is `POST /mcp`. There is no SSE transport. A server card is published at `GET /` and `GET /.well-known/mcp`. CORS is open (`Access-Control-Allow-Origin: *`).
+Implements MCP protocol revision 2025-11-25 and negotiates down to the older revisions the SDK supports. Transport is Streamable HTTP. The MCP endpoint is `POST /mcp`. The deprecated standalone SSE transport is not served. The Streamable HTTP GET stream uses SSE framing, which is a different thing. A server card is published at `GET /` and `GET /.well-known/mcp`. CORS is open (`Access-Control-Allow-Origin: *`).
 
 No authentication and no API key are required. All exposed data is public and read-only. Requests are rate limited to 100 per 60 seconds per client IP at the edge, answered with `429` and a `Retry-After` header past that, and the limiter fails open if it errors.
 
