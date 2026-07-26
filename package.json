@@ -22,7 +22,8 @@
     "zod": "^4.4.3"
   },
   "overrides": {
-    "@hono/node-server": "^2.0.5"
+    "@hono/node-server": "^2.0.5",
+    "@cloudflare/workers-types": "^4.20260523.1"
   },
   "allowScripts": {
     "core-js-pure@3.49.0": true,
