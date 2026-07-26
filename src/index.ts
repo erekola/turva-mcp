@@ -72,7 +72,7 @@ const AGENT_READINESS = {
         content: "100 (1/1 checks)",
         bot_access_control: "100 (2/2 checks)",
         api_auth_mcp_skill_discovery: "100 (8/8 checks)",
-        commerce: "50 (optional, not required for the perfect overall score)",
+        commerce: "100 (5/5 checks)",
       },
       url: "https://isitagentready.com/",
     },
@@ -110,7 +110,7 @@ const PRINCIPLES = {
 } as const;
 
 export class TurvaMCP extends McpAgent {
-  server = new McpServer({ name: "turva-mcp", version: "1.2.7" });
+  server = new McpServer({ name: "turva-mcp", version: "1.2.8" });
 
   async init() {
     this.server.tool(
