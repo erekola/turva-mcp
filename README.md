@@ -28,7 +28,7 @@ Data is served from static TypeScript objects bundled with the Worker, so every 
 
 ## Evidence
 
-The scores these tools return are turva.dev's own, measured by independent public scanners on 2026-07-20: 100/100 and Level 5 (Agent-Native) on isitagentready.com, Hardenize passing all 13 categories, and 98/100 on Internet.nl. Every response carries a `measured_at` date and a verification link, so a stored snapshot can be compared against a fresh scan. Re-run any scan yourself from the links in Verify below.
+The scores these tools return are turva.dev's own, measured by independent public scanners on 2026-07-28: 100/100 and Level 5 (Agent-Native) on isitagentready.com, Hardenize passing all 13 categories, and 98/100 on Internet.nl. Every response carries a `measured_at` date and a verification link, so a stored snapshot can be compared against a fresh scan. Re-run any scan yourself from the links in Verify below.
 
 ## Endpoints
 
