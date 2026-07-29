@@ -1,5 +1,5 @@
-import { McpAgent } from "agents/mcp";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
+import { createMcpHandler } from "agents/mcp/server";
 
 const SERVICES = {
   pricing_model: "fixed_list_prices",
@@ -109,70 +109,115 @@ const PRINCIPLES = {
   ],
 } as const;
 
-export class TurvaMCP extends McpAgent {
-  server = new McpServer({ name: "turva-mcp", version: "1.2.9" });
-
-  async init() {
-    this.server.tool(
-      "get_services",
-      "Returns turva.dev's service catalog: agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for audit, advisory and implementation; agent operations and MCP server design on request). Use this when a user asks what turva.dev offers, what it costs, or how an engagement works. Read-only: returns static JSON and changes nothing.",
-      {},
-      {
-        title: "Service catalog and pricing",
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      async () => ({ content: [{ type: "text", text: JSON.stringify(SERVICES, null, 2) }] }),
-    );
-    this.server.tool(
-      "get_agent_readiness",
-      "Returns turva.dev's own agent-readiness score from an independent public scanner (isitagentready.com), including category sub-scores, with the measurement date and verification links. Use this when a user asks how turva.dev scores, whether its claims are verifiable, or what proof backs the audit service. Read-only: returns static JSON and changes nothing.",
-      {},
-      {
-        title: "Agent-readiness score",
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      async () => ({ content: [{ type: "text", text: JSON.stringify(AGENT_READINESS, null, 2) }] }),
-    );
-    this.server.tool(
-      "get_security_evidence",
-      "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date. Use this when a user asks about turva.dev's own security posture or wants evidence beyond agent-readiness scores. Read-only: returns static JSON and changes nothing.",
-      {},
-      {
-        title: "Web-security scan evidence",
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      async () => ({ content: [{ type: "text", text: JSON.stringify(SECURITY_EVIDENCE, null, 2) }] }),
-    );
-    this.server.tool(
-      "get_principles",
-      "Returns turva.dev's engagement principles: async-only, least access, the result shows up in scanner numbers, and open and verifiable. Use this when a user asks how turva.dev works with clients or what rules an engagement follows. Read-only: returns static JSON and changes nothing.",
-      {},
-      {
-        title: "Engagement principles",
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      async () => ({ content: [{ type: "text", text: JSON.stringify(PRINCIPLES, null, 2) }] }),
-    );
-  }
+function textResult(data: unknown) {
+  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
 }
 
+// Read-only annotations, identical on all four tools. Declared once so the four
+// registrations cannot drift apart, which is the same failure class the signed
+// server card has already produced twice.
+const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
+// A fresh server per request. The 2026-07-28 revision is stateless: there is no
+// initialize handshake, no Mcp-Session-Id and no session to keep alive, so nothing
+// here is shared between requests and no Durable Object is needed. server/discover
+// is installed by the SDK itself and is deliberately not implemented by hand.
+function createServer(): McpServer {
+  const server = new McpServer(
+    { name: "turva-mcp", version: "1.3.0" },
+    {
+      // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
+      // would default them to 0 and private. These four tools are static data compiled
+      // into the Worker, so the answer is byte-identical for every caller and changes
+      // only on deploy: public is a true statement about this server, not an
+      // optimization, and one hour is well inside how often it is redeployed.
+      cacheHints: {
+        "tools/list": { ttlMs: 3_600_000, cacheScope: "public" },
+        "server/discover": { ttlMs: 3_600_000, cacheScope: "public" },
+      },
+    },
+  );
+
+  server.registerTool(
+    "get_services",
+    {
+      title: "Service catalog and pricing",
+      description: "Returns turva.dev's service catalog: agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for audit, advisory and implementation; agent operations and MCP server design on request). Use this when a user asks what turva.dev offers, what it costs, or how an engagement works. Read-only: returns static JSON and changes nothing.",
+      annotations: READ_ONLY,
+    },
+    async () => textResult(SERVICES),
+  );
+
+  server.registerTool(
+    "get_agent_readiness",
+    {
+      title: "Agent-readiness score",
+      description: "Returns turva.dev's own agent-readiness score from an independent public scanner (isitagentready.com), including category sub-scores, with the measurement date and verification links. Use this when a user asks how turva.dev scores, whether its claims are verifiable, or what proof backs the audit service. Read-only: returns static JSON and changes nothing.",
+      annotations: READ_ONLY,
+    },
+    async () => textResult(AGENT_READINESS),
+  );
+
+  server.registerTool(
+    "get_security_evidence",
+    {
+      title: "Web-security scan evidence",
+      description: "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date. Use this when a user asks about turva.dev's own security posture or wants evidence beyond agent-readiness scores. Read-only: returns static JSON and changes nothing.",
+      annotations: READ_ONLY,
+    },
+    async () => textResult(SECURITY_EVIDENCE),
+  );
+
+  server.registerTool(
+    "get_principles",
+    {
+      title: "Engagement principles",
+      description: "Returns turva.dev's engagement principles: async-only, least access, the result shows up in scanner numbers, and open and verifiable. Use this when a user asks how turva.dev works with clients or what rules an engagement follows. Read-only: returns static JSON and changes nothing.",
+      annotations: READ_ONLY,
+    },
+    async () => textResult(PRINCIPLES),
+  );
+
+  return server;
+}
+
+// CORS for the MCP endpoint itself. Every value here is a claim about what this
+// endpoint actually does, so none of it is copied from a default:
+// - methods lists POST and OPTIONS only, because GET and DELETE were session
+//   operations and now answer 405.
+// - headers carries exactly the four the revision defines for a POST plus
+//   Content-Type and Accept. mcp-session-id and last-event-id are gone from the
+//   protocol, so advertising them would be a surface that does not exist.
+// - origin is turva.dev rather than a wildcard, because allowedOriginHostnames
+//   below actually enforces that list. A wildcard here would advertise access
+//   that the Origin check then refuses.
+const MCP_CORS = {
+  origin: "https://turva.dev",
+  methods: "POST, OPTIONS",
+  headers: "Content-Type, Accept, MCP-Protocol-Version, Mcp-Method, Mcp-Name",
+  exposeHeaders: "",
+  maxAge: 86400,
+};
+
+// Browser Origins allowed to reach the endpoint. mcp.turva.dev is a custom domain,
+// so the handler's default list (localhost and workers.dev only) would reject every
+// browser request including the preflight, while non-browser clients, which send no
+// Origin at all, would pass. That failure is invisible to curl and to every gate we
+// run, which is why the list is explicit. "*" is not used: it disables the Origin
+// check the revision expects an HTTP MCP server to perform.
+const MCP_ALLOWED_ORIGIN_HOSTNAMES = ["turva.dev", "mcp.turva.dev"];
+
+// The discovery documents below are plain JSON read by directories and crawlers,
+// not MCP traffic, so they keep the open cross-origin policy they have always had.
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, mcp-session-id, mcp-protocol-version, last-event-id",
-  "Access-Control-Expose-Headers": "mcp-session-id",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -195,6 +240,17 @@ const SECURITY_HEADERS: Record<string, string> = {
   "RateLimit-Policy": "\"default\";q=100;w=60",
 };
 
+function withSecurityHeaders(res: Response): Response {
+  const headers = new Headers(res.headers);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
+  // The handler merges its own CORS defaults, so an empty exposeHeaders value still ships
+  // as a present but valueless Access-Control-Expose-Headers line (measured 2026-07-29).
+  // There is nothing on a response worth exposing once mcp-session-id is gone, and a header
+  // that declares nothing is still a declared surface, so it is removed rather than emptied.
+  if (headers.get("access-control-expose-headers") === "") headers.delete("access-control-expose-headers");
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
 function withHeaders(res: Response): Response {
   const headers = new Headers(res.headers);
   for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
@@ -209,15 +265,14 @@ interface RateLimiterBinding {
 }
 
 interface Env {
-  MCP_OBJECT: DurableObjectNamespace<TurvaMCP>;
   RATE_LIMITER?: RateLimiterBinding;
 }
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    // Enforced before anything else, so a burst cannot create Durable Object sessions on
-    // /mcp faster than the declared policy allows. Fail open: a missing or erroring binding
-    // serves the request normally instead of taking the endpoint down.
+    // Enforced before anything else, so a burst cannot reach the MCP handler faster than
+    // the declared policy allows. Fail open: a missing or erroring binding serves the
+    // request normally instead of taking the endpoint down.
     if (env.RATE_LIMITER) {
       try {
         const key = request.headers.get("CF-Connecting-IP") || "no-ip";
@@ -232,13 +287,20 @@ export default {
         console.error("Rate limiter error (failing open):", err instanceof Error ? err.stack : String(err));
       }
     }
+    const url = new URL(request.url);
+    // /mcp is handled first and including its preflight, because the handler owns both
+    // the CORS answer and the Origin check for that path. Answering OPTIONS here instead
+    // would advertise a permission the handler then refuses on the POST that follows.
+    if (url.pathname === "/mcp") {
+      const res = await createMcpHandler(createServer, {
+        route: "/mcp",
+        corsOptions: MCP_CORS,
+        allowedOriginHostnames: MCP_ALLOWED_ORIGIN_HOSTNAMES,
+      })(request, env, ctx);
+      return withSecurityHeaders(res);
+    }
     if (request.method === "OPTIONS") {
       return withHeaders(new Response(null, { status: 204 }));
-    }
-    const url = new URL(request.url);
-    if (url.pathname === "/mcp") {
-      const res = await TurvaMCP.serve("/mcp").fetch(request, env, ctx);
-      return withHeaders(res);
     }
     if (url.pathname === "/" || url.pathname === "/.well-known/mcp") {
       return withHeaders(new Response(

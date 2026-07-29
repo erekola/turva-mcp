@@ -21,18 +21,18 @@
   "observability": {
     "enabled": false
   },
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "MCP_OBJECT",
-        "class_name": "TurvaMCP"
-      }
-    ]
-  },
+  // No Durable Object. The 2026-07-28 revision is stateless: every POST is
+  // self-contained, there is no session to keep alive, and the handler builds a
+  // fresh server per request. The v1 migration stays because migration history is
+  // append-only; v2 deletes the class that v1 created.
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["TurvaMCP"]
+    },
+    {
+      "tag": "v2",
+      "deleted_classes": ["TurvaMCP"]
     }
   ]
 }
