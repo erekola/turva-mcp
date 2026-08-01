@@ -15,7 +15,7 @@ Implements MCP protocol revision 2026-07-28. The SDK's legacy lane is left at it
 
 Revision 2026-07-28 removed protocol sessions and the `initialize` handshake, so there is no session id and nothing to tear down. Each request carries the protocol revision and the client's capabilities in `params._meta`, and the `MCP-Protocol-Version` header names the revision. `server/discover` reports what this server supports. A server card is published at `GET /` and `GET /.well-known/mcp`.
 
-CORS differs by path on purpose. `/mcp` allows the browser origins `https://turva.dev` and `https://mcp.turva.dev` only, and answers `403` to any other origin; agents send no `Origin` header at all, so this restricts browser clients rather than agents. The card and discovery paths keep open CORS (`Access-Control-Allow-Origin: *`), because directories read them.
+CORS differs by path on purpose. `/mcp` allows the browser origin `https://turva.dev` only, and answers `403` to any other origin; agents send no `Origin` header at all, so this restricts browser clients rather than agents. The card and discovery paths keep open CORS (`Access-Control-Allow-Origin: *`), because directories read them.
 
 No authentication and no API key are required. All exposed data is public and read-only. Requests are rate limited to 100 per 60 seconds per client IP at the edge, answered with `429` and a `Retry-After` header past that, and the limiter fails open if it errors.
 
@@ -43,7 +43,8 @@ The scores these tools return are turva.dev's own, measured by independent publi
 | `GET /` | Server card JSON (`name`, `transport`, `endpoint`) |
 | `GET /.well-known/mcp` | Server card JSON |
 | `GET /.well-known/glama.json` | Glama MCP directory domain verification |
-| `OPTIONS *` | `204` CORS preflight |
+| `OPTIONS /mcp` | `200` CORS preflight from the MCP handler, `403` if the `Origin` is not allowed |
+| `OPTIONS` on the card and discovery paths | `204` CORS preflight |
 | any other path | `404` |
 
 `GET` and `DELETE` on `/mcp` answer `405`: the GET stream and session termination went away with sessions in revision 2026-07-28. If the `Mcp-Method` header and the request body name different methods, the request is refused with `400` and error code `-32020`. A method this server does not declare, such as `resources/list`, answers `404` with `-32601` rather than an empty success. The card paths respond to any method.
@@ -81,7 +82,7 @@ Everything the tools return is publicly auditable. Re-run the scans and open the
 
 ## How it works
 
-A single Cloudflare Worker built on the Cloudflare Agents SDK serves the MCP endpoint through `createMcpHandler`. There is no Durable Object: the stateful implementation needed one, and it was deleted with the 2026-07-28 migration because the protocol no longer has sessions. Tool data lives in static TypeScript objects in the bundle. The server does no logging. Errors are returned as MCP protocol error responses rather than written anywhere. Cloudflare Workers observability is switched off in `wrangler.jsonc`, so the platform does not collect invocation logs either.
+A single Cloudflare Worker built on the Cloudflare Agents SDK serves the MCP endpoint through `createMcpHandler`. There is no Durable Object: the stateful implementation needed one, and it was deleted with the 2026-07-28 migration because the protocol no longer has sessions. Tool data lives in static TypeScript objects in the bundle. The server keeps no request log and never writes a request body, a client identity or tool input anywhere. Errors are returned as MCP protocol error responses. One `console.error` records a rate-limiter failure, so the fail-open path is diagnosable rather than silent; it carries no request data. Cloudflare Workers observability is switched off in `wrangler.jsonc`, so the platform does not collect invocation logs either.
 
 The Worker is independent from the main turva.dev site, so an MCP change cannot affect the website.
 

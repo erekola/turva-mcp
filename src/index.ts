@@ -71,7 +71,7 @@ const AGENT_READINESS = {
         discoverability: "100 (4/4 checks)",
         content: "100 (1/1 checks)",
         bot_access_control: "100 (2/2 checks)",
-        api_auth_mcp_skill_discovery: "100 (8/8 checks)",
+        api_auth_mcp_a2a_discovery: "100 (8/8 checks)",
         commerce: "100 (5/5 checks)",
       },
       url: "https://isitagentready.com/",
@@ -129,7 +129,7 @@ const READ_ONLY = {
 // is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.2" },
+    { name: "turva-mcp", version: "1.3.3" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
@@ -210,7 +210,7 @@ const MCP_CORS = {
 // Origin at all, would pass. That failure is invisible to curl and to every gate we
 // run, which is why the list is explicit. "*" is not used: it disables the Origin
 // check the revision expects an HTTP MCP server to perform.
-const MCP_ALLOWED_ORIGIN_HOSTNAMES = ["turva.dev", "mcp.turva.dev"];
+const MCP_ALLOWED_ORIGIN_HOSTNAMES = ["turva.dev"];
 
 // The discovery documents below are plain JSON read by directories and crawlers,
 // not MCP traffic, so they keep the open cross-origin policy they have always had.
