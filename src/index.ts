@@ -129,7 +129,7 @@ const READ_ONLY = {
 // is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.1" },
+    { name: "turva-mcp", version: "1.3.2" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
@@ -190,7 +190,7 @@ function createServer(): McpServer {
 // endpoint actually does, so none of it is copied from a default:
 // - methods lists POST and OPTIONS only, because GET and DELETE were session
 //   operations and now answer 405.
-// - headers carries exactly the four the revision defines for a POST plus
+// - headers carries exactly the three the revision defines for a POST plus
 //   Content-Type and Accept. mcp-session-id and last-event-id are gone from the
 //   protocol, so advertising them would be a surface that does not exist.
 // - origin is turva.dev rather than a wildcard, because allowedOriginHostnames
@@ -251,6 +251,18 @@ function withSecurityHeaders(res: Response): Response {
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
 
+// The narrow /mcp policy applied to a response the MCP handler never sees, so a rate-limited
+// answer describes the same endpoint the same way an accepted one does.
+function withMcpCorsHeaders(res: Response): Response {
+  const headers = new Headers(res.headers);
+  headers.set("Access-Control-Allow-Origin", MCP_CORS.origin);
+  headers.set("Access-Control-Allow-Methods", MCP_CORS.methods);
+  headers.set("Access-Control-Allow-Headers", MCP_CORS.headers);
+  headers.set("Access-Control-Max-Age", String(MCP_CORS.maxAge));
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
 function withHeaders(res: Response): Response {
   const headers = new Headers(res.headers);
   for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
@@ -278,10 +290,16 @@ export default {
         const key = request.headers.get("CF-Connecting-IP") || "no-ip";
         const { success } = await env.RATE_LIMITER.limit({ key });
         if (!success) {
-          return withHeaders(new Response(
+          const limited = new Response(
             "429 Too Many Requests. This endpoint enforces its declared rate limit of 100 requests per 60 seconds per client IP. Retry after 60 seconds.\n",
             { status: 429, headers: { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "60" } },
-          ));
+          );
+          // The limiter runs before path routing, so without this the 429 answered with the
+          // discovery routes' wildcard policy on /mcp too, advertising both a wildcard origin
+          // and a GET method that /mcp itself refuses with 405.
+          return new URL(request.url).pathname === "/mcp"
+            ? withMcpCorsHeaders(limited)
+            : withHeaders(limited);
         }
       } catch (err) {
         console.error("Rate limiter error (failing open):", err instanceof Error ? err.stack : String(err));
