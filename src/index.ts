@@ -60,7 +60,7 @@ const SERVICES = {
 
 const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-07-28",
+  measured_at: "2026-08-01",
   note: "Scores are a point-in-time reading by an independent public scanner, not a permanent state. Always verify against the live links below.",
   scans: [
     {
@@ -81,7 +81,7 @@ const AGENT_READINESS = {
 
 const SECURITY_EVIDENCE = {
   domain: "turva.dev",
-  measured_at: "2026-07-28",
+  measured_at: "2026-08-01",
   scans: [
     {
       provider: "Hardenize",
@@ -129,7 +129,7 @@ const READ_ONLY = {
 // is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.0" },
+    { name: "turva-mcp", version: "1.3.1" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
