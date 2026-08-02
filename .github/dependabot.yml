@@ -15,6 +15,17 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: deps
+    # @cloudflare/workers-types is held on the ^4 line ON PURPOSE (mds/decisions.md
+    # Tek-73). wrangler declares ^5 as an optional peer while partyserver pins ^4, and
+    # measured 2026-07-26: without the ^4 hold both `npm install` and `npm ci` fail with
+    # ERESOLVE, so a clean clone of this public repo does not build. The package is BOTH
+    # a direct devDependency and an `overrides` entry, so without this line Dependabot
+    # proposes the ^5 jump directly on the first weekly run. Patch and minor 4.x updates
+    # stay allowed, which is what the hold was always meant to permit. The override comes
+    # out when the upstreams move, not because a bot asked.
+    ignore:
+      - dependency-name: "@cloudflare/workers-types"
+        update-types: ["version-update:semver-major"]
     groups:
       all-dependencies:
         patterns:
