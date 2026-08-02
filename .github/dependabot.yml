@@ -1,0 +1,21 @@
+# Dependency version updates for the turva-mcp Worker (mcp.turva.dev/mcp).
+# Grouped into one pull request per week so the review is one read, not five.
+# Note: this file covers version updates only. Dependabot security updates and
+# the alerts behind them are a repository setting (Settings > Code security),
+# not something this file can enable.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Helsinki
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: deps
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
