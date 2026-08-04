@@ -81,7 +81,7 @@ const AGENT_READINESS = {
 
 const SECURITY_EVIDENCE = {
   domain: "turva.dev",
-  measured_at: "2026-08-01",
+  measured_at: "2026-08-04",
   scans: [
     {
       provider: "Hardenize",
@@ -94,6 +94,13 @@ const SECURITY_EVIDENCE = {
       scale: "0-100",
       note: "IPv6, DNSSEC and RPKI pass in full. The single deduction is one HTTPS sub-test, the hash function for key exchange.",
       url: "https://internet.nl/site/turva.dev/",
+    },
+    {
+      provider: "Internet.nl (email)",
+      score: 95,
+      scale: "0-100",
+      note: "IPv6, DNSSEC, DMARC with DKIM and SPF, and RPKI pass in full. The deduction is in the cipher configuration of the receiving mail servers, which the mail provider operates.",
+      url: "https://internet.nl/mail/turva.dev/",
     },
   ],
   note: "We publish our own domain's scan results as proof that we follow the same practices we recommend to clients.",
@@ -129,7 +136,7 @@ const READ_ONLY = {
 // is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.3" },
+    { name: "turva-mcp", version: "1.3.4" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
