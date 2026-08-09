@@ -3,7 +3,7 @@ import { createMcpHandler } from "agents/mcp/server";
 
 const SERVICES = {
   pricing_model: "fixed_list_prices",
-  pricing_note: "Audit, advisory and implementation have fixed list prices in EUR, VAT not included. Agent operations and MCP server design are scoped and quoted per engagement. Request a quote: turva.dev",
+  pricing_note: "The Shopify agent storefront check, audit, advisory and implementation have fixed list prices in EUR, VAT not included. Agent operations and MCP server design are scoped and quoted per engagement. Request a quote: turva.dev",
   currency: "EUR",
   vat_included: false,
   engagement: {
@@ -15,6 +15,15 @@ const SERVICES = {
     ],
   },
   services: [
+    {
+      id: "shopify",
+      name: "Shopify Agent Storefront Check",
+      price: 1900,
+      unit: "fixed",
+      duration: "48 hours",
+      summary: "Fixed scope. One live Shopify store read across browser WebMCP, Shopify-hosted Storefront and UCP MCP, and Shopify Agentic channels. No Shopify Admin credentials are requested and no order is placed.",
+      deliverable: "Four written deliverables as one package within 48 hours of the agreed written kickoff, and a fifth, the retest of up to two corrected items, within 14 days.",
+    },
     {
       id: "audit",
       name: "Agent-Readiness Audit",
@@ -136,7 +145,7 @@ const READ_ONLY = {
 // is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.5" },
+    { name: "turva-mcp", version: "1.3.6" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
@@ -154,7 +163,7 @@ function createServer(): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog: agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for audit, advisory and implementation; agent operations and MCP server design on request). Use this when a user asks what turva.dev offers, what it costs, or how an engagement works. Read-only: returns static JSON and changes nothing.",
+      description: "Returns turva.dev's service catalog: the Shopify agent storefront check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for the Shopify agent storefront check, audit, advisory and implementation; agent operations and MCP server design on request). Use this when a user asks what turva.dev offers, what it costs, or how an engagement works. Read-only: returns static JSON and changes nothing.",
       annotations: READ_ONLY,
     },
     async () => textResult(SERVICES),
