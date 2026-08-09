@@ -52,7 +52,7 @@ const SERVICES = {
       id: "mcp-server-design",
       name: "MCP Server Design",
       price: "on request",
-      summary: "On request. Read-only discovery tools over Streamable HTTP. No auth surface and no logging by default.",
+      summary: "On request. Read-only discovery tools over Streamable HTTP. For public, non-sensitive data, no auth surface and no logging by default; auth and an audit trail follow the data and the misuse model.",
       deliverable: "An endpoint that stays readable for agents without becoming an abuse vector.",
     },
   ],
@@ -136,7 +136,7 @@ const READ_ONLY = {
 // is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.4" },
+    { name: "turva-mcp", version: "1.3.5" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
