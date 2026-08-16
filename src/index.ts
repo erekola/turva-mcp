@@ -220,12 +220,21 @@ const MCP_CORS = {
   maxAge: 86400,
 };
 
-// Browser Origins allowed to reach the endpoint. mcp.turva.dev is a custom domain,
-// so the handler's default list (localhost and workers.dev only) would reject every
-// browser request including the preflight, while non-browser clients, which send no
-// Origin at all, would pass. That failure is invisible to curl and to every gate we
-// run, which is why the list is explicit. "*" is not used: it disables the Origin
-// check the revision expects an HTTP MCP server to perform.
+// Browser Origins allowed to reach the endpoint. The list is explicit because relying
+// on the handler's default would make this a derived surface: agents 0.20.1 builds that
+// default at request time from the localhost class, the workers.dev hostname when that
+// endpoint is enabled, and the hostname of corsOptions.origin, which here is turva.dev.
+// Editing MCP_CORS.origin would then silently change who may reach the endpoint, and a
+// wrong Origin list fails only for browsers: non-browser clients send no Origin at all,
+// so it is invisible to curl and to every gate we run. "*" is not used either: it
+// disables the Origin check the revision expects an HTTP MCP server to perform.
+//
+// Corrected 2026-08-16 (round 12, batch E16, finding B3-7). This comment described the
+// handler's default as covering nothing but the localhost class and the workers.dev
+// hostname, and concluded that it would therefore reject every browser request.
+// Measured against the pinned dependency, the default also adds the corsOptions.origin
+// hostname, so it would have included turva.dev. The configuration is right; the reason
+// written beside it was not.
 const MCP_ALLOWED_ORIGIN_HOSTNAMES = ["turva.dev"];
 
 // The discovery documents below are plain JSON read by directories and crawlers,

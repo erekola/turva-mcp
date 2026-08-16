@@ -23,7 +23,7 @@ No authentication and no API key are required. All exposed data is public and re
 
 Four read-only tools. There are no write tools and no transaction tools. Each returns JSON as text content.
 
-- `get_services`: the service catalog (audit, advisory, implementation, agent operations, MCP server design), the engagement model, and pricing (fixed list prices for audit, advisory and implementation, others on request).
+- `get_services`: the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations and MCP server design), the engagement model, and pricing (four fixed list prices, the other two on request).
 - `get_agent_readiness`: turva.dev's own agent-readiness score from an independent scanner, with category sub-scores, the measurement date, and verification links.
 - `get_security_evidence`: public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date.
 - `get_principles`: the engagement principles, namely async-only, least access, results measured in scanner numbers, open and verifiable.
@@ -32,7 +32,7 @@ Data is served from static TypeScript objects bundled with the Worker, so every 
 
 ## Evidence
 
-The scores these tools return are turva.dev's own, measured by independent public scanners on 2026-08-01: 100/100 and Level 5 (Agent-Native) on isitagentready.com, Hardenize passing all 13 categories, and 98/100 on Internet.nl. Every response carries a `measured_at` date and a verification link, so a stored snapshot can be compared against a fresh scan. Re-run any scan yourself from the links in Verify below.
+The scores these tools return are turva.dev's own, measured by independent public scanners. Agent-readiness was measured on 2026-08-01: 100/100 and Level 5 (Agent-Native) on isitagentready.com. The web-security scans were measured on 2026-08-04: Hardenize passing all 13 categories, and 98/100 on Internet.nl. Every response carries a `measured_at` date and a verification link, so a stored snapshot can be compared against a fresh scan. Re-run any scan yourself from the links in Verify below.
 
 ## Endpoints
 
@@ -63,7 +63,7 @@ Point any MCP client that supports Streamable HTTP at the endpoint. Example clie
 }
 ```
 
-Quick reachability check (returns the server card):
+Quick reachability check (returns the discovery JSON described above):
 
 ```
 curl https://mcp.turva.dev/
