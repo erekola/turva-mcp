@@ -69,7 +69,7 @@ const SERVICES = {
 
 const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-08-01",
+  measured_at: "2026-08-20",
   note: "Scores are a point-in-time reading by an independent public scanner, not a permanent state. Always verify against the live links below.",
   scans: [
     {
@@ -80,7 +80,7 @@ const AGENT_READINESS = {
         discoverability: "100 (4/4 checks)",
         content: "100 (1/1 checks)",
         bot_access_control: "100 (2/2 checks)",
-        api_auth_mcp_a2a_discovery: "100 (8/8 checks)",
+        api_auth_mcp_a2a_discovery: "100 (9/9 checks)",
         commerce: "100 (5/5 checks)",
       },
       url: "https://isitagentready.com/",
