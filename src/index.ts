@@ -27,9 +27,9 @@ const SERVICES = {
     {
       id: "audit",
       name: "Agent-Readiness Audit",
-      price: 6500,
+      price: 4300,
       unit: "fixed",
-      duration: "2-3 weeks",
+      duration: "2 weeks",
       summary: "Fixed scope. An independent public scanner runs against the site or API, followed by a written report with a prioritized fix list.",
       deliverable: "A measured baseline and a clear plan for what to fix first.",
     },
