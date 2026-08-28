@@ -14,7 +14,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260523.1",
     "typescript": "^7.0.2",
-    "wrangler": "^4.126.0"
+    "wrangler": "^4.127.0"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.0.0",
@@ -31,6 +31,6 @@
     "core-js-pure@3.49.0": true,
     "esbuild@0.28.1": true,
     "sharp@0.35.2": true,
-    "workerd@1.20260825.1": true
+    "workerd@1.20260826.1": true
   }
 }
