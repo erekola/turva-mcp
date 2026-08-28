@@ -90,11 +90,11 @@ const AGENT_READINESS = {
 
 const SECURITY_EVIDENCE = {
   domain: "turva.dev",
-  measured_at: "2026-08-04",
+  measured_at: "2026-08-28",
   scans: [
     {
       provider: "Hardenize",
-      result: "13/13 categories passed",
+      result: "24/24 categories passed",
       url: "https://www.hardenize.com/report/turva.dev",
     },
     {
