@@ -18,7 +18,7 @@ const SERVICES = {
     {
       id: "shopify",
       name: "Shopify Agent Storefront Check",
-      price: 1900,
+      price: 999,
       unit: "fixed",
       duration: "48 hours",
       summary: "Fixed scope. One live Shopify store read across browser WebMCP, Shopify-hosted Storefront and UCP MCP, and Shopify Agentic channels. No Shopify Admin credentials are requested and no order is placed.",
@@ -78,7 +78,7 @@ const SERVICES = {
     {
       id: "shopify-fixes",
       name: "Shopify correction implementation",
-      price: 999,
+      price: 499,
       unit: "fixed",
       requires: "shopify",
       sold_separately: false,
