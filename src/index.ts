@@ -95,7 +95,7 @@ const AGENT_READINESS = {
     {
       provider: "isitagentready.com",
       result: "100/100, Level 5 (Agent-Native)",
-      note: "Cloudflare Agent-Ready and isitagentready.com are the same scanner on two domains.",
+      note: "isitagentready.com is Cloudflare's agent-readiness scanner. The reading is the scanner's, not turva.dev's, and it can be re-run by anyone.",
       categories: {
         discoverability: "100/100",
         content: "100/100",
@@ -165,7 +165,7 @@ const READ_ONLY = {
 // is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.6" },
+    { name: "turva-mcp", version: "1.3.7" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
