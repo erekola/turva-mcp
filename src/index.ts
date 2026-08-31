@@ -3,7 +3,7 @@ import { createMcpHandler } from "agents/mcp/server";
 
 const SERVICES = {
   pricing_model: "fixed_list_prices",
-  pricing_note: "The Shopify agent storefront check, audit, advisory and implementation have fixed list prices in EUR, VAT not included. Agent operations and MCP server design are scoped and quoted per engagement. Request a quote: turva.dev",
+  pricing_note: "The Shopify agent storefront check, audit, advisory and implementation have fixed list prices in EUR, VAT not included. Agent operations and MCP server design are scoped and quoted per engagement. Two implementation add-ons carry a fixed price and are sold only together with the diagnosis they follow, listed under bundled_implementation. Request a quote: turva.dev",
   currency: "EUR",
   vat_included: false,
   engagement: {
@@ -31,7 +31,7 @@ const SERVICES = {
       unit: "fixed",
       duration: "2 weeks",
       summary: "Fixed scope. An independent public scanner runs against the site or API, followed by a written report with a prioritized fix list.",
-      deliverable: "A measured baseline and a clear plan for what to fix first.",
+      deliverable: "A measured baseline, a clear plan for what to fix first, and a fix instruction for every finding with a link to the matching guide on turva.dev where a guide covers that surface.",
     },
     {
       id: "advisory",
@@ -63,6 +63,26 @@ const SERVICES = {
       price: "on request",
       summary: "On request. Read-only discovery tools over Streamable HTTP. For public, non-sensitive data, no auth surface and no logging by default; auth and an audit trail follow the data and the misuse model.",
       deliverable: "An endpoint that stays readable for agents without becoming an abuse vector.",
+    },
+  ],
+  bundled_implementation: [
+    {
+      id: "audit-fixes",
+      name: "Audit fix implementation",
+      price: 499,
+      unit: "fixed",
+      requires: "audit",
+      sold_separately: false,
+      summary: "Implementation of exactly the fixes the audit report lists. Sold only together with the audit. Work outside that list is scoped at the implementation day rate.",
+    },
+    {
+      id: "shopify-fixes",
+      name: "Shopify correction implementation",
+      price: 999,
+      unit: "fixed",
+      requires: "shopify",
+      sold_separately: false,
+      summary: "Implementation of exactly the corrections the Shopify agent storefront check lists. Sold only together with that check. Work outside the plan is scoped at the implementation day rate.",
     },
   ],
 } as const;
@@ -163,7 +183,7 @@ function createServer(): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog: the Shopify agent storefront check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for the Shopify agent storefront check, audit, advisory and implementation; agent operations and MCP server design on request). Use this when a user asks what turva.dev offers, what it costs, or how an engagement works. Read-only: returns static JSON and changes nothing.",
+      description: "Returns turva.dev's service catalog: the Shopify agent storefront check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for the Shopify agent storefront check, audit, advisory and implementation; agent operations and MCP server design on request), and two implementation add-ons that carry a fixed price and are sold only together with the diagnosis they follow. Use this when a user asks what turva.dev offers, what it costs, or how an engagement works. Read-only: returns static JSON and changes nothing.",
       annotations: READ_ONLY,
     },
     async () => textResult(SERVICES),
