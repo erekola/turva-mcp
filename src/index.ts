@@ -165,7 +165,7 @@ const READ_ONLY = {
 // is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.7" },
+    { name: "turva-mcp", version: "1.3.8" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
