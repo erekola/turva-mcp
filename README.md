@@ -32,7 +32,7 @@ Data is served from static TypeScript objects bundled with the Worker, so every 
 
 ## Evidence
 
-The scores these tools return are turva.dev's own, measured by independent public scanners. Agent-readiness was measured on 2026-08-30: 100/100 and Level 5 (Agent-Native) on isitagentready.com. The web-security scans were measured on 2026-08-28: Hardenize passing all 24 categories, and 98/100 on Internet.nl. Every response carries a `measured_at` date and a verification link, so a stored snapshot can be compared against a fresh scan. Re-run any scan yourself from the links in Verify below.
+The scores these tools return are turva.dev's own, measured by independent public scanners. Agent-readiness was measured on 2026-09-01: 100/100 and Level 5 (Agent-Native) on isitagentready.com. The web-security scans were measured on 2026-08-28: Hardenize passing all 24 categories, and 98/100 on Internet.nl. Every response carries a `measured_at` date and a verification link, so a stored snapshot can be compared against a fresh scan. Re-run any scan yourself from the links in Verify below.
 
 ## Endpoints
 
