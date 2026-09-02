@@ -162,10 +162,11 @@ const READ_ONLY = {
 // A fresh server per request. The 2026-07-28 revision is stateless, and stateless here
 // means that nothing survives the request, not that the endpoint refuses to shake hands.
 // Measured live against https://mcp.turva.dev/mcp on 2026-09-01: an initialize call is
-// answered normally, with serverInfo turva-mcp 1.3.8 and a protocolVersion negotiated by
-// the SDK. What is absent is everything after it. No Mcp-Session-Id is issued, no session
-// is kept alive, nothing here is shared between requests and no Durable Object is needed,
-// so initialize is answered and then forgotten.
+// answered normally, with serverInfo turva-mcp 1.3.8, the version live that day, and a
+// protocolVersion negotiated by the SDK. What is absent is everything after it. No
+// Mcp-Session-Id is issued, no session is kept alive, nothing here is shared between
+// requests and no Durable Object is needed, so initialize is answered and then
+// forgotten.
 //
 // Reworded twice on 2026-09-01. The original wording asserted that the handshake itself
 // was absent, which would tell a reader that a standard MCP client cannot connect; it
@@ -179,7 +180,7 @@ const READ_ONLY = {
 // server/discover is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.8" },
+    { name: "turva-mcp", version: "1.3.9" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
