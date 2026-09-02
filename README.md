@@ -25,14 +25,14 @@ Four read-only tools. There are no write tools and no transaction tools. Each re
 
 - `get_services`: the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations and MCP server design), the engagement model, and pricing (four fixed list prices, the other two on request).
 - `get_agent_readiness`: turva.dev's own agent-readiness score from an independent scanner, with category sub-scores, the measurement date, and verification links.
-- `get_security_evidence`: public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date.
+- `get_security_evidence`: public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl site and mail), with the scan date.
 - `get_principles`: the engagement principles, namely async-only, least access, results measured in scanner numbers, open and verifiable.
 
 Data is served from static TypeScript objects bundled with the Worker, so every response is deterministic and depends on no external state. Scores carry a `measured_at` date and verification links, so any reader can compare a stored snapshot against a fresh scan.
 
 ## Evidence
 
-The scores these tools return are turva.dev's own, measured by independent public scanners. Agent-readiness was measured on 2026-09-01: 100/100 and Level 5 (Agent-Native) on isitagentready.com. The web-security scans were measured on 2026-09-01: Hardenize passing all 24 categories, and 98/100 on Internet.nl. Every response carries a `measured_at` date and a verification link, so a stored snapshot can be compared against a fresh scan. Re-run any scan yourself from the links in Verify below.
+The scores these tools return are turva.dev's own, measured by independent public scanners. Agent-readiness was measured on 2026-09-01: 100/100 and Level 5 (Agent-Native) on isitagentready.com. The web-security scans were measured on 2026-09-01: Hardenize passing all 24 categories, 98/100 on Internet.nl site, and 95/100 on Internet.nl mail. Every response carries a `measured_at` date and a verification link, so a stored snapshot can be compared against a fresh scan. Re-run any scan yourself from the links in Verify below.
 
 ## Endpoints
 

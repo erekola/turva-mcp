@@ -9,7 +9,8 @@
 
 ## Open advisories
 
-None as of 2026-07-26. The one that had been open was a path traversal in the
+None as of 2026-09-02, the date of the last `npm audit` run against this
+repository. The one that had been open was a path traversal in the
 `serve-static` part of `@hono/node-server`, and it arrived transitively:
 `@modelcontextprotocol/sdk` depends on that Node HTTP adapter, and the SDK
 version this repository pins, 1.30.0, declares `^1.19.9 || ^2.0.5`, so the

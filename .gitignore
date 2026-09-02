@@ -135,6 +135,9 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# Cloudflare Wrangler
+.wrangler/
+
 # MCP registry publishing artifacts, local only
 mcp-publisher.exe
 server.json

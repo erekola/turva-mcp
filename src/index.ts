@@ -180,7 +180,7 @@ const READ_ONLY = {
 // server/discover is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.9" },
+    { name: "turva-mcp", version: "1.3.10" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
@@ -218,7 +218,7 @@ function createServer(): McpServer {
     "get_security_evidence",
     {
       title: "Web-security scan evidence",
-      description: "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl), with the scan date. Use this when a user asks about turva.dev's own security posture or wants evidence beyond agent-readiness scores. Read-only: returns static JSON and changes nothing.",
+      description: "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl site and mail), with the scan date. Use this when a user asks about turva.dev's own security posture or wants evidence beyond agent-readiness scores. Read-only: returns static JSON and changes nothing.",
       annotations: READ_ONLY,
     },
     async () => textResult(SECURITY_EVIDENCE),
