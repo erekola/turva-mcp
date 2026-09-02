@@ -161,10 +161,10 @@ const READ_ONLY = {
 
 // A fresh server per request. The 2026-07-28 revision is stateless, and stateless here
 // means that nothing survives the request, not that the endpoint refuses to shake hands.
-// Measured live against https://mcp.turva.dev/mcp on 2026-09-01: an initialize call is
-// answered normally, with serverInfo turva-mcp 1.3.8, the version live that day, and a
-// protocolVersion negotiated by the SDK. What is absent is everything after it. No
-// Mcp-Session-Id is issued, no session is kept alive, nothing here is shared between
+// Measured live against https://mcp.turva.dev/mcp on 2026-09-02: an initialize call is
+// answered normally, with serverInfo turva-mcp 1.3.9 and protocolVersion 2025-06-18
+// negotiated by the SDK. What is absent is everything after it. The response carries no
+// Mcp-Session-Id header, no session is kept alive, nothing here is shared between
 // requests and no Durable Object is needed, so initialize is answered and then
 // forgotten.
 //
