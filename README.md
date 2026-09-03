@@ -45,9 +45,10 @@ The scores these tools return are turva.dev's own, measured by independent publi
 | `GET /.well-known/glama.json` | Glama MCP directory domain verification |
 | `OPTIONS /mcp` | `200` CORS preflight from the MCP handler, `403` if the `Origin` is not allowed |
 | `OPTIONS` on any path other than `/mcp` | `204` CORS preflight |
-| `GET`, `POST`, `PUT`, `DELETE`, `PATCH` or `HEAD` on any other path | `404` |
+| `POST`, `PUT`, `DELETE` or `PATCH` on any path other than `/mcp` | `405` with `Allow: GET, HEAD, OPTIONS`, since 1.3.11: the discovery documents are read-only and the CORS header promises `GET, OPTIONS` |
+| `GET` or `HEAD` on any other path | `404` |
 
-`GET` and `DELETE` on `/mcp` answer `405`: the GET stream and session termination went away with sessions in revision 2026-07-28. On the 2026-07-28 lane a request is refused with `400` and error code `-32020` if a required header is absent, if `Mcp-Method` and the body name different methods, or if `Mcp-Name` and `params.name` name different tools, and a method this server does not declare, such as `resources/list`, answers `404` with `-32601` rather than an empty success. A request carrying no `MCP-Protocol-Version` reaches the legacy lane instead, where that same undeclared method answers `200` carrying `-32601` in the body. The discovery paths respond to any method.
+`GET` and `DELETE` on `/mcp` answer `405`: the GET stream and session termination went away with sessions in revision 2026-07-28. On the 2026-07-28 lane a request is refused with `400` and error code `-32020` if a required header is absent, if `Mcp-Method` and the body name different methods, or if `Mcp-Name` and `params.name` name different tools, and a method this server does not declare, such as `resources/list`, answers `404` with `-32601` rather than an empty success. A request carrying no `MCP-Protocol-Version` reaches the legacy lane instead, where that same undeclared method answers `200` carrying `-32601` in the body. The discovery paths respond to `GET`, `HEAD` and `OPTIONS` only; until 1.3.10 they answered every method with the same `200` body, which round 16 measured on 2026-09-03.
 
 ## Connect
 
