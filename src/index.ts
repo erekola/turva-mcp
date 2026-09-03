@@ -180,7 +180,7 @@ const READ_ONLY = {
 // server/discover is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.10" },
+    { name: "turva-mcp", version: "1.3.11" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These four tools are static data compiled
@@ -379,6 +379,13 @@ export default {
     }
     if (request.method === "OPTIONS") {
       return withHeaders(new Response(null, { status: 204 }));
+    }
+    // The discovery documents are read-only. CORS_HEADERS above promises GET and OPTIONS,
+    // and until round 16 (C7-1, measured 2026-09-03) POST and DELETE on / answered 200 with
+    // the same body, so the header was a claim the routing did not keep. HEAD is a GET
+    // without the body and stays allowed.
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return withHeaders(new Response("Method not allowed", { status: 405, headers: { "Content-Type": "text/plain; charset=utf-8", "Allow": "GET, HEAD, OPTIONS" } }));
     }
     if (url.pathname === "/" || url.pathname === "/.well-known/mcp") {
       return withHeaders(new Response(
