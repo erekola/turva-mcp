@@ -1,58 +1,18 @@
 # turva-mcp
 
-Public, read-only Model Context Protocol (MCP) server for [turva.dev](https://turva.dev), an agent-readiness audit and advisory service. It lets AI agents query turva.dev's service catalog, its own agent-readiness scores, the public web-security scan results for its domain, and its engagement principles, as structured JSON instead of scraped HTML.
+A public, read-only Model Context Protocol (MCP) server for [turva.dev](https://turva.dev).
 
-The server is public on purpose: anyone can read exactly what it exposes before deciding anything.
-
-## MCP endpoint
-```
-https://mcp.turva.dev/mcp
-```
-
-Listed in the official MCP registry as `dev.turva/turva-mcp`, and in the Glama MCP directory (domain verified at `/.well-known/glama.json`).
-
-Implements MCP protocol revision 2026-07-28. The SDK's legacy lane is left at its default, so a client on an older revision still works at the same endpoint. Transport is Streamable HTTP and the MCP endpoint is `POST /mcp`. The deprecated standalone SSE transport is not served.
-
-Revision 2026-07-28 removed protocol sessions and the `initialize` handshake, so there is no session id and nothing to tear down. Each request carries the protocol revision and the client's capabilities in `params._meta`, and on the 2026-07-28 lane two headers are required, `MCP-Protocol-Version` naming the revision and `Mcp-Method` naming the same method as the body, with a third, `Mcp-Name`, on a `tools/call` to name the tool. `server/discover` reports what this server supports. A minimal discovery document carrying the name, transport and endpoint is published at `GET /` and `GET /.well-known/mcp`; the full signed MCP server card is at `https://turva.dev/.well-known/mcp/server-card.json`.
-
-CORS differs by path on purpose. `/mcp` allows the browser origin `https://turva.dev` only, and answers `403` to any other origin; agents send no `Origin` header at all, so this restricts browser clients rather than agents. The card and discovery paths keep open CORS (`Access-Control-Allow-Origin: *`), because directories read them.
-
-No authentication and no API key are required. All exposed data is public and read-only. Requests are rate limited to 100 per 60 seconds per client IP at the edge, answered with `429` and a `Retry-After` header past that, and the limiter fails open if it errors.
-
-## Tools
-
-Four read-only tools. There are no write tools and no transaction tools. Each returns JSON as text content.
-
-- `get_services`: the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations and MCP server design), the engagement model, and pricing (four fixed list prices, the other two on request).
-- `get_agent_readiness`: turva.dev's own agent-readiness score from an independent scanner, with category sub-scores, the measurement date, and verification links.
-- `get_security_evidence`: public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl site and mail), with the scan date.
-- `get_principles`: the engagement principles, namely async-only, least access, results measured in scanner numbers, open and verifiable.
-
-Data is served from static TypeScript objects bundled with the Worker, so every response is deterministic and depends on no external state. Scores carry a `measured_at` date and verification links, so any reader can compare a stored snapshot against a fresh scan.
-
-## Evidence
-
-The scores these tools return are turva.dev's own, measured by independent public scanners. Agent-readiness was measured on 2026-09-01: 100/100 and Level 5 (Agent-Native) on isitagentready.com. The web-security scans were measured on 2026-09-01: Hardenize passing all 24 categories, 98/100 on Internet.nl site, and 95/100 on Internet.nl mail. Every response carries a `measured_at` date and a verification link, so a stored snapshot can be compared against a fresh scan. Re-run any scan yourself from the links in Verify below.
-
-## Endpoints
-
-| Method and path | Response |
-|---|---|
-| `POST /mcp` | MCP over Streamable HTTP |
-| `GET /mcp`, `DELETE /mcp` | `405`, no GET stream and no sessions since revision 2026-07-28 |
-| `GET /` | Discovery JSON (`name`, `transport`, `endpoint`) |
-| `GET /.well-known/mcp` | Discovery JSON |
-| `GET /.well-known/glama.json` | Glama MCP directory domain verification |
-| `OPTIONS /mcp` | `200` CORS preflight from the MCP handler, `403` if the `Origin` is not allowed |
-| `OPTIONS` on any path other than `/mcp` | `204` CORS preflight |
-| `POST`, `PUT`, `DELETE` or `PATCH` on any path other than `/mcp` | `405` with `Allow: GET, HEAD, OPTIONS`, since 1.3.11: the discovery documents are read-only and the CORS header promises `GET, OPTIONS` |
-| `GET` or `HEAD` on any other path | `404` |
-
-`GET` and `DELETE` on `/mcp` answer `405`: the GET stream and session termination went away with sessions in revision 2026-07-28. On the 2026-07-28 lane a request is refused with `400` and error code `-32020` if a required header is absent, if `Mcp-Method` and the body name different methods, or if `Mcp-Name` and `params.name` name different tools, and a method this server does not declare, such as `resources/list`, answers `404` with `-32601` rather than an empty success. A request carrying no `MCP-Protocol-Version` reaches the legacy lane instead, where that same undeclared method answers `200` carrying `-32601` in the body. The discovery paths respond to `GET`, `HEAD` and `OPTIONS` only; until 1.3.10 they answered every method with the same `200` body, which round 16 measured on 2026-09-03.
+It gives compatible AI clients structured access to turva.dev's service catalog, agent-readiness evidence, public web-security evidence and engagement principles. The server answers questions about turva.dev itself. It does not scan another domain, run an audit or perform transactions.
 
 ## Connect
 
-Point any MCP client that supports Streamable HTTP at the endpoint. Example client config:
+Streamable HTTP endpoint:
+
+```text
+https://mcp.turva.dev/mcp
+```
+
+No authentication or API key is required. Set the endpoint in any MCP client with Streamable HTTP support. Clients that use a URL-based `mcpServers` configuration commonly accept this shape:
 
 ```json
 {
@@ -64,50 +24,102 @@ Point any MCP client that supports Streamable HTTP at the endpoint. Example clie
 }
 ```
 
-Quick reachability check (returns the discovery JSON described above):
+The endpoint expects MCP `POST` requests, so opening `/mcp` in a browser returns `405`. Check reachability through the discovery document instead:
 
+```powershell
+curl.exe https://mcp.turva.dev/
 ```
-curl https://mcp.turva.dev/
-```
 
-On Windows PowerShell use `curl.exe`, since `curl` is an alias for Invoke-WebRequest.
+The server is listed in the official MCP registry as `dev.turva/turva-mcp` and in the Glama MCP directory.
 
-## Verify
+## Tools
 
-Everything the tools return is publicly auditable. Re-run the scans and open the records yourself:
+Four read-only tools, each idempotent and returning JSON as text content. There are no write tools and no transaction tools.
 
-- isitagentready scanner: https://isitagentready.com/
-- Hardenize report: https://www.hardenize.com/report/turva.dev
-- Internet.nl report: https://internet.nl/site/turva.dev/
-- Company (Finnish Business Information System): https://tietopalvelu.ytj.fi/yritys/3600281-7
+- `get_services`: the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations and MCP server design), the engagement model, and pricing (four fixed list prices, the other two on request).
+- `get_agent_readiness`: turva.dev's agent-readiness score, category scores, measurement date and verification link.
+- `get_security_evidence`: public Hardenize and Internet.nl results for turva.dev, with their measurement date.
+- `get_principles`: the async-only, least-access, measured-results and transparency principles.
 
-## How it works
+## Evidence
 
-A single Cloudflare Worker built on the Cloudflare Agents SDK serves the MCP endpoint through `createMcpHandler`. There is no Durable Object: the stateful implementation needed one, and it was deleted with the 2026-07-28 migration because the protocol no longer has sessions. Tool data lives in static TypeScript objects in the bundle. The server keeps no request log and never writes a request body, a client identity or tool input anywhere. Errors are returned as MCP protocol error responses. One `console.error` records a rate-limiter failure, so the fail-open path is diagnosable rather than silent; it carries no request data. Cloudflare Workers observability is switched off in `wrangler.jsonc`, so the platform does not collect invocation logs either.
+Tool responses come from static TypeScript objects bundled with the Worker. They are deterministic and do not depend on a live upstream request.
 
-The Worker is independent from the main turva.dev site, so an MCP change cannot affect the website.
+The two measurement tools include a `measured_at` date and public verification links. Treat their values as point-in-time evidence and compare them with a fresh scan when current status matters.
 
-## Deploy
+The bundled snapshot records these results for **2026-09-01**:
 
-Requires a Cloudflare account and the `wrangler` CLI.
+- Agent readiness: **100/100, Level 5 (Agent-Native)** on [isitagentready.com](https://isitagentready.com/)
+- Web security: **24/24 categories passed** on [Hardenize](https://www.hardenize.com/report/turva.dev)
+- Website standards: **98/100** on [Internet.nl](https://internet.nl/site/turva.dev/)
+- Mail standards: **95/100** on [Internet.nl](https://internet.nl/mail/turva.dev/)
+
+These are third-party readings for turva.dev, not scores produced by this server.
+
+## Endpoints
+
+| Method and path | Behavior |
+| --- | --- |
+| `POST /mcp` | MCP over Streamable HTTP |
+| `GET /mcp`, `DELETE /mcp` | `405`. The server exposes no GET stream and no session teardown |
+| `OPTIONS /mcp` | `200` for an accepted MCP preflight, `403` when the browser `Origin` is not allowed |
+| `GET /` | Minimal discovery JSON with the server name, transport and endpoint |
+| `GET /.well-known/mcp` | The same discovery JSON |
+| `GET /.well-known/glama.json` | Glama domain-verification document |
+| `OPTIONS` on any other path | `204` discovery CORS preflight |
+| `POST`, `PUT`, `DELETE` or `PATCH` on any path other than `/mcp` | `405` with `Allow: GET, HEAD, OPTIONS` |
+| `GET` or `HEAD` on any other path | `404` |
+
+The full signed MCP server card is published at [turva.dev/.well-known/mcp/server-card.json](https://turva.dev/.well-known/mcp/server-card.json).
+
+## Protocol and implementation
+
+A single Cloudflare Worker built on the Cloudflare Agents SDK serves the endpoint through `createMcpHandler`. A fresh `McpServer` is created for each request, and there is no Durable Object or persistent MCP session.
+
+The current protocol lane uses revision `2026-07-28`, and the SDK's legacy compatibility lane remains available at the same endpoint. On the current lane the handler validates `MCP-Protocol-Version` and `Mcp-Method`, plus `Mcp-Name` for `tools/call`. Standard MCP clients handle these details. `server/discover` is supplied by the SDK.
+
+The discovery documents and tool data are compiled into the Worker. The MCP Worker is separate from the main turva.dev Worker, so changes here do not change the website.
+
+## Security and operating limits
+
+- Public and unauthenticated by design: every exposed value is already public.
+- Read-only MCP annotations on every tool: no destructive or open-world operation is declared.
+- Rate limit: 100 requests per 60 seconds per client IP, with `429` and `Retry-After: 60` after the limit. The endpoint fails open if the rate-limiter binding errors.
+- Browser CORS on `/mcp`: `https://turva.dev` is the only allowed `Origin`, and the handler returns `403` for every other origin. Non-browser MCP clients normally send no `Origin` header and can connect directly. Discovery documents use open CORS so directories can read them.
+- No application request log: the code does not store request bodies, client identities or tool inputs. Cloudflare Workers observability is disabled. A rate-limiter failure writes one diagnostic error without request data.
+- Security headers are applied to MCP and discovery responses.
+
+For private vulnerability reports, see [SECURITY.md](SECURITY.md) or email [info@turva.dev](mailto:info@turva.dev).
+
+## Deploy your own copy
+
+This repository is MIT licensed and can be adapted for another site. Before deploying a fork:
+
+1. Replace the static service and evidence objects in `src/index.ts` with your own published data.
+2. Replace the hard-coded `turva.dev` domain, MCP endpoint, browser origin and verification links with values you control.
+3. Give the Worker a unique `name` and a rate-limit `namespace_id` that is not shared with another Worker in your Cloudflare account.
+4. Attach your own custom domain. `workers_dev` is disabled in `wrangler.jsonc`, and `mcp.turva.dev` belongs to this deployment.
+
+Then install, check and deploy with your Cloudflare account:
 
 ```powershell
 cd turva-mcp
 npm install
+npm run typecheck
 npx wrangler deploy
 ```
 
-Route the Worker to `mcp.turva.dev` under **Workers & Pages, your-worker, Settings, Domains & Routes**.
+Configure the custom domain under **Workers & Pages, your Worker, Settings, Domains & Routes**. Use your own hostname and update the discovery endpoint in `src/index.ts` to match it.
 
-## Use it for your own site
+## Verify the published claims
 
-MIT licensed. Fork it, replace the static data objects with your own, then deploy.
+- [isitagentready.com scanner](https://isitagentready.com/)
+- [Hardenize report](https://www.hardenize.com/report/turva.dev)
+- [Internet.nl website report](https://internet.nl/site/turva.dev/)
+- [Internet.nl mail report](https://internet.nl/mail/turva.dev/)
+- [Finnish Business Information System record](https://tietopalvelu.ytj.fi/yritys/3600281-7)
 
 If you want an agent-readiness audit of your own domain, see [turva.dev](https://turva.dev) or [Erik Rekola on LinkedIn](https://www.linkedin.com/in/erikrekola).
-
-## Security
-
-Responsible disclosure: see [SECURITY.md](SECURITY.md). Contact: [info@turva.dev](mailto:info@turva.dev)
 
 ## License
 
