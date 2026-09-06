@@ -47,7 +47,7 @@ Tool responses come from static TypeScript objects bundled with the Worker. They
 
 The two measurement tools include a `measured_at` date and public verification links. Treat their values as point-in-time evidence and compare them with a fresh scan when current status matters.
 
-The bundled snapshot records these results for **2026-09-01**:
+The bundled snapshot records these results for **2026-09-06**:
 
 - Agent readiness: **100/100, Level 5 (Agent-Native)** on [isitagentready.com](https://isitagentready.com/)
 - Web security: **24/24 categories passed** on [Hardenize](https://www.hardenize.com/report/turva.dev)
