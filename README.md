@@ -1,5 +1,7 @@
 # turva-mcp
 
+[![turva-mcp MCP connector, tool definition quality and endpoint health on Glama](https://glama.ai/mcp/connectors/dev.turva/turva-mcp/badges/score.svg)](https://glama.ai/mcp/connectors/dev.turva/turva-mcp)
+
 A public, read-only Model Context Protocol (MCP) server for [turva.dev](https://turva.dev).
 
 It gives compatible AI clients structured access to turva.dev's service catalog, agent-readiness evidence, public web-security evidence and engagement principles. The server answers questions about turva.dev itself. It does not scan another domain, run an audit or perform transactions.
