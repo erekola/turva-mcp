@@ -145,11 +145,40 @@ const PRINCIPLES = {
   ],
 } as const;
 
+// The fifth tool's data. Every channel here is mirrored from
+// turva-worker/tools/facts.json channels, which is the one home for them, and the
+// engagement lines say the same as the /contact twin in worker.js.
+//
+// A tool named get_contact ALSO exists on a different protocol: the in-page WebMCP
+// script (WEBMCP_SCRIPT in worker.js) offers one to a browser. Same name, different
+// shape on purpose. That one carries the Signal handle beside the link and no
+// engagement fields, this one carries the first reply time and what access an audit
+// needs, and the two are not merged because the WebMCP script's bytes are pinned by a
+// CSP script-src hash, so a field added there is a deploy-time hash change. The values
+// they share come from the same facts.json entries, so they cannot drift apart in
+// substance; if either one gains a CHANNEL, change facts.json first and mirror both.
+const CONTACT = {
+  email: "info@turva.dev",
+  signal: "https://signal.me/#eu/2qzayURnxbJ8wl7dmQOd5c3sAF7cW8xvDVUrNiG6Cl7rEsXfkSlIsYOS9FSjJixK",
+  linkedin: "https://www.linkedin.com/in/erikrekola/",
+  business_id: "3600281-7",
+  location: "Tampere, Finland",
+  engagement: "async_only",
+  correspondence_languages: ["en", "fi"],
+  first_reply: "Within one business day, in writing.",
+  channel_note: "Email for longer messages, Signal for short questions. No calls and no calendar links.",
+  how_to_start: [
+    "Email the domain you want read. That is enough to start.",
+    "Read access is enough for the audit. Production credentials are not requested.",
+    "Write access to repositories is scoped per task, and only if implementation is purchased separately.",
+  ],
+} as const;
+
 function textResult(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
 }
 
-// Read-only annotations, identical on all four tools. Declared once so the four
+// Read-only annotations, identical on all five tools. Declared once so the five
 // registrations cannot drift apart, which is the same failure class the signed
 // server card has already produced twice.
 const READ_ONLY = {
@@ -180,10 +209,10 @@ const READ_ONLY = {
 // server/discover is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.3.11" },
+    { name: "turva-mcp", version: "1.4.0" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
-      // would default them to 0 and private. These four tools are static data compiled
+      // would default them to 0 and private. These five tools are static data compiled
       // into the Worker, so the answer is byte-identical for every caller and changes
       // only on deploy: public is a true statement about this server, not an
       // optimization, and one hour is well inside how often it is redeployed.
@@ -198,7 +227,7 @@ function createServer(): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog: the Shopify agent storefront check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for the Shopify agent storefront check, audit, advisory and implementation; agent operations and MCP server design on request), and two implementation add-ons that carry a fixed price and are sold only together with the diagnosis they follow. Use this when a user asks what turva.dev offers, what it costs, or how an engagement works. Read-only: returns static JSON and changes nothing.",
+      description: "Returns turva.dev's service catalog: the Shopify agent storefront check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for the Shopify agent storefront check, audit, advisory and implementation; agent operations and MCP server design on request), and two implementation add-ons that carry a fixed price and are sold only together with the diagnosis they follow. Use this when a user asks what turva.dev offers, what it costs, or how an engagement works. For how to reach turva.dev use get_contact instead, and for the rules an engagement follows use get_principles. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
     },
     async () => textResult(SERVICES),
@@ -208,7 +237,7 @@ function createServer(): McpServer {
     "get_agent_readiness",
     {
       title: "Agent-readiness score",
-      description: "Returns turva.dev's own agent-readiness score from an independent public scanner (isitagentready.com), including category sub-scores, with the measurement date and verification links. Use this when a user asks how turva.dev scores, whether its claims are verifiable, or what proof backs the audit service. Read-only: returns static JSON and changes nothing.",
+      description: "Returns turva.dev's own agent-readiness score from an independent public scanner (isitagentready.com), including category sub-scores, with the measurement date and verification links. Use this when a user asks how turva.dev scores, whether its claims are verifiable, or what proof backs the audit service. For web-security scan results, which are a separate measurement, use get_security_evidence instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
     },
     async () => textResult(AGENT_READINESS),
@@ -218,7 +247,7 @@ function createServer(): McpServer {
     "get_security_evidence",
     {
       title: "Web-security scan evidence",
-      description: "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl site and mail), with the scan date. Use this when a user asks about turva.dev's own security posture or wants evidence beyond agent-readiness scores. Read-only: returns static JSON and changes nothing.",
+      description: "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl site and mail), with the scan date. Use this when a user asks about turva.dev's own security posture or wants evidence beyond agent-readiness scores. For the agent-readiness score itself, which is a separate measurement, use get_agent_readiness instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
     },
     async () => textResult(SECURITY_EVIDENCE),
@@ -228,10 +257,20 @@ function createServer(): McpServer {
     "get_principles",
     {
       title: "Engagement principles",
-      description: "Returns turva.dev's engagement principles: async-only, least access, the result shows up in scanner numbers, and open and verifiable. Use this when a user asks how turva.dev works with clients or what rules an engagement follows. Read-only: returns static JSON and changes nothing.",
+      description: "Returns turva.dev's engagement principles: async-only, least access, the result shows up in scanner numbers, and open and verifiable. Use this when a user asks how turva.dev works with clients or what rules an engagement follows. For what is sold and what it costs use get_services instead, and for how to start use get_contact. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
     },
     async () => textResult(PRINCIPLES),
+  );
+
+  server.registerTool(
+    "get_contact",
+    {
+      title: "Contact and how to start",
+      description: "Returns the official ways to reach turva.dev and what starting an engagement takes: the email address, the Signal link, the LinkedIn profile, the business ID and location, the correspondence languages, the first-reply time, and the access an audit needs. Use this when a user asks how to contact turva.dev, how to start an audit, or what access has to be granted. For what is sold and what it costs use get_services instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      annotations: READ_ONLY,
+    },
+    async () => textResult(CONTACT),
   );
 
   return server;

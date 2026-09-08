@@ -34,12 +34,13 @@ The server is listed in the official MCP registry as `dev.turva/turva-mcp` and i
 
 ## Tools
 
-Four read-only tools, each idempotent and returning JSON as text content. There are no write tools and no transaction tools.
+Five read-only tools, each idempotent and returning JSON as text content. There are no write tools and no transaction tools.
 
 - `get_services`: the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations and MCP server design), the engagement model, and pricing (four fixed list prices, the other two on request).
 - `get_agent_readiness`: turva.dev's agent-readiness score, category scores, measurement date and verification link.
 - `get_security_evidence`: public Hardenize and Internet.nl results for turva.dev, with their measurement date.
 - `get_principles`: the async-only, least-access, measured-results and transparency principles.
+- `get_contact`: the contact channels, the first-reply time, and what access an audit needs.
 
 ## Evidence
 
