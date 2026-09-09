@@ -32,6 +32,7 @@
     "esbuild@0.28.1": true,
     "esbuild@0.28.2": true,
     "fsevents@2.3.3": true,
-    "workerd@1.20260831.1": true
+    "sharp@0.35.2": true,
+    "workerd@1.20260908.1": true
   }
 }
