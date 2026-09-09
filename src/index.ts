@@ -40,7 +40,7 @@ const SERVICES = {
       unit: "month",
       minimum_commitment: "3 months",
       summary: "Monthly retainer, async-only. Ongoing review as the site, API, or product evolves.",
-      deliverable: "Each scanner cycle reads higher than the last, or the report explains why a tradeoff was kept on purpose.",
+      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships, and a quarterly summary. Each review explains what changed and what the evidence supports. A higher score or an AI mention is not guaranteed.",
     },
     {
       id: "implementation",
@@ -140,7 +140,7 @@ const PRINCIPLES = {
   rules: [
     { id: "async-only", title: "All communication is async", rationale: "No calls and no calendar links. Everything stays in writing, so the work and the trail are auditable end to end." },
     { id: "least-access", title: "No production credentials, scoped write access", rationale: "Read access is enough for the audit. Write access is scoped per task only if implementation is purchased separately." },
-    { id: "measured-result", title: "The result shows up in scanner numbers", rationale: "The next scan reads higher than the previous one, in the categories the report named, by the dates it named." },
+    { id: "measured-result", title: "The result shows up in scanner numbers", rationale: "Once the fixes are implemented, the next scan reads higher than the previous one, in the categories the report named, by the dates it named, or the report explains why a tradeoff was kept on purpose." },
     { id: "transparency", title: "Open and verifiable", rationale: "Backed by a registered business, Business ID 3600281-7, Finland. Our own domain's scores are publicly verifiable." },
   ],
 } as const;
@@ -209,7 +209,7 @@ const READ_ONLY = {
 // server/discover is installed by the SDK itself and is deliberately not implemented by hand.
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "turva-mcp", version: "1.4.0" },
+    { name: "turva-mcp", version: "1.4.1" },
     {
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
       // would default them to 0 and private. These five tools are static data compiled
