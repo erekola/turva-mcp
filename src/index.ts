@@ -1,7 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHandler } from "agents/mcp/server";
 
-const SERVICES = {
+// Exported for turva-mcp/test/catalog.test.mjs. The worker runtime uses the default
+// export alone, so this adds a test surface and no behaviour.
+export const SERVICES = {
   pricing_model: "fixed_list_prices",
   pricing_note: "The Shopify agent storefront check, audit, advisory and implementation have fixed list prices in EUR, VAT not included. Agent operations and MCP server design are scoped and quoted per engagement. Two implementation add-ons carry a fixed price and are sold only together with the diagnosis they follow, listed under bundled_implementation. Request a quote: turva.dev",
   currency: "EUR",
@@ -14,6 +16,13 @@ const SERVICES = {
       "Production credentials are not requested.",
     ],
   },
+  // Every deliverable here is a promise the site makes in prose, and the two are written
+  // by hand in two repos. Astra measured the drift 2026-09-10: the audit deliverable did
+  // not carry the re-scan within 30 days of the report that /services, /agent-readiness-
+  // audit and the JSON-LD promise in seven places, the advisory deliverable dropped the
+  // monthly written summary, and the Shopify retest gave 14 days without the day it
+  // counts from. verify.mjs --live now reads these strings for the dated promises, so a
+  // deliverable that loses one fails the gate rather than the reader.
   services: [
     {
       id: "shopify",
@@ -22,7 +31,7 @@ const SERVICES = {
       unit: "fixed",
       duration: "48 hours",
       summary: "Fixed scope. One live Shopify store read across browser WebMCP, Shopify-hosted Storefront and UCP MCP, and Shopify Agentic channels. No Shopify Admin credentials are requested and no order is placed.",
-      deliverable: "Four written deliverables as one package within 48 hours of the agreed written kickoff, and a fifth, the retest of up to two corrected items, within 14 days.",
+      deliverable: "Four written deliverables as one package within 48 hours of the agreed written kickoff, and a fifth, the retest of up to two corrected items, within 14 days of that first package.",
     },
     {
       id: "audit",
@@ -31,7 +40,7 @@ const SERVICES = {
       unit: "fixed",
       duration: "2 weeks",
       summary: "Fixed scope. An independent public scanner runs against the site or API, followed by a written report with a prioritized fix list.",
-      deliverable: "A measured baseline, a clear plan for what to fix first, and a fix instruction for every finding with a link to the matching guide on turva.dev where a guide covers that surface.",
+      deliverable: "A measured baseline, a clear plan for what to fix first, and a fix instruction for every finding with a link to the matching guide on turva.dev where a guide covers that surface. You also receive the recorded AI questions and answers, one round of written follow-up questions, and one re-scan within 30 days of the report.",
     },
     {
       id: "advisory",
@@ -40,7 +49,7 @@ const SERVICES = {
       unit: "month",
       minimum_commitment: "3 months",
       summary: "Monthly retainer, async-only. Ongoing review as the site, API, or product evolves.",
-      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships, and a quarterly summary. Each review explains what changed and what the evidence supports. A higher score or an AI mention is not guaranteed.",
+      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships within one business day, recommendations for the roadmap, questions and answers by email or a shared document, a monthly written summary that reads the month's measurements next to the previous month's, and a quarterly summary of measurable progress. Each review explains what changed and what the evidence supports. A higher score or an AI mention is not guaranteed.",
     },
     {
       id: "implementation",

@@ -1,0 +1,25 @@
+name: ci
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # The repo had neither a test suite nor a workflow until 2026-09-10 (Tek-384), and
+    # typecheck alone says nothing about runtime behaviour. npm ci is measured to resolve
+    # here only because of the two overrides in package.json; without them it fails with
+    # ERESOLVE (mds/gotchas.md 2026-07-26 (jatko 11), do-not-fix). Do not remove them.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
