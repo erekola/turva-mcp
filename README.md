@@ -14,7 +14,7 @@ Streamable HTTP endpoint:
 https://mcp.turva.dev/mcp
 ```
 
-No authentication or API key is required. Set the endpoint in an MCP client with Streamable HTTP support. Clients that use a URL-based `mcpServers` configuration commonly accept this shape:
+Connect to the hosted server directly. No npm installation, authentication or API key is required. Set the endpoint in an MCP client with Streamable HTTP support. Clients that use a URL-based `mcpServers` configuration commonly accept this shape:
 
 ```json
 {
@@ -112,6 +112,15 @@ The discovery documents and tool data are compiled into the Worker. This Worker 
 
 For private vulnerability reports, see [SECURITY.md](SECURITY.md) or email [info@turva.dev](mailto:info@turva.dev).
 
+## Related command-line tools
+
+For checks against another website, use the standalone npm packages:
+
+- [turva-llms-txt-validator](https://www.npmjs.com/package/turva-llms-txt-validator) checks llms.txt structure and home-page discovery declarations.
+- [markdown-parity-check](https://www.npmjs.com/package/markdown-parity-check) compares the main content of HTML and Markdown pages.
+
+Both run with `npx` on Node.js 22 or 24. Their [validator instructions](https://github.com/erekola/llms-txt-validator#quick-start) and [comparison instructions](https://github.com/erekola/markdown-parity-check#usage) explain the arguments and exit codes. These checks run independently of this MCP server.
+
 ## Deploy your own copy
 
 This repository is MIT licensed and can be adapted for another site. Before deploying a fork:
@@ -121,12 +130,13 @@ This repository is MIT licensed and can be adapted for another site. Before depl
 3. Give the Worker a unique `name` and a rate-limit `namespace_id` that is not shared with another Worker in your Cloudflare account.
 4. Attach your own custom domain. `workers_dev` is disabled in `wrangler.jsonc`.
 
-From the root of your clone, install dependencies and check the types before deploying with your Cloudflare account:
+Use Node.js 22 or 24, matching the repository's CI. From the root of your clone, install dependencies, run the tests and check the types before deploying with your Cloudflare account:
 
 ```sh
 npm ci
+npm test
 npm run typecheck
-npx wrangler deploy
+npm run deploy
 ```
 
 Configure the custom domain under Workers & Pages, your Worker, Settings, Domains & Routes. Use your own hostname and update the discovery endpoint in `src/index.ts` to match it.
