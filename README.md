@@ -112,14 +112,14 @@ The discovery documents and tool data are compiled into the Worker. This Worker 
 
 For private vulnerability reports, see [SECURITY.md](SECURITY.md) or email [info@turva.dev](mailto:info@turva.dev).
 
-## Related command-line tools
+## Related tools outside this server
 
-For checks against another website, use the standalone npm packages:
+The two checks below are separate tools. They are not MCP tools, and this server does not run them. For checks against another website, use the standalone npm packages:
 
-- [turva-llms-txt-validator](https://www.npmjs.com/package/turva-llms-txt-validator) checks llms.txt structure and home-page discovery declarations.
-- [markdown-parity-check](https://www.npmjs.com/package/markdown-parity-check) compares the main content of HTML and Markdown pages.
+- [turva-llms-txt-validator](https://www.npmjs.com/package/turva-llms-txt-validator) checks llms.txt structure and home-page discovery declarations. Its [browser version](https://turva.dev/llms-txt-validator) accepts any public domain.
+- [markdown-parity-check](https://www.npmjs.com/package/markdown-parity-check) compares the main content of HTML and Markdown pages. Its [browser version](https://turva.dev/markdown-parity-check) checks turva.dev's own published pages only.
 
-Both run with `npx` on Node.js 22 or 24. Their [validator instructions](https://github.com/erekola/llms-txt-validator#quick-start) and [comparison instructions](https://github.com/erekola/markdown-parity-check#usage) explain the arguments and exit codes. These checks run independently of this MCP server.
+Both run with `npx`. The validator needs Node.js 18.17 or newer, and the comparison needs Node.js 22 or newer. Their [validator instructions](https://github.com/erekola/llms-txt-validator#quick-start) and [comparison instructions](https://github.com/erekola/markdown-parity-check#readme) explain the arguments and exit codes.
 
 ## Deploy your own copy
 
@@ -150,4 +150,3 @@ The business registration is available in the [Finnish Business Information Syst
 ## License
 
 [MIT](LICENSE).
-
