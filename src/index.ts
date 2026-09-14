@@ -98,7 +98,7 @@ export const SERVICES = {
 
 const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-09-06",
+  measured_at: "2026-09-14",
   note: "Scores are a point-in-time reading by an independent public scanner, not a permanent state. Always verify against the live links below.",
   scans: [
     {
@@ -119,7 +119,7 @@ const AGENT_READINESS = {
 
 const SECURITY_EVIDENCE = {
   domain: "turva.dev",
-  measured_at: "2026-09-06",
+  measured_at: "2026-09-14",
   scans: [
     {
       provider: "Hardenize",
@@ -135,9 +135,9 @@ const SECURITY_EVIDENCE = {
     },
     {
       provider: "Internet.nl (email)",
-      score: 95,
+      score: 90,
       scale: "0-100",
-      note: "IPv6, DNSSEC, DMARC with DKIM and SPF, and RPKI pass in full. The deduction is in the cipher configuration of the receiving mail servers, which the mail provider operates.",
+      note: "DNSSEC, DMARC with DKIM and SPF, STARTTLS with DANE, and RPKI pass in full. The deduction is IPv6: the receiving mail servers, which the mail provider operates, publish no IPv6 address.",
       url: "https://internet.nl/mail/turva.dev/",
     },
   ],
