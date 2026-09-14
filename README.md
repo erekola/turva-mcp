@@ -65,7 +65,7 @@ Five read-only tools, each idempotent and returning JSON as text content. There 
 
 | Tool | Returns |
 | --- | --- |
-| `get_services` | The published service catalog, pricing and engagement model |
+| `get_services` | The engagement model, the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations and MCP server design) and pricing (four fixed list prices and two on request) |
 | `get_agent_readiness` | turva.dev's agent-readiness score, category scores, measurement date and verification link |
 | `get_security_evidence` | Public Hardenize and Internet.nl results for turva.dev, with their measurement date |
 | `get_principles` | The principles covering written work, access and verification |
