@@ -30,3 +30,18 @@ updates:
       all-dependencies:
         patterns:
           - "*"
+  # The actions in .github/workflows are pinned to full commit SHAs, and a pin
+  # without an updater only gets older. This block opens a pull request when a
+  # pinned action has a new release.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      timezone: Europe/Helsinki
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: ci
+    groups:
+      all-actions:
+        patterns:
+          - "*"
