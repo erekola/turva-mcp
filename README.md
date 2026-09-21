@@ -1,6 +1,6 @@
 # turva-mcp
 
-[![turva-mcp on Glama](https://glama.ai/mcp/servers/erekola/turva-mcp/badges/score.svg)](https://glama.ai/mcp/servers/erekola/turva-mcp)
+[![turva-mcp on Glama](https://glama.ai/mcp/connectors/dev.turva/turva-mcp/badges/score.svg)](https://glama.ai/mcp/connectors/dev.turva/turva-mcp)
 
 A public, read-only Model Context Protocol server for [turva.dev](https://turva.dev). It lets an AI client look up the site's published information, including contact details and dated measurement evidence.
 
@@ -34,7 +34,7 @@ curl https://mcp.turva.dev/
 
 In Windows PowerShell, use `curl.exe` if `curl` resolves to `Invoke-WebRequest`.
 
-The server is listed in the official MCP registry as `dev.turva/turva-mcp` and in the [Glama MCP directory](https://glama.ai/mcp/servers/erekola/turva-mcp).
+The server is listed in the official MCP registry as `dev.turva/turva-mcp` and in the [Glama MCP directory](https://glama.ai/mcp/connectors/dev.turva/turva-mcp).
 
 ## Try a tool
 
