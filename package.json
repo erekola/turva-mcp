@@ -1,6 +1,6 @@
 {
   "name": "turva-mcp",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "MCP server for turva.dev. Exposes the service catalog, agent-readiness scores, security evidence and engagement principles to AI agents.",
   "type": "module",
   "scripts": {
@@ -21,8 +21,8 @@
     "@modelcontextprotocol/client": "2.0.0",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@modelcontextprotocol/server": "2.0.0",
-    "agents": "0.22.0",
-    "zod": "^4.6.2"
+    "agents": "0.23.0",
+    "zod": "^4.6.5"
   },
   "overrides": {
     "@hono/node-server": "^2.0.5",
