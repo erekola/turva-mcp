@@ -57,7 +57,7 @@ Here `client` is your connected MCP client. The same JSON is also in `result.con
 }
 ```
 
-The full response also includes other contact channels and instructions for starting an engagement.
+The full response also includes the other contact channels, the steps for starting an engagement and an `operator` object that says who runs turva.dev.
 
 Without an SDK, a request on the current protocol lane needs four things beside the JSON-RPC body: the `MCP-Protocol-Version` header, the `Mcp-Method` header, the `Mcp-Name` header on `tools/call`, and a `_meta` object in `params` that names the protocol version and the client's capabilities. The same call with `curl`:
 
@@ -82,7 +82,7 @@ Five read-only tools, each idempotent. Each returns its data as `structuredConte
 | `get_agent_readiness` | turva.dev's agent-readiness score, category scores, measurement date and verification link |
 | `get_security_evidence` | Public Hardenize and Internet.nl results for turva.dev, with their measurement date |
 | `get_principles` | The principles covering written work, access and verification |
-| `get_contact` | Contact channels, the first-reply time and what access an audit needs |
+| `get_contact` | Who runs turva.dev, the contact channels, the first-reply time and what access an audit needs |
 
 ## Evidence
 

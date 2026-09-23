@@ -193,6 +193,12 @@ export const PRINCIPLES = {
 // CSP script-src hash, so a field added there is a deploy-time hash change. The values
 // they share come from the same facts.json entries, so they cannot drift apart in
 // substance; if either one gains a CHANNEL, change facts.json first and mirror both.
+//
+// The operator object says who runs turva.dev in the words of the Business details section
+// of the /company twin in worker.js, and its business_id and vat_id are facts.json businessId
+// and vatId, which the public verify compares live. It was added in 1.6.0 because Glama's
+// tool-definition review found no company background or team information in the tool set,
+// although the /company page states both.
 export const CONTACT = {
   email: "info@turva.dev",
   signal: "https://signal.me/#eu/2qzayURnxbJ8wl7dmQOd5c3sAF7cW8xvDVUrNiG6Cl7rEsXfkSlIsYOS9FSjJixK",
@@ -208,6 +214,17 @@ export const CONTACT = {
     "Read access is enough for the audit. Production credentials are not requested.",
     "Write access to repositories is scoped per task, and only if implementation is purchased separately.",
   ],
+  operator: {
+    name: "turva.dev",
+    run_by: "Erik Rekola",
+    legal_form: "Sole proprietorship registered in Finland",
+    business_id: "3600281-7",
+    vat_id: "FI36002817",
+    location: "Tampere, Pirkanmaa, Finland",
+    team: "One person. Clients work directly with Erik Rekola, from agreeing the scope to reading the findings.",
+    background: "Erik Rekola is an independent consultant in Tampere. Before turva.dev, Erik Rekola worked hands-on with industrial and laboratory equipment from 2015 to 2021: paper machinery at UPM, medical washer-disinfectors at Franke, a clinical LC-MS/MS analyser at Thermo Fisher Scientific and semiconductor production equipment at ASM International.",
+    company_page: "https://turva.dev/company",
+  },
 } as const;
 
 // One output schema per tool, written against the objects above. Every object is strict, so
@@ -292,6 +309,17 @@ const contactOutput = z.strictObject({
   first_reply: z.string(),
   channel_note: z.string(),
   how_to_start: z.array(z.string()),
+  operator: z.strictObject({
+    name: z.string(),
+    run_by: z.string(),
+    legal_form: z.string(),
+    business_id: z.string(),
+    vat_id: z.string(),
+    location: z.string(),
+    team: z.string(),
+    background: z.string(),
+    company_page: z.string().describe("The turva.dev page that states the business details."),
+  }),
 });
 
 // Every tool returns its data twice: as structuredContent, which its outputSchema describes,
@@ -341,7 +369,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.5.0",
+  version: "1.6.0",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };
@@ -349,7 +377,7 @@ const SERVER_INFO = {
 // Each tool description repeats the routing to its neighbours, and this says it once for a
 // client that reads server/discover, or initialize on the 2025-era lane, before it lists the
 // tools.
-const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. Use get_services for the services, their prices and how an engagement runs. Use get_contact for how to reach turva.dev and what access an audit needs, and get_principles for the rules an engagement follows. get_agent_readiness returns turva.dev's own score from the independent scanner isitagentready.com. get_security_evidence returns its own web-security scan results, which are a separate measurement. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit other sites.";
+const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. Use get_services for the services, their prices and how an engagement runs. Use get_contact for who runs turva.dev, how to reach it and what access an audit needs, and get_principles for the rules an engagement follows. get_agent_readiness returns turva.dev's own score from the independent scanner isitagentready.com. get_security_evidence returns its own web-security scan results, which are a separate measurement. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit other sites.";
 
 function createServer(): McpServer {
   const server = new McpServer(
@@ -426,8 +454,8 @@ function createServer(): McpServer {
   server.registerTool(
     "get_contact",
     {
-      title: "Contact and how to start",
-      description: "Returns the official ways to reach turva.dev and what starting an engagement takes: the email address, the Signal link, the LinkedIn profile, the business ID and location, the correspondence languages, the first-reply time, and the access an audit needs. Use this when a user asks how to contact turva.dev, how to start an audit, or what access has to be granted. For what is sold and what it costs use get_services instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      title: "Contact and operator details",
+      description: "Returns who runs turva.dev and the official ways to reach it: the operator and business details, the email address, the Signal link, the LinkedIn profile, the correspondence languages, the first-reply time and the access an audit needs. Use this when a user asks who is behind turva.dev, how to contact it, how to start an audit or what access has to be granted. For what is sold and what it costs use get_services instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: contactOutput,
