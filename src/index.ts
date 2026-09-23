@@ -31,7 +31,7 @@ export const SERVICES = {
       unit: "fixed",
       duration: "48 hours",
       summary: "Fixed scope. One live Shopify store read across browser WebMCP, Shopify-hosted Storefront and UCP MCP, and Shopify Agentic channels. No Shopify Admin credentials are requested and no order is placed.",
-      deliverable: "Four written deliverables as one package within 48 hours of the agreed written kickoff, and a fifth, the retest of up to two corrected items, within 14 days of that first package.",
+      deliverable: "Four written deliverables as one package within 48 hours of the agreed written kickoff, and a fifth, the retest of up to two corrected items, within 14 days of that first package. A further retest is bought as a new check.",
     },
     {
       id: "audit",
@@ -49,7 +49,7 @@ export const SERVICES = {
       unit: "month",
       minimum_commitment: "3 months",
       summary: "Monthly retainer, async-only. Ongoing review as the site, API, or product evolves.",
-      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships within one business day, recommendations for the roadmap, questions and answers by email or a shared document, a monthly written summary that reads the month's measurements next to the previous month's, and a quarterly summary of measurable progress. Each review explains what changed and what the evidence supports. A higher score or an AI mention is not guaranteed.",
+      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships within one business day, recommendations for the roadmap, questions and answers by email or a shared document, a monthly written summary that reads the month's measurements next to the previous month's, and a quarterly summary of measurable progress. The monthly summary is delivered within five business days after the month ends. Each review explains what changed and what the evidence supports. A higher score or an AI mention is not guaranteed.",
     },
     {
       id: "implementation",
@@ -174,7 +174,7 @@ const CONTACT = {
   location: "Tampere, Finland",
   engagement: "async_only",
   correspondence_languages: ["en", "fi"],
-  first_reply: "Within one business day, in writing.",
+  first_reply: "Within one business day, in writing, by email or Signal. LinkedIn messages have no set reply time.",
   channel_note: "Email for longer messages, Signal for short questions. No calls and no calendar links.",
   how_to_start: [
     "Email the domain you want read. That is enough to start.",

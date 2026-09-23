@@ -53,7 +53,7 @@ Here `client` is your connected MCP client. This excerpt from the decoded respon
   "email": "info@turva.dev",
   "location": "Tampere, Finland",
   "engagement": "async_only",
-  "first_reply": "Within one business day, in writing."
+  "first_reply": "Within one business day, in writing, by email or Signal. LinkedIn messages have no set reply time."
 }
 ```
 
