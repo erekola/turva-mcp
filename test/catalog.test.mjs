@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import worker, { SERVICES } from "../src/index.ts";
+import worker, { SERVICES, PRINCIPLES } from "../src/index.ts";
 
 // turva-mcp had no test suite until 2026-09-10 (Tek-384). typecheck alone says nothing
 // about runtime behaviour, and the two things this server can get wrong in production,
@@ -29,15 +29,26 @@ test("M1: the discovery routes answer with the endpoint the card points at", asy
     assert.equal(b.name, "turva-mcp");
     assert.equal(b.transport, "streamable-http");
     assert.equal(b.endpoint, "https://mcp.turva.dev/mcp", "the endpoint is the one every card and README names");
+    assert.equal(r.headers.get("cache-control"), "public, max-age=3600", path + " may be kept for the hour tools/list is");
   }
   const glama = await call("/.well-known/glama.json");
   assert.equal(glama.status, 200);
+  assert.equal(glama.headers.get("cache-control"), "public, max-age=3600");
   assert.equal(JSON.parse(await glama.text()).maintainers[0].email, "info@turva.dev");
-  assert.equal((await call("/ei-ole")).status, 404);
+  const missing = await call("/ei-ole");
+  assert.equal(missing.status, 404);
+  assert.equal(missing.headers.get("content-type"), "text/plain; charset=utf-8", "the 404 names its type");
 });
 
 test("M2: the discovery routes serve GET, HEAD and OPTIONS and refuse the rest", async () => {
-  assert.equal((await call("/", { method: "HEAD" })).status, 200, "HEAD is a GET without the body");
+  // Cloudflare's edge strips a HEAD body in production, so only this test sees whether the
+  // Worker itself sends one. Round 20 found this as A1-2: the message promised an empty body
+  // and the assertion read only the status.
+  for (const path of ["/", "/.well-known/mcp", "/.well-known/glama.json", "/ei-ole"]) {
+    const head = await call(path, { method: "HEAD" });
+    assert.equal(head.status, path === "/ei-ole" ? 404 : 200, path);
+    assert.equal((await head.arrayBuffer()).byteLength, 0, path + ": HEAD is a GET without the body");
+  }
   const pre = await call("/", { method: "OPTIONS" });
   assert.equal(pre.status, 204);
   // Round 16 (C7-1, 2026-09-03): POST and DELETE on / used to answer 200 with the same
@@ -59,7 +70,10 @@ test("M3: every answer carries the security headers", async () => {
   }
 });
 
-test("M4: the declared rate limit is enforced, and the 429 answers with its own path's policy", async () => {
+// M4 proves the 429 code path with a stand-in binding that always refuses. It cannot prove
+// the limit itself, because Cloudflare's binding is approximate and counts per location, as
+// round 20 measured in TJ-2. protocol.test.mjs P11 holds the numbers the answer states.
+test("M4: a refusing limiter gets a 429 with the declared window, and the 429 answers with its own path's policy", async () => {
   const denied = await call("/", { env: limiter(false) });
   assert.equal(denied.status, 429);
   assert.equal(denied.headers.get("retry-after"), "60", "the declared window, not a guess");
@@ -118,4 +132,9 @@ test("M7: the deliverables still carry the dated promises the site makes", async
   // /services says in as many words that a higher score is not guaranteed, so the
   // catalogue may not promise the opposite (measured contradiction, 2026-09-09).
   assert.doesNotMatch(JSON.stringify(SERVICES), /each scanner cycle reads higher/i);
+  // Round 20 found this as E-2: the measured-result principle promises a higher reading only
+  // for the fixes the audit report names, with the tradeoff clause beside it, as the site does.
+  const principles = JSON.stringify(PRINCIPLES);
+  assert.match(principles, /the fixes the audit report names/);
+  assert.match(principles, /reads higher[^"]*or the report explains which tradeoff was kept on purpose/);
 });

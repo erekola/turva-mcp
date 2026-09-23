@@ -21,5 +21,10 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm ci
+      # SECURITY.md states the date of the last audit that found no open advisory. This
+      # step keeps that statement from resting on a check run by hand: a runtime
+      # dependency with a moderate or worse advisory fails the build. Round 20 proposed
+      # this step as B-P2.
+      - run: npm audit --omit=dev --audit-level=moderate
       - run: npm test
       - run: npm run typecheck

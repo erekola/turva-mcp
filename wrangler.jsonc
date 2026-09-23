@@ -7,8 +7,11 @@
   // Off on purpose, same reason as turva-worker: the MCP endpoint is reachable at
   // mcp.turva.dev only, not additionally on a *.workers.dev hostname.
   "workers_dev": false,
-  // The endpoint declares RateLimit-Policy "default";q=100;w=60 on every response, so
-  // the limit is enforced rather than advertised. namespace_id is deliberately NOT 1001:
+  // The endpoint declares a RateLimit-Policy of 100 requests per 60 seconds on every
+  // response, and this binding is what applies it. The binding counts per Cloudflare
+  // location and approximately, so the header states the configured quota and not an exact
+  // ceiling. RATE_LIMIT in src/index.ts carries the same two numbers, and
+  // test/protocol.test.mjs compares them with this entry. namespace_id is deliberately NOT 1001:
   // bindings that share a namespace_id share counters across Workers on the same account,
   // which would silently drain turva-worker's per-IP budget (mds/gotchas.md 2026-07-17).
   "ratelimits": [

@@ -42,11 +42,11 @@ Once connected, call `get_contact` with an empty argument object. In an MCP clie
 
 ```js
 const result = await client.callTool({ name: "get_contact", arguments: {} });
-const contact = JSON.parse(result.content[0].text);
+const contact = result.structuredContent;
 console.log(contact.email, contact.first_reply);
 ```
 
-Here `client` is your connected MCP client. This excerpt from the decoded response shows the contact fields maintained in [src/index.ts](src/index.ts):
+Here `client` is your connected MCP client. The same JSON is also in `result.content[0].text` for clients that read text only. This excerpt from the response shows the contact fields maintained in [src/index.ts](src/index.ts):
 
 ```json
 {
@@ -59,9 +59,22 @@ Here `client` is your connected MCP client. This excerpt from the decoded respon
 
 The full response also includes other contact channels and instructions for starting an engagement.
 
+Without an SDK, a request on the current protocol lane needs four things beside the JSON-RPC body: the `MCP-Protocol-Version` header, the `Mcp-Method` header, the `Mcp-Name` header on `tools/call`, and a `_meta` object in `params` that names the protocol version and the client's capabilities. The same call with `curl`:
+
+```sh
+curl https://mcp.turva.dev/mcp \
+  -H "Content-Type: application/json" \
+  -H "MCP-Protocol-Version: 2026-07-28" \
+  -H "Mcp-Method: tools/call" \
+  -H "Mcp-Name: get_contact" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_contact","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}'
+```
+
+The answer is one JSON-RPC response, and the contact data is in `result.structuredContent`.
+
 ## Tools
 
-Five read-only tools, each idempotent and returning JSON as text content. There are no write tools or transaction tools.
+Five read-only tools, each idempotent. Each returns its data as `structuredContent`, which the tool's `outputSchema` describes, and as the same JSON in a text block. No tool takes arguments: the input schema allows none, and a call that passes one returns a tool error. There are no write tools or transaction tools.
 
 | Tool | Returns |
 | --- | --- |
@@ -81,32 +94,44 @@ The bundled snapshot dated 2026-09-23 records 100/100, Level 5 Agent-Native on [
 
 | Method and path | Behavior |
 | --- | --- |
-| `POST /mcp` | MCP over Streamable HTTP |
-| `GET /mcp`, `DELETE /mcp` | `405`. No GET stream or session teardown |
+| `POST /mcp` | MCP over Streamable HTTP. A body over 64 KiB receives `413`, and a JSON-RPC batch receives `400` with error `-32600` |
+| `GET /mcp`, `DELETE /mcp` | `405` with `Allow: POST, OPTIONS`. No GET stream or session teardown |
 | `OPTIONS /mcp` | `200` for an accepted MCP preflight, `403` when the browser `Origin` is not allowed |
+| `/mcp/` | `308` to `/mcp`, keeping the method and the query string. A preflight `OPTIONS` is answered as the one for `/mcp`, because a browser does not follow a redirect on a preflight |
 | `GET /` | Minimal discovery JSON with the server name, transport and endpoint |
 | `GET /.well-known/mcp` | The same discovery JSON |
 | `GET /.well-known/glama.json` | Glama domain-verification document |
 | `OPTIONS` on any other path | `204` discovery CORS preflight |
-| `POST`, `PUT`, `DELETE` or `PATCH` on any path other than `/mcp` | `405` with `Allow: GET, HEAD, OPTIONS` |
+| `POST`, `PUT`, `DELETE` or `PATCH` on any path other than `/mcp` and `/mcp/` | `405` with `Allow: GET, HEAD, OPTIONS` |
 | `GET` or `HEAD` on any other path | `404` |
+
+`HEAD` on a discovery document returns its headers without a body. The discovery documents carry `Cache-Control: public, max-age=3600`, the same hour that `tools/list` and `server/discover` declare.
 
 The full signed MCP server card is published at [turva.dev/.well-known/mcp/server-card.json](https://turva.dev/.well-known/mcp/server-card.json).
 
 ## Protocol and implementation
 
-A single Cloudflare Worker built on the Cloudflare Agents SDK serves the endpoint through `createMcpHandler`. A fresh `McpServer` is created for each request. There is no Durable Object or persistent MCP session.
+A single Cloudflare Worker built on the Cloudflare Agents SDK serves the endpoint through `createMcpHandler` from `agents/mcp/server`, and it creates a fresh `McpServer` from `@modelcontextprotocol/server` for each request. There is no Durable Object or persistent MCP session.
 
-The current protocol lane uses revision `2026-07-28`. The SDK's legacy compatibility lane remains available at the same endpoint. On the current lane the handler validates `MCP-Protocol-Version` and `Mcp-Method`, plus `Mcp-Name` for `tools/call`. Standard MCP clients handle these details. `server/discover` is supplied by the SDK.
+The current protocol lane uses revision `2026-07-28`. A legacy lane at the same endpoint serves 2025-era clients. That lane is an adapter in the Agents SDK, and it answers through the web-standard server transport of `@modelcontextprotocol/server`. On the current lane every request must carry `MCP-Protocol-Version` and `Mcp-Method`, plus `Mcp-Name` for `tools/call`, and a request without one of them receives `400` with error `-32020`. `@modelcontextprotocol/server` checks `Mcp-Method` and `Mcp-Name`, and the Worker checks `MCP-Protocol-Version` before the handler runs, because that package reads the version from the request body and would otherwise answer a request that lacks the header. On the current lane nothing checks `Accept`, while the legacy lane answers `406` unless `Accept` lists both `application/json` and `text/event-stream`. Standard MCP clients handle these details.
+
+`server/discover` is supplied by `@modelcontextprotocol/server`. It declares the `tools` capability with `listChanged: false`, because the tool set changes only on deploy and the server sends no change notifications, and it returns short instructions that say which tool answers which question.
 
 The discovery documents and tool data are compiled into the Worker. This Worker is separate from the main turva.dev Worker, so changes here do not change the website.
 
+## Dependencies
+
+The code imports `@modelcontextprotocol/server`, `agents` and `zod`. `package.json` also lists `@modelcontextprotocol/client` and `@modelcontextprotocol/sdk`, which the code does not import. `agents` 0.23.0 declares all three MCP packages as required peer dependencies at exact versions, so npm has to install them, but neither of the two is in the built Worker.
+
 ## Security and operating limits
 
+This server has no write path and returns only public data, so what it has to withstand is abuse of the endpoint itself: load from one address, requests built to be expensive, and a page on another site that calls it from a visitor's browser. The list below says how the endpoint meets them.
+
 - Public and unauthenticated by design. Every exposed value is already public.
-- Read-only MCP annotations on every tool. No destructive or open-world operation is declared.
-- Rate limit: 100 requests per 60 seconds per client IP, with `429` and `Retry-After: 60` after the limit. The endpoint fails open if the rate-limiter binding is missing or errors.
-- Browser CORS on `/mcp` allows only `https://turva.dev` as `Origin`. Other origins receive `403`. Non-browser MCP clients normally send no `Origin` header and can connect directly. Discovery documents use open CORS so directories can read them.
+- Read-only MCP annotations on every tool. No destructive or open-world operation is declared, and no tool takes arguments.
+- Rate limit: about 100 requests per 60 seconds per client IP, with `429` and `Retry-After: 60` after it. Cloudflare's rate-limiting binding keeps a separate, approximate count in each location, so a burst can pass more requests before the first `429`. The endpoint fails open if the rate-limiter binding is missing or errors.
+- Request size: a body over 64 KiB receives `413` before the handler reads it, and a JSON-RPC batch receives `400` on both lanes, so one request cannot carry many tool calls past the rate limit.
+- Browser CORS on `/mcp` allows only `https://turva.dev` as `Origin`. Other origins receive `403`. The check compares the hostname, so the scheme and the port are not part of it. Non-browser MCP clients normally send no `Origin` header and can connect directly. Discovery documents use open CORS so directories can read them.
 - The code does not store request bodies, client identities or tool inputs. Cloudflare Workers observability is disabled. A rate-limiter failure writes a diagnostic error without request data.
 - Security headers are applied to MCP and discovery responses.
 
@@ -143,7 +168,7 @@ Configure the custom domain under Workers & Pages, your Worker, Settings, Domain
 
 ## Maintainer
 
-Built by [Erik Rekola](https://github.com/erekola) at [turva.dev](https://turva.dev). Questions about the implementation can go to [info@turva.dev](mailto:info@turva.dev). I work in writing.
+Built by [Erik Rekola](https://github.com/erekola) at [turva.dev](https://turva.dev). Questions about the implementation can go to [info@turva.dev](mailto:info@turva.dev). I work in writing. turva.dev builds servers like this one for other sites as a service, [MCP server design](https://turva.dev/services#mcp-server-design).
 
 The business registration is available in the [Finnish Business Information System](https://tietopalvelu.ytj.fi/yritys/3600281-7).
 
