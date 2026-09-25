@@ -44,7 +44,7 @@ export const SERVICES = {
       unit: "fixed",
       duration: "48 hours",
       summary: "Fixed scope. One live Shopify store read across browser WebMCP, Shopify-hosted Storefront and UCP MCP, and Shopify Agentic channels. No Shopify Admin credentials are requested and no order is placed.",
-      deliverable: "Four written deliverables as one package within 48 hours of the agreed written kickoff, and a fifth, the retest of up to two corrected items, within 14 days of that first package. A further retest is bought as a new check.",
+      deliverable: "Four written deliverables as one package within 48 hours of the agreed written kickoff, and a fifth, the retest of up to two corrected items, within 14 days of that first package, or of the delivered corrections when the correction add-on is bought. A further retest is bought as a new check.",
     },
     {
       id: "audit",
@@ -55,7 +55,7 @@ export const SERVICES = {
       unit: "fixed",
       duration: "2 weeks",
       summary: "Fixed scope. An independent public scanner runs against the site or API, followed by a written report with a prioritized fix list.",
-      deliverable: "A measured baseline, a clear plan for what to fix first, and a fix instruction for every finding with a link to the matching guide on turva.dev where a guide covers that surface. You also receive the recorded AI questions and answers, one round of written follow-up questions, and one re-scan within 30 days of the report.",
+      deliverable: "A measured baseline, a clear plan for what to fix first, and a fix instruction for every finding with a link to the matching guide on turva.dev where a guide covers that surface. You also receive the recorded AI questions and answers, one round of written follow-up questions, and one re-scan within 30 days of the report, or within 30 days of the delivered corrections when the correction add-on is bought.",
     },
     {
       id: "advisory",
@@ -369,7 +369,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.0",
+  version: "1.6.1",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };
