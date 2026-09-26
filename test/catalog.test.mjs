@@ -123,6 +123,11 @@ test("M7: the deliverables still carry the dated promises the site makes", async
     ["advisory", /quarterly summary/i],
     ["shopify", /within 48 hours of the agreed written kickoff/i],
     ["shopify", /within 14 days of that first package/i],
+    // Tek-481 gave both retest windows the correction add-on exception and Tek-482 reads it
+    // back: without it the window would again count from the report or the first package
+    // for a buyer whose fixes arrive later.
+    ["audit", /or within 30 days of the delivered corrections when the correction add-on is bought/i],
+    ["shopify", /or of the delivered corrections when the correction add-on is bought/i],
   ];
   for (const [id, re] of want) {
     const s = SERVICES.services.find((x) => x.id === id);
