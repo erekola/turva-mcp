@@ -210,7 +210,7 @@ export const CONTACT = {
   first_reply: "Within one business day, in writing, by email or Signal. LinkedIn messages have no set reply time.",
   channel_note: "Email for longer messages, Signal for short questions. No calls and no calendar links.",
   how_to_start: [
-    "Email the domain you want read. That is enough to start.",
+    "Email the domain you want read and the question you want answered. That is enough to start.",
     "Read access is enough for the audit. Production credentials are not requested.",
     "Write access to repositories is scoped per task, and only if implementation is purchased separately.",
   ],
@@ -369,7 +369,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.3",
+  version: "1.6.4",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };
