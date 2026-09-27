@@ -73,7 +73,7 @@ export const SERVICES = {
       url: "https://turva.dev/services#implementation",
       price: 1500,
       unit: "day",
-      summary: "Booked per day. Worker-level changes, well-known manifests, MCP server work, JSON-LD and Schema fixes.",
+      summary: "Booked per day. Worker-level changes, well-known manifests, discovery cards for an MCP server that already runs, JSON-LD and Schema fixes. Building the MCP server itself is scoped separately.",
       deliverable: "The improvement is verifiable against the audit baseline in the next scan.",
     },
     {
@@ -101,7 +101,7 @@ export const SERVICES = {
       unit: "fixed",
       requires: "audit",
       sold_separately: false,
-      summary: "Implementation of exactly the fixes the audit report lists. Sold only together with the audit. Work outside that list is scoped at the implementation day rate.",
+      summary: "Implementation of exactly the fixes the audit report lists. Sold only together with the audit, and only when the access the listed fixes need is arranged in advance. Work outside that list is scoped at the implementation day rate.",
     },
     {
       id: "shopify-fixes",
@@ -110,7 +110,7 @@ export const SERVICES = {
       unit: "fixed",
       requires: "shopify",
       sold_separately: false,
-      summary: "Implementation of exactly the corrections the Shopify agent storefront check lists. Sold only together with that check. Work outside the plan is scoped at the implementation day rate.",
+      summary: "Implementation of exactly the corrections the Shopify agent storefront check lists. Sold only together with that check, and only when the access the listed corrections need is arranged in advance. Work outside the plan is scoped at the implementation day rate.",
     },
   ],
 } as const;
@@ -172,7 +172,7 @@ export const PRINCIPLES = {
   rules: [
     { id: "async-only", title: "All communication is async", rationale: "No calls and no calendar links. Everything stays in writing, so the work and the trail are auditable end to end." },
     { id: "least-access", title: "No production credentials, scoped write access", rationale: "Read access is enough for the audit. Write access is scoped per task only if implementation is purchased separately." },
-    { id: "measured-result", title: "The result shows up in scanner numbers", rationale: "Once the fixes the audit report names are implemented, the next scan either reads higher in the categories the report named or the report explains which tradeoff was kept on purpose." },
+    { id: "measured-result", title: "The result shows up in scanner numbers", rationale: "Once the fixes the audit report names are implemented, the next scan either reads higher in the categories the report named or the report explains which tradeoff was kept on purpose. A fix the scanner does not score is checked by a direct test instead, and the report records that result even when no score moves." },
     { id: "transparency", title: "Open and verifiable", rationale: "Backed by a registered business, Business ID 3600281-7, Finland. Our own domain's scores are publicly verifiable." },
   ],
 } as const;
@@ -369,7 +369,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.2",
+  version: "1.6.3",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };
