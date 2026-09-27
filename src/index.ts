@@ -1,4 +1,4 @@
-import { McpServer, PROTOCOL_VERSION_META_KEY, isJsonContentType } from "@modelcontextprotocol/server";
+import { McpServer, PROTOCOL_VERSION_META_KEY, isJsonContentType, SUBSCRIPTION_ID_META_KEY, SERVER_INFO_META_KEY } from "@modelcontextprotocol/server";
 import { createMcpHandler } from "agents/mcp/server";
 // The namespace import lets the bundler keep only the parts of zod the schemas below use.
 // Importing the named z export instead pulled in all of zod: a dry-run build measured
@@ -369,7 +369,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.1",
+  version: "1.6.2",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };
@@ -555,7 +555,50 @@ function withSecurityHeaders(res: Response): Response {
   // RFC 9110 requires an Allow header on a 405, and the handler's own 405 for GET and DELETE
   // has none. It names the methods the preflight advertises, from the same list.
   if (res.status === 405) headers.set("Allow", MCP_CORS.methods);
+  // HTTP-04 (Astra audit 2026-09-26): a GET/DELETE 405 or an unmatched-method 404 on this
+  // route carried no Cache-Control at all, so a shared cache was free to decide for itself
+  // how long to keep an error that has nothing static about it.
+  if (res.status === 404 || res.status === 405) headers.set("Cache-Control", "no-store");
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
+// E-01 (Astra audit 2026-09-26): this server has no notifications to deliver, so a
+// subscriptions/listen stream that stays open after its acknowledgement is pure overhead: an
+// SDK keepalive timer and an open stream per caller that nothing here ever ends. The
+// 2026-07-28 revision's Subscriptions pattern defines a Graceful Closure frame for exactly
+// this, a JSON-RPC result carrying resultType "complete" and the subscription id, sent on the
+// same stream before it ends. This reads the SDK's own acknowledgement frame through
+// unchanged, cancels the SDK's stream (which runs its own teardown: clears the keepalive
+// timer and unsubscribes from the notification bus), and appends the completion frame itself,
+// so "no request outlives its response" (the comment above createServer) holds for this
+// method too, as measured on 2026-09-26. Skipped when the response is not the SSE stream this
+// method returns on success, such as the JSON-RPC error a subscription-limit or params
+// rejection sends instead.
+function closeListenStreamAfterAck(res: Response, subscriptionId: string | number): Response {
+  if (!(res.headers.get("content-type") ?? "").includes("text/event-stream") || res.body === null) return res;
+  const upstream = res.body.getReader();
+  const encoder = new TextEncoder();
+  const completeFrame = encoder.encode(`event: message\ndata: ${JSON.stringify({
+    jsonrpc: "2.0",
+    id: subscriptionId,
+    result: {
+      resultType: "complete",
+      _meta: { [SUBSCRIPTION_ID_META_KEY]: subscriptionId, [SERVER_INFO_META_KEY]: SERVER_INFO },
+    },
+  })}\n\n`);
+  const body = new ReadableStream({
+    async start(controller) {
+      try {
+        const { value } = await upstream.read();
+        if (value) controller.enqueue(value);
+      } finally {
+        await upstream.cancel();
+      }
+      controller.enqueue(completeFrame);
+      controller.close();
+    },
+  });
+  return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
 }
 
 // The narrow /mcp policy applied to a response the MCP handler never sees, so a rate-limited
@@ -601,15 +644,72 @@ function discoveryDocument(head: boolean, doc: Record<string, unknown>): Respons
 // Notifications are left to the SDK, which checks its own required headers on requests only.
 const MAX_BODY_BYTES = 65_536;
 
-function mcpError(status: number, code: number, message: string, id: string | number | null = null, data?: Record<string, unknown>): Response {
+// T-02 (Astra audit 2026-09-26): the 2026-07-28 revision's JSONRPCErrorResponse allows id to
+// be a string, a number, or absent, and never null. id now defaults to absent, because most
+// callers of this function reject a request before any id can be read (an oversized body, a
+// batch), and a client that validates against the modern schema would refuse the null this
+// used to send. A caller that knows the request's id (the mismatch check and the T-01/T-04
+// checks below) passes it explicitly.
+function mcpError(status: number, code: number, message: string, id?: string | number, data?: Record<string, unknown>): Response {
   return withMcpCorsHeaders(Response.json(
-    { jsonrpc: "2.0", error: { code, message, ...(data === undefined ? {} : { data }) }, id },
+    { jsonrpc: "2.0", error: { code, message, ...(data === undefined ? {} : { data }) }, ...(id === undefined ? {} : { id }) },
     { status },
   ));
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// The five names server.registerTool gives below, every one with noArguments as its
+// inputSchema. protocol.test.mjs asserts this list matches tools/list's own names, so the two
+// cannot drift apart silently.
+export const NO_ARGUMENT_TOOL_NAMES = ["get_services", "get_agent_readiness", "get_security_evidence", "get_principles", "get_contact"] as const;
+const NO_ARGUMENT_TOOLS = new Set<string>(NO_ARGUMENT_TOOL_NAMES);
+
+// T-01 (Astra audit 2026-09-26, F-01 in 02-turva-mcp.md and 10-mcp-palvelin.md): the SDK's
+// own request-schema validation throws a plain Error, not a ProtocolError, when a known
+// method's params fail its wire schema, and setRequestHandler's function-overload catch maps
+// any thrown value without a numeric .code to ProtocolErrorCode.InternalError (-32603). A
+// client's malformed params then reads as a server fault. This checks only the exact
+// malformed shapes measured (initialize missing params or capabilities, or a non-string
+// protocolVersion; tools/list with a non-string cursor), before the SDK ever sees the
+// request, and answers -32602 Invalid params instead. Anything the SDK itself accepts is left
+// to it unchanged, so the accepted set does not move.
+function invalidParamsReason(method: string, params: unknown): string | undefined {
+  if (method === "initialize") {
+    if (!isPlainObject(params)) return "params must be an object";
+    if (typeof params.protocolVersion !== "string") return "params.protocolVersion must be a string";
+    if (!isPlainObject(params.capabilities)) return "params.capabilities must be an object";
+  }
+  if (method === "tools/list" && params !== undefined) {
+    if (!isPlainObject(params)) return "params must be an object";
+    if ("cursor" in params && typeof params.cursor !== "string") return "params.cursor must be a string";
+  }
+  return undefined;
+}
+
+// T-04 (Astra audit 2026-09-26): every tool above takes noArguments, z.strictObject({}), but
+// the SDK's wire codec validates a spread of the raw params, "{ ...request.params }", and a
+// JavaScript object literal spread on a key named "__proto__" sets the new object's own
+// prototype instead of copying "__proto__" as an ordinary property. A JSON body whose
+// arguments object has "__proto__" as its only key therefore reaches the strict schema check
+// as {} and the call succeeds, although README and every other extra key promise a tool
+// error. JSON.parse, unlike an object literal, always creates "__proto__" as a real own data
+// property, so Object.keys on the parsed body still sees it: this reads that raw object,
+// before the SDK's spread can drop the key, and answers the same tool error (isError true)
+// a normal extra key already gets (Tek-458), never a JSON-RPC protocol error. It acts only
+// when "__proto__" is among the keys, the one key the spread loses: every other extra key
+// still reaches the SDK's own check and keeps its own message.
+function toolArgumentError(id: string | number, toolName: string, keys: string[]): Response {
+  return withMcpCorsHeaders(Response.json({
+    jsonrpc: "2.0",
+    id,
+    result: {
+      content: [{ type: "text", text: `Input validation error: Invalid arguments for tool ${toolName}: unrecognized key(s) in object: ${keys.map((k) => `'${k}'`).join(", ")}` }],
+      isError: true,
+    },
+  }, { status: 200 }));
 }
 
 // Reads the body chunk by chunk and stops at the limit, so an oversized body is never held
@@ -638,11 +738,12 @@ async function readCapped(request: Request, limit: number): Promise<Uint8Array |
   return bytes;
 }
 
-async function guardMcpPost(request: Request): Promise<Request | Response> {
+async function guardMcpPost(request: Request): Promise<{ request: Request; listenSubscriptionId?: string | number } | Response> {
   const tooLarge = () => mcpError(413, -32000, `Content Too Large: the request body may be at most ${MAX_BODY_BYTES} bytes`);
   if (Number(request.headers.get("Content-Length") ?? "0") > MAX_BODY_BYTES) return tooLarge();
   const bytes = await readCapped(request, MAX_BODY_BYTES);
   if (bytes === null) return tooLarge();
+  let listenSubscriptionId: string | number | undefined;
   // The SDK answers a body not declared as JSON with 415 before it reads it as JSON-RPC, so
   // the checks below leave such a body to it and keep that order.
   if (isJsonContentType(request.headers.get("Content-Type"))) {
@@ -656,20 +757,31 @@ async function guardMcpPost(request: Request): Promise<Request | Response> {
       return mcpError(400, -32600, "Bad Request: JSON-RPC batches are not supported by this endpoint");
     }
     if (isPlainObject(body) && typeof body.method === "string"
-      && (typeof body.id === "string" || typeof body.id === "number")
-      && !request.headers.has("MCP-Protocol-Version")) {
-      const meta = isPlainObject(body.params) && isPlainObject(body.params._meta) ? body.params._meta : undefined;
-      const claim = meta !== undefined && PROTOCOL_VERSION_META_KEY in meta;
-      if (claim || request.headers.has("Mcp-Method")) {
-        const reason = claim
-          ? "the body carries the per-request protocol version envelope but the required MCP-Protocol-Version header is absent"
-          : "the Mcp-Method header is present but the required MCP-Protocol-Version header is absent";
-        // The same shape and code the SDK gives a missing Mcp-Method header.
-        return mcpError(400, -32020, `Bad Request: the request headers and body disagree: ${reason}`, body.id, { mismatch: { header: "(missing)", body: reason } });
+      && (typeof body.id === "string" || typeof body.id === "number")) {
+      const paramsProblem = invalidParamsReason(body.method, body.params);
+      if (paramsProblem !== undefined) {
+        return mcpError(200, -32602, `Invalid params: ${paramsProblem}`, body.id);
+      }
+      if (body.method === "tools/call" && isPlainObject(body.params) && typeof body.params.name === "string"
+        && NO_ARGUMENT_TOOLS.has(body.params.name) && isPlainObject(body.params.arguments)) {
+        const keys = Object.keys(body.params.arguments);
+        if (keys.includes("__proto__")) return toolArgumentError(body.id, body.params.name, keys);
+      }
+      if (body.method === "subscriptions/listen") listenSubscriptionId = body.id;
+      if (!request.headers.has("MCP-Protocol-Version")) {
+        const meta = isPlainObject(body.params) && isPlainObject(body.params._meta) ? body.params._meta : undefined;
+        const claim = meta !== undefined && PROTOCOL_VERSION_META_KEY in meta;
+        if (claim || request.headers.has("Mcp-Method")) {
+          const reason = claim
+            ? "the body carries the per-request protocol version envelope but the required MCP-Protocol-Version header is absent"
+            : "the Mcp-Method header is present but the required MCP-Protocol-Version header is absent";
+          // The same shape and code the SDK gives a missing Mcp-Method header.
+          return mcpError(400, -32020, `Bad Request: the request headers and body disagree: ${reason}`, body.id, { mismatch: { header: "(missing)", body: reason } });
+        }
       }
     }
   }
-  return new Request(request.url, { method: request.method, headers: request.headers, body: bytes, signal: request.signal });
+  return { request: new Request(request.url, { method: request.method, headers: request.headers, body: bytes, signal: request.signal }), listenSubscriptionId };
 }
 
 // Typed structurally rather than against an ambient binding type, so the shape this code
@@ -729,17 +841,19 @@ export default {
     // A POST passes guardMcpPost first, for the limits the SDK does not set.
     if (url.pathname === "/mcp" || url.pathname === "/mcp/") {
       let forwarded = url.pathname === "/mcp" ? request : new Request(new URL("/mcp" + url.search, url), request);
+      let listenSubscriptionId: string | number | undefined;
       if (request.method.toUpperCase() === "POST") {
         const guarded = await guardMcpPost(request);
         if (guarded instanceof Response) return guarded;
-        forwarded = guarded;
+        forwarded = guarded.request;
+        listenSubscriptionId = guarded.listenSubscriptionId;
       }
       const res = await createMcpHandler(createServer, {
         route: "/mcp",
         corsOptions: MCP_CORS,
         allowedOriginHostnames: MCP_ALLOWED_ORIGIN_HOSTNAMES,
       })(forwarded, env, ctx);
-      return withSecurityHeaders(res);
+      return withSecurityHeaders(listenSubscriptionId === undefined ? res : closeListenStreamAfterAck(res, listenSubscriptionId));
     }
     if (request.method === "OPTIONS") {
       return withHeaders(new Response(null, { status: 204 }));
@@ -749,7 +863,8 @@ export default {
     // the same body, so the header was a claim the routing did not keep. HEAD is a GET
     // without the body and stays allowed.
     if (request.method !== "GET" && request.method !== "HEAD") {
-      return withHeaders(new Response("Method not allowed", { status: 405, headers: { "Content-Type": "text/plain; charset=utf-8", "Allow": "GET, HEAD, OPTIONS" } }));
+      // HTTP-04 (Astra audit 2026-09-26): no-store, the same as the /mcp 405 above.
+      return withHeaders(new Response("Method not allowed", { status: 405, headers: { "Content-Type": "text/plain; charset=utf-8", "Allow": "GET, HEAD, OPTIONS", "Cache-Control": "no-store" } }));
     }
     const head = request.method === "HEAD";
     if (url.pathname === "/" || url.pathname === "/.well-known/mcp") {
@@ -758,6 +873,8 @@ export default {
     if (url.pathname === "/.well-known/glama.json") {
       return discoveryDocument(head, { "$schema": "https://glama.ai/mcp/schemas/connector.json", maintainers: [{ email: "info@turva.dev" }] });
     }
-    return withHeaders(new Response(head ? null : "Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } }));
+    // HTTP-04 (Astra audit 2026-09-26): this 404 carried no Cache-Control, so a shared cache
+    // was free to decide for itself how long to keep an error that has nothing static about it.
+    return withHeaders(new Response(head ? null : "Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } }));
   },
 } satisfies ExportedHandler<Env>;

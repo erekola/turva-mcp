@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import worker, { SERVICES, AGENT_READINESS, SECURITY_EVIDENCE, PRINCIPLES, CONTACT } from "../src/index.ts";
+import worker, { SERVICES, AGENT_READINESS, SECURITY_EVIDENCE, PRINCIPLES, CONTACT, NO_ARGUMENT_TOOL_NAMES } from "../src/index.ts";
+import { SUBSCRIPTION_ID_META_KEY } from "@modelcontextprotocol/server";
 
 // The MCP endpoint itself, called the way a client calls it. catalog.test.mjs holds the
 // discovery routes and the catalogue data. This file holds the protocol: what
@@ -116,6 +117,9 @@ test("P5: an argument no tool reads is refused as a tool error", async () => {
   const res = await call("tools/call", { name: "get_contact", arguments: { domain: "example.com" } });
   assert.equal(res.isError, true);
   assert.match(res.content[0].text, /Input validation error/);
+  // The raw __proto__ guard (P13) must not catch an ordinary extra key: that one stays with
+  // the SDK's own schema check and its own message.
+  assert.doesNotMatch(res.content[0].text, /unrecognized key\(s\) in object/);
 });
 
 test("P6: the 2025-era lane declares the same capabilities and serves the same tools", async () => {
@@ -143,7 +147,10 @@ test("P7: a JSON-RPC batch is refused on both lanes", async () => {
     assert.equal(r.status, 400, label);
     const body = await r.json();
     assert.equal(body.error.code, -32600, label);
-    assert.equal(body.id, null, label);
+    // T-02 (Astra audit 2026-09-26): the 2026-07-28 revision's JSONRPCErrorResponse allows
+    // id to be a string, a number, or absent, never null; this rejection cannot know the
+    // id of a batch's individual messages, so it now omits the field instead of sending null.
+    assert.equal(body.id, undefined, label);
   }
   // The guard runs before the SDK's Origin check, so a page on another site that sends a
   // batch learns only that batches are refused, which the endpoint tells every caller.
@@ -228,4 +235,77 @@ test("P11: RateLimit-Policy and the 429 state the quota wrangler.jsonc configure
   // TJ-2 in round 20 found the binding approximate and counted per location, and the answer
   // says so.
   assert.match(await limited.text(), new RegExp(`about ${m[1]} requests per ${m[2]} seconds`));
+});
+
+test("P12: malformed initialize and tools/list params are refused as Invalid params, not Internal error", async () => {
+  // Astra audit 2026-09-26, T-01/F-01: the SDK's own schema validation for these two
+  // methods threw a plain Error on a malformed shape, which its catch defaulted to
+  // -32603 Internal error instead of -32602 Invalid params.
+  const missingParams = await readJson(await post({ jsonrpc: "2.0", id: 27, method: "initialize" }));
+  assert.equal(missingParams.error.code, -32602, "initialize with no params at all");
+  assert.equal(missingParams.id, 27);
+  const missingCapabilities = await readJson(await post({
+    jsonrpc: "2.0", id: 28, method: "initialize",
+    params: { protocolVersion: "2025-06-18", clientInfo: { name: "protocol.test", version: "0" } },
+  }));
+  assert.equal(missingCapabilities.error.code, -32602, "initialize with no capabilities");
+  const badVersionType = await readJson(await post({
+    jsonrpc: "2.0", id: 32, method: "initialize",
+    params: { protocolVersion: 42, capabilities: {}, clientInfo: { name: "protocol.test", version: "0" } },
+  }));
+  assert.equal(badVersionType.error.code, -32602, "initialize with a numeric protocolVersion");
+  const cursorNumber = await readJson(await post(
+    { jsonrpc: "2.0", id: 7, method: "tools/list", params: { cursor: 123, _meta: META } },
+    { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" },
+  ));
+  assert.equal(cursorNumber.error.code, -32602, "tools/list with a numeric cursor");
+  assert.equal(cursorNumber.id, 7);
+  // The check answers only the malformed shapes above; a well-formed initialize still works.
+  const stillWorks = await readJson(await post({
+    jsonrpc: "2.0", id: 1, method: "initialize",
+    params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "protocol.test", version: "0" } },
+  }));
+  assert.equal(stillWorks.error, undefined, "a well-formed initialize is unaffected");
+});
+
+test("P13: a raw __proto__ argument key is refused the same way any other extra key is", async () => {
+  // Astra audit 2026-09-26, T-04: an object literal spread drops "__proto__" as an own key,
+  // but JSON.parse keeps it as a real own property, so a raw JSON body can carry what an
+  // object literal in this test file cannot: the body below is built as a literal string,
+  // not an object literal, so the key survives into the request the same way it did in the
+  // audit's own reproduction.
+  const raw = '{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_contact","arguments":{"__proto__":{"audit":true}},"_meta":' + JSON.stringify(META) + '}}';
+  const r = await post(raw, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_contact" });
+  const body = await readJson(r);
+  assert.equal(body.id, 42);
+  assert.equal(body.result.isError, true);
+  assert.match(body.result.content[0].text, /Input validation error/);
+  // The set this check applies to is exactly the five argumentless tools, not every tool name.
+  assert.deepEqual([...NO_ARGUMENT_TOOL_NAMES].sort(), Object.keys(TOOLS).sort());
+});
+
+test("P14: subscriptions/listen closes itself right after the acknowledgement", async () => {
+  // Astra audit 2026-09-26, E-01: the stream used to stay open on a 15 s keepalive that
+  // nothing here ever ended. It should now read the acknowledgement, then a Graceful
+  // Closure completion frame, then end by itself, with no timer left running.
+  const r = await post(
+    { jsonrpc: "2.0", id: 5, method: "subscriptions/listen", params: { notifications: { toolsListChanged: true }, _meta: META } },
+    { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "subscriptions/listen" },
+  );
+  assert.equal(r.status, 200);
+  const reader = r.body.getReader();
+  const chunks = [];
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(new TextDecoder().decode(value));
+  }
+  const messages = chunks.join("").split("\n\n")
+    .filter((frame) => frame.startsWith("event: message"))
+    .map((frame) => JSON.parse(frame.slice(frame.indexOf("data: ") + "data: ".length)));
+  assert.equal(messages.length, 2, "the acknowledgement and the completion, nothing more");
+  assert.equal(messages[0].method, "notifications/subscriptions/acknowledged");
+  assert.equal(messages[1].id, 5);
+  assert.equal(messages[1].result.resultType, "complete");
+  assert.equal(messages[1].result._meta[SUBSCRIPTION_ID_META_KEY], 5);
 });
