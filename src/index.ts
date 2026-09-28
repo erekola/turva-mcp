@@ -21,7 +21,7 @@ export const SERVICES = {
     notes: [
       "All communication is async. No calls and no calendar links.",
       "Read access is enough for the audit. Write access is scoped per task only if implementation is purchased separately.",
-      "Production credentials are not requested.",
+      "Existing production passwords are not requested. Correction add-ons and implementation need delegated access agreed in writing in advance: Shopify collaborator access, deployment access, or DNS access when a fix requires it.",
     ],
   },
   // Every deliverable here is a promise the site makes in prose, and the two are written
@@ -65,7 +65,11 @@ export const SERVICES = {
       unit: "month",
       minimum_commitment: "3 months",
       summary: "Monthly retainer, async-only. Ongoing review as the site, API, or product evolves.",
-      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships within one business day, recommendations for the roadmap, questions and answers by email or a shared document, a monthly written summary that reads the month's measurements next to the previous month's, and a quarterly summary of measurable progress. The monthly summary is delivered within five business days after the month ends. Each review explains what changed and what the evidence supports. A higher score or an AI mention is not guaranteed.",
+      // Corrected 2026-09-28 (Tek-528, S3 P1/A1/A2/A4/A6): the deliverable named the
+      // monthly and quarterly measurements but not the renewal and cancellation terms
+      // /services states, the per-check evidence attached to the summary, the review
+      // cap that bounds the retainer, or the retainer's own exclusions.
+      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships within one business day up to four reviews per service month, recommendations for the roadmap, questions and answers by email or a shared document and a monthly written summary that reads the month's measurements next to the previous month's with the dated per-check results and recorded AI questions and answers attached. Up to four written change reviews per service month are included, each covering one named deployment, and unused reviews expire at month end. A quarterly summary of measurable progress is delivered within five business days after every third service month, counted from the agreed written kickoff anniversary. The monthly summary is delivered within five business days after the month ends. Each review explains what changed and what the evidence supports. The retainer excludes implementation, continuous monitoring, incident response and operating your production systems. After the three-month minimum the engagement renews month to month, and cancellation by email before the next month starts ends it on the same terms. A higher score or an AI mention is not guaranteed.",
     },
     {
       id: "implementation",
@@ -74,7 +78,11 @@ export const SERVICES = {
       price: 1500,
       unit: "day",
       summary: "Booked per day. Worker-level changes, well-known manifests, discovery cards for an MCP server that already runs, JSON-LD and Schema fixes. Building the MCP server itself is scoped separately.",
-      deliverable: "The improvement is verifiable against the audit baseline in the next scan.",
+      // Corrected 2026-09-28 (Tek-528, S3 P/I2/I3/I4/I5/I8/I9): the deliverable named
+      // only the follow-up scan, not the completion date, the handover package, the
+      // day rate's definition, its exclusions, the per-correction acceptance check or
+      // the handover question round /services states.
+      deliverable: "The completion date is agreed as a stated number of business days from the agreed written kickoff before the work starts. Delivery includes test results, deployment instructions, rollback instructions and a list of any unresolved external dependencies. The improvement is verifiable against the audit baseline in the next scan. Every implemented correction gets its own acceptance check, source changes are verified separately from edge changes and a failed or unverified item is left open. One round of handover questions submitted within 14 calendar days of delivery is answered within five business days. A billable day is seven and a half hours of work, covering implementation, testing and handover. Recurring hosting, ongoing monitoring and maintenance after handover are not included in the implementation fee.",
     },
     {
       id: "agent-operations",
@@ -85,7 +93,10 @@ export const SERVICES = {
       // Corrected 2026-09-28 (V08-U2): "does exactly what it claims" promised an
       // unconditional result. /services.md itself disclaims that: this service covers
       // the controls around an agent, not building the agent or certifying it is safe.
-      deliverable: "A data path that holds under real conditions and a decision envelope that matches the scope it was built for. This covers the controls around an agent, not building the agent itself or certifying that it is safe.",
+      // Corrected 2026-09-28 (Tek-528, S3 P/O1/O2/O4/O6/O7/O12): the deliverable named
+      // only the outcome, not the review package's own milestones, scope limits,
+      // exclusions or how delivery is checked, which /services states.
+      deliverable: "Within five business days of the agreed written kickoff, a draft map of the workflow, data sources, connected systems and points where information can be lost, delayed or misread. Within ten business days, a written control specification listing allowed actions, permission boundaries, human-decision thresholds and handover rules, together with the results of ten agreed test scenarios: the input, expected control behavior, observed result and any part that could not be tested. The review package covers one existing agent, one named workflow, up to three connected systems and up to ten action types, and excludes production changes, penetration testing, continuous monitoring and incident response unless the written engagement explicitly adds them. Delivery is checked against the agreed workflow, action list, documents and the ten scenarios, without treating a successful test as a safety certification. This covers the controls around an agent, not building the agent itself or certifying that it is safe.",
     },
     {
       id: "mcp-server-design",
@@ -95,7 +106,11 @@ export const SERVICES = {
       summary: "On request. Read-only discovery tools over Streamable HTTP. For public, non-sensitive data, no auth surface and no logging by default; auth and an audit trail follow the data and the misuse model.",
       // Corrected 2026-09-28 (V08-U2): "without becoming an abuse vector" promised an
       // unconditional result; /services.md names what still needs considering per tool.
-      deliverable: "An endpoint that stays readable for agents. Data exposure, bulk extraction and availability still need to be considered for each tool.",
+      // Corrected 2026-09-28 (Tek-528, S3 P3/M1/M2/M4/M5/M7/M8): the deliverable named
+      // only the outcome, not the design and build milestones, the starter scope
+      // limits, its exclusions, or what the registry step actually does. Registry
+      // work is a submission with a recorded status, not a promise of acceptance.
+      deliverable: "Within five business days of the agreed written kickoff, a written design covering tool names, input and output schemas, data fields, examples, errors and access rules. Within fifteen business days, the working server in the agreed hosting environment, its source code, deployment configuration and server card, plus submission to one agreed MCP registry with the listing's status recorded as accepted, pending or rejected. The starter scope covers one server, up to three read-only tools, one existing API, one hosting environment and compatibility checks with two named MCP clients, and excludes building or repairing the source API, correcting source data, recurring hosting charges and maintenance after handover. An endpoint that stays readable for agents. Data exposure, bulk extraction and availability still need to be considered for each tool. Registry acceptance and use of the server by an external assistant are not promised.",
     },
   ],
   bundled_implementation: [
@@ -385,7 +400,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.5",
+  version: "1.6.6",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };

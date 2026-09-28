@@ -146,3 +146,32 @@ test("M7: the deliverables still carry the dated promises the site makes", async
   assert.doesNotMatch(principles, /reads higher/);
   assert.match(principles, /checks each one with the relevant scanner or a direct test/);
 });
+
+// Tek-528 (S3): the deliverables were tightened to the same delivery content /services
+// states for these four services, so a mirroring drift is caught here instead of only
+// by a live read of the deployed server.
+test("M8: the deliverables mirror the approved delivery content for the four scoped services", async () => {
+  const want = [
+    ["advisory", /renews month to month/i],
+    ["advisory", /cancellation by email before the next month starts/i],
+    ["advisory", /Up to four written change reviews per service month/i],
+    ["implementation", /seven and a half hours/i],
+    ["implementation", /agreed as a stated number of business days from the agreed written kickoff/i],
+    ["agent-operations", /Within five business days/i],
+    ["agent-operations", /ten agreed test scenarios/i],
+    ["mcp-server-design", /submission to one agreed MCP registry/i],
+    ["mcp-server-design", /accepted, pending or rejected/i],
+    ["mcp-server-design", /are not promised/i],
+  ];
+  for (const [id, re] of want) {
+    const s = SERVICES.services.find((x) => x.id === id);
+    assert.ok(s, id + " is in the catalogue");
+    assert.match(s.deliverable, re, id + " deliverable keeps " + re.source);
+  }
+  // M4/M8 (00-vastaus.md): the registry step is a submission with a recorded status,
+  // never a promise that a registry accepts the listing.
+  assert.doesNotMatch(JSON.stringify(SERVICES), /publication in MCP registries/i);
+  const notes = JSON.stringify(SERVICES.engagement.notes);
+  assert.match(notes, /Existing production passwords are not requested/i);
+  assert.match(notes, /delegated access agreed in writing in advance/i);
+});
