@@ -13,7 +13,10 @@ import * as z from "zod";
 // the default export alone, so this adds a test surface and no behaviour.
 export const SERVICES = {
   pricing_model: "fixed_list_prices",
-  pricing_note: "The Shopify agent storefront check, audit, advisory and implementation have fixed list prices in EUR, VAT not included. Agent operations and MCP server design are scoped and quoted per engagement. Two implementation add-ons carry a fixed price and are sold only together with the diagnosis they follow, listed under bundled_implementation. Request a quote: turva.dev",
+  // Corrected 2026-09-28 (S00-00 D11, 3rd round): named the same three-way VAT treatment
+  // /services already states, instead of leaving "VAT not included" unspecified here.
+  // Corrected 2026-09-28 (P4, 3rd round): named when an implementation add-on is bought.
+  pricing_note: "The Shopify agent storefront check, audit, advisory and implementation have fixed list prices in EUR, VAT not included: 25,5% for Finnish customers, reverse charge for EU B2B customers with a valid VAT ID, 0% for non-EU. Agent operations and MCP server design are scoped and quoted per engagement. Two implementation add-ons carry a fixed price and are sold only together with the diagnosis they follow, listed under bundled_implementation; an add-on is bought with the report or after it, before implementation starts. Request a quote: turva.dev",
   currency: "EUR",
   vat_included: false,
   engagement: {
@@ -22,6 +25,16 @@ export const SERVICES = {
       "All communication is async. No calls and no calendar links.",
       "Read access is enough for the audit. Write access is scoped per task only if implementation is purchased separately.",
       "Existing production passwords are not requested. Correction add-ons and implementation need delegated access agreed in writing in advance: Shopify collaborator access, deployment access, or DNS access when a fix requires it.",
+      // Corrected 2026-09-28 (P2, 3rd round): the written scope, not an unstated cap,
+      // bounds how many fixes, questions or review pages a service month covers.
+      "The written scope agreed before kickoff sets how many fixes, questions or review pages the work covers, and work beyond it is quoted separately at the day rate.",
+      // Corrected 2026-09-28 (P4, 3rd round): named how a written-scope date moves and
+      // when access counts as arranged, and that a failed re-check is redone free.
+      "Dates in the written scope move by the business days spent waiting for your approval or access, and access counts as arranged when the named account works.",
+      "A fix that fails the re-check is redone at no charge in the same follow-up round.",
+      // Corrected 2026-09-28 (P6, 3rd round): completion is measured against the written
+      // plan, not an outside scanner.
+      "The work is done when the checks named in the written plan pass. Payment does not depend on an outside scanner's result.",
     ],
   },
   // Every deliverable here is a promise the site makes in prose, and the two are written
@@ -69,7 +82,7 @@ export const SERVICES = {
       // monthly and quarterly measurements but not the renewal and cancellation terms
       // /services states, the per-check evidence attached to the summary, the review
       // cap that bounds the retainer, or the retainer's own exclusions.
-      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships within one business day up to four reviews per service month, recommendations for the roadmap, questions and answers by email or a shared document and a monthly written summary that reads the month's measurements next to the previous month's with the dated per-check results and recorded AI questions and answers attached. Up to four written change reviews per service month are included, each covering one named deployment, and unused reviews expire at month end. A quarterly summary of measurable progress is delivered within five business days after every third service month, counted from the agreed written kickoff anniversary. The monthly summary is delivered within five business days after the month ends. Each review explains what changed and what the evidence supports. The retainer excludes implementation, continuous monitoring, incident response and operating your production systems. After the three-month minimum the engagement renews month to month, and cancellation by email before the next month starts ends it on the same terms. A higher score or an AI mention is not guaranteed.",
+      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships within one business day up to four reviews per service month, recommendations for the roadmap, questions and answers by email or a shared document and a monthly written summary that reads the month's measurements next to the previous month's with the dated per-check results and recorded AI questions and answers attached. Up to four written change reviews per service month are included, each covering one named deployment, and unused reviews expire at month end. A quarterly summary of measurable progress is delivered within five business days after every third service month, counted from the agreed written kickoff anniversary. The monthly summary is delivered within five business days after the month ends. Each review explains what changed and what the evidence supports. The retainer excludes implementation, continuous monitoring, incident response and operating your production systems. If you are not satisfied after the first month, you can end it by email before the second month starts, and the remaining months are not charged. After the three-month minimum the retainer runs month to month, and either party can end it by email before the next month starts. A higher score or an AI mention is not guaranteed.",
     },
     {
       id: "implementation",
@@ -82,7 +95,7 @@ export const SERVICES = {
       // only the follow-up scan, not the completion date, the handover package, the
       // day rate's definition, its exclusions, the per-correction acceptance check or
       // the handover question round /services states.
-      deliverable: "The completion date is agreed as a stated number of business days from the agreed written kickoff before the work starts. Delivery includes test results, deployment instructions, rollback instructions and a list of any unresolved external dependencies. The improvement is verifiable against the audit baseline in the next scan. Every implemented correction gets its own acceptance check, source changes are verified separately from edge changes and a failed or unverified item is left open. One round of handover questions submitted within 14 calendar days of delivery is answered within five business days. A billable day is seven and a half hours of work, covering implementation, testing and handover. Recurring hosting, ongoing monitoring and maintenance after handover are not included in the implementation fee.",
+      deliverable: "The completion date is agreed as a stated number of business days from the agreed written kickoff before the work starts. Delivery includes test results, deployment instructions, rollback instructions and a list of any unresolved external dependencies. The improvement is verifiable against the audit baseline in the next scan, or a direct test. Every implemented correction gets its own acceptance check, source changes are verified separately from edge changes and a failed or unverified item is left open. One round of handover questions submitted within 14 calendar days of delivery is answered within five business days. A billable day is seven and a half hours of work, covering implementation, testing and handover. Recurring hosting, ongoing monitoring and maintenance after handover are not included in the implementation fee.",
     },
     {
       id: "agent-operations",
@@ -144,7 +157,10 @@ export const AGENT_READINESS = {
   measured_at: "2026-09-23",
   // Corrected 2026-09-28 (32/T1-01): "Always verify against the live links below" was an
   // imperative addressed to the caller; this states the fact instead.
-  note: "Scores are a point-in-time reading by an independent public scanner, not a permanent state; the live links below carry the current reading.",
+  // Corrected 2026-09-28 (V08-N01, 3rd round): "the live links below carry the current
+  // reading" implied that following the url shows the recorded score; it opens the
+  // scanner's start page instead, matching what the homepage says about the same link.
+  note: "Scores are a point-in-time reading by an independent public scanner, not a permanent state; the scan url opens the scanner's start page, where a new check can be run, and does not show the recorded reading itself.",
   scans: [
     {
       provider: "isitagentready.com",
@@ -400,7 +416,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.6",
+  version: "1.6.7",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };
@@ -709,15 +725,24 @@ const NO_ARGUMENT_TOOLS = new Set<string>(NO_ARGUMENT_TOOL_NAMES);
 // method's params fail its wire schema, and setRequestHandler's function-overload catch maps
 // any thrown value without a numeric .code to ProtocolErrorCode.InternalError (-32603). A
 // client's malformed params then reads as a server fault. This checks only the exact
-// malformed shapes measured (initialize missing params or capabilities, or a non-string
-// protocolVersion; tools/list with a non-string cursor), before the SDK ever sees the
-// request, and answers -32602 Invalid params instead. Anything the SDK itself accepts is left
-// to it unchanged, so the accepted set does not move.
+// malformed shapes measured (initialize missing params, capabilities or clientInfo, a
+// non-string protocolVersion, or a clientInfo whose name or version is not a string;
+// tools/list with a non-string cursor), before the SDK ever sees the request, and answers
+// -32602 Invalid params instead. Anything the SDK itself accepts is left to it unchanged, so
+// the accepted set does not move.
+//
+// V02-UUSI-1 (Astra audit 2026-09-28, 3rd round): the checks above covered protocolVersion
+// and capabilities but not clientInfo, so a malformed clientInfo (for example a string in
+// place of the object) reached the SDK's own schema check unguarded and read -32603 Internal
+// error, the same class of bug T-01 fixed for the other two fields.
 function invalidParamsReason(method: string, params: unknown): string | undefined {
   if (method === "initialize") {
     if (!isPlainObject(params)) return "params must be an object";
     if (typeof params.protocolVersion !== "string") return "params.protocolVersion must be a string";
     if (!isPlainObject(params.capabilities)) return "params.capabilities must be an object";
+    if (!isPlainObject(params.clientInfo)) return "params.clientInfo must be an object";
+    if (typeof params.clientInfo.name !== "string") return "params.clientInfo.name must be a string";
+    if (typeof params.clientInfo.version !== "string") return "params.clientInfo.version must be a string";
   }
   if (method === "tools/list" && params !== undefined) {
     if (!isPlainObject(params)) return "params must be an object";
@@ -793,9 +818,11 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
   if (bytes === null) return tooLarge();
   let listenSubscriptionId: string | number | undefined;
   // The SDK answers a body not declared as JSON with 415 before it reads it as JSON-RPC, so
-  // the checks below leave such a body to it and keep that order.
-  if (isJsonContentType(request.headers.get("Content-Type"))) {
-    let body: unknown;
+  // the checks below that read the body as JSON-RPC leave such a body to it and keep that
+  // order. The Origin check further down does not: it runs for every Content-Type.
+  const contentTypeIsJson = isJsonContentType(request.headers.get("Content-Type"));
+  let body: unknown;
+  if (contentTypeIsJson) {
     try {
       body = JSON.parse(new TextDecoder().decode(bytes));
     } catch {
@@ -804,23 +831,32 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
     if (Array.isArray(body)) {
       return mcpError(400, -32600, "Bad Request: JSON-RPC batches are not supported by this endpoint");
     }
-    // B1 (Astra audit 2026-09-28, V02-REGRESSIO / V02-T02): T-01 and T-04 below used to
-    // answer a malformed request before guardMcpPost reached the SDK's own Origin check
-    // (createMcpHandler, allowedOriginHostnames), so a disallowed Origin combined with a
-    // malformed params shape or a raw "__proto__" key got -32602 or a tool error instead
-    // of the 403 every other request from that Origin gets. This repeats the SDK's own
-    // rule (validateOriginHeader, exported by @modelcontextprotocol/server: a missing or
-    // empty Origin passes, any other value is parsed as a URL and its hostname checked
-    // against the same MCP_ALLOWED_ORIGIN_HOSTNAMES createMcpHandler is given below), so
-    // the two can never disagree, and answers with the same code and message text but no
-    // id, because none has been read yet (B2; mcpError omits an absent id entirely, never
-    // sends null). It runs after the batch check above and the oversized-body check at
-    // the top of this function, which is the order do-not-fix line 225 (Tek-458 P7)
-    // approves: a disallowed Origin still reads 400 for a batch and 413 for an oversized
-    // body, never 403, because the memory limit and the batch refusal are answered before
-    // Origin is even considered.
-    const originResult = validateOriginHeader(request.headers.get("Origin"), MCP_ALLOWED_ORIGIN_HOSTNAMES);
-    if (!originResult.ok) return mcpError(403, -32000, originResult.message);
+  }
+  // B1 (Astra audit 2026-09-28, V02-REGRESSIO / V02-T02): T-01 and T-04 below used to
+  // answer a malformed request before guardMcpPost reached the SDK's own Origin check
+  // (createMcpHandler, allowedOriginHostnames), so a disallowed Origin combined with a
+  // malformed params shape or a raw "__proto__" key got -32602 or a tool error instead
+  // of the 403 every other request from that Origin gets. This repeats the SDK's own
+  // rule (validateOriginHeader, exported by @modelcontextprotocol/server: a missing or
+  // empty Origin passes, any other value is parsed as a URL and its hostname checked
+  // against the same MCP_ALLOWED_ORIGIN_HOSTNAMES createMcpHandler is given below), so
+  // the two can never disagree, and answers with the same code and message text but no
+  // id, because none has been read yet (B2; mcpError omits an absent id entirely, never
+  // sends null). It runs after the batch check above and the oversized-body check at
+  // the top of this function, which is the order do-not-fix line 225 (Tek-458 P7)
+  // approves: a disallowed Origin still reads 400 for a batch and 413 for an oversized
+  // body, never 403, because the memory limit and the batch refusal are answered before
+  // Origin is even considered.
+  //
+  // V02-2 (Astra audit 2026-09-28, 3rd round): B1/B2 above used to run only inside the
+  // JSON-Content-Type branch, so a POST whose Content-Type is not JSON skipped this check
+  // entirely and fell through unchanged to the SDK's own Origin check, which still answers
+  // a disallowed Origin with "id":null. Checking the Origin here, before any
+  // Content-Type-specific handling, gives every Content-Type the same code, message and
+  // no-id shape.
+  const originResult = validateOriginHeader(request.headers.get("Origin"), MCP_ALLOWED_ORIGIN_HOSTNAMES);
+  if (!originResult.ok) return mcpError(403, -32000, originResult.message);
+  if (contentTypeIsJson) {
     if (isPlainObject(body) && typeof body.method === "string"
       && (typeof body.id === "string" || typeof body.id === "number")) {
       const paramsProblem = invalidParamsReason(body.method, body.params);

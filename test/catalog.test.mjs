@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import worker, { SERVICES, PRINCIPLES } from "../src/index.ts";
+import worker, { SERVICES, PRINCIPLES, AGENT_READINESS } from "../src/index.ts";
 
 // turva-mcp had no test suite until 2026-09-10 (Tek-384). typecheck alone says nothing
 // about runtime behaviour, and the two things this server can get wrong in production,
@@ -152,8 +152,8 @@ test("M7: the deliverables still carry the dated promises the site makes", async
 // by a live read of the deployed server.
 test("M8: the deliverables mirror the approved delivery content for the four scoped services", async () => {
   const want = [
-    ["advisory", /renews month to month/i],
-    ["advisory", /cancellation by email before the next month starts/i],
+    ["advisory", /runs month to month, and either party can end it by email/i],
+    ["advisory", /end it by email before the next month starts/i],
     ["advisory", /Up to four written change reviews per service month/i],
     ["implementation", /seven and a half hours/i],
     ["implementation", /agreed as a stated number of business days from the agreed written kickoff/i],
@@ -174,4 +174,42 @@ test("M8: the deliverables mirror the approved delivery content for the four sco
   const notes = JSON.stringify(SERVICES.engagement.notes);
   assert.match(notes, /Existing production passwords are not requested/i);
   assert.match(notes, /delegated access agreed in writing in advance/i);
+});
+
+// Astra audit 2026-09-28, 3rd round: S00-00 D11 (VAT), V08-N01 (agent-readiness note),
+// S00-4.1/P1 (advisory first-month opt-out), V08-N02/V08-4 (implementation "or a direct
+// test") and the P2/P4/P6 engagement notes. This file already reads the catalogue live,
+// so the wording each decision adds is caught here instead of only by a live read.
+test("M9: pricing_note and engagement.notes carry the VAT split and the P2/P4/P6 wording", async () => {
+  assert.match(SERVICES.pricing_note, /25,5% for Finnish customers/, "D11: the same three-way VAT split as /services");
+  assert.match(SERVICES.pricing_note, /reverse charge for EU B2B customers/);
+  assert.match(SERVICES.pricing_note, /0% for non-EU/);
+  assert.match(SERVICES.pricing_note, /an add-on is bought with the report or after it, before implementation starts/, "P4");
+  const notes = JSON.stringify(SERVICES.engagement.notes);
+  assert.match(notes, /how many fixes, questions or review pages the work covers/i, "P2");
+  assert.match(notes, /Dates in the written scope move by the business days spent waiting/i, "P4");
+  assert.match(notes, /access counts as arranged when the named account works/i, "P4");
+  assert.match(notes, /A fix that fails the re-check is redone at no charge/i, "P4");
+  assert.match(notes, /The work is done when the checks named in the written plan pass/i, "P6");
+  assert.match(notes, /payment does not depend on an outside scanner.s result/i, "P6");
+});
+
+test("M10: advisory keeps the first-month opt-out and implementation the direct-test alternative", async () => {
+  const advisory = SERVICES.services.find((s) => s.id === "advisory");
+  assert.match(advisory.deliverable, /If you are not satisfied after the first month, you can end it by email before the second month starts/, "S00-4.1/P1");
+  assert.match(advisory.deliverable, /the remaining months are not charged/);
+  // The already-approved minimum and the renewal terms are unchanged by the addition.
+  assert.equal(advisory.minimum_commitment, "3 months");
+  assert.match(advisory.deliverable, /runs month to month, and either party can end it by email/i);
+  const implementation = SERVICES.services.find((s) => s.id === "implementation");
+  assert.match(implementation.deliverable, /verifiable against the audit baseline in the next scan, or a direct test/, "V08-N02/V08-4");
+});
+
+test("M11: the agent-readiness note describes the url as the scanner start page, not the reading", async () => {
+  // V08-N01: the note used to say the live link "carries the current reading", which
+  // implies the link itself shows the score. It opens the scanner's start page instead,
+  // matching the homepage's own wording about the same isitagentready.com link.
+  assert.match(AGENT_READINESS.note, /opens the scanner.s start page/i);
+  assert.match(AGENT_READINESS.note, /does not show the recorded reading itself/i);
+  assert.doesNotMatch(AGENT_READINESS.note, /carry the current reading/i);
 });

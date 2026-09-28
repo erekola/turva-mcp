@@ -375,3 +375,71 @@ test("P16: an unknown tool name is refused with a capped, separate data field", 
   const known = await call("tools/call", { name: "get_contact" });
   assert.notEqual(known.isError, true);
 });
+
+test("P17: a disallowed Origin is refused with the same no-id shape when Content-Type is not JSON", async () => {
+  // V02-2 (Astra audit 2026-09-28, 3rd round): the JSON-Content-Type path already answers a
+  // disallowed Origin without an id field (P15 above), but a POST whose Content-Type is not
+  // JSON used to skip guardMcpPost's own Origin check entirely and reach the SDK's own check,
+  // which still answers with a literal "id":null. This checks the non-JSON path now matches.
+  const r = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
+    method: "POST",
+    headers: { "Content-Type": "text/plain", Origin: "https://evil.example" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/list", params: {} }),
+  }), {}, ctx);
+  assert.equal(r.status, 403);
+  const body = await r.json();
+  assert.equal(body.error.code, -32000);
+  assert.match(body.error.message, /Invalid Origin/);
+  assert.equal(body.id, undefined, "no id field, never null");
+  // An allowed Origin with a non-JSON Content-Type is unaffected: the Origin check passes and
+  // the SDK answers its own way for the wrong Content-Type, not refused as a 403 here.
+  const allowed = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
+    method: "POST",
+    headers: { "Content-Type": "text/plain", Origin: "https://turva.dev" },
+    body: "not json",
+  }), {}, ctx);
+  assert.notEqual(allowed.status, 403, "an allowed Origin is not refused by the Origin check");
+  await allowed.text();
+  // No Origin header at all (a non-browser client) is unaffected on the non-JSON path too.
+  const noOrigin = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: "not json",
+  }), {}, ctx);
+  assert.notEqual(noOrigin.status, 403, "no Origin header is not a browser request and is not refused here");
+  await noOrigin.text();
+});
+
+test("P18: a malformed clientInfo in initialize is refused as Invalid params, not Internal error", async () => {
+  // V02-UUSI-1 (Astra audit 2026-09-28, 3rd round): invalidParamsReason checked
+  // protocolVersion and capabilities but not clientInfo, so a clientInfo of the wrong type
+  // reached the SDK's own schema validation unguarded and read -32603 Internal error, the
+  // same class of bug P12 above already fixed for protocolVersion and capabilities.
+  const badClientInfoType = await readJson(await post({
+    jsonrpc: "2.0", id: 31, method: "initialize",
+    params: { protocolVersion: "2026-07-28", capabilities: {}, clientInfo: "not-an-object" },
+  }));
+  assert.equal(badClientInfoType.error.code, -32602, "clientInfo as a string");
+  assert.equal(badClientInfoType.id, 31);
+  const missingClientInfo = await readJson(await post({
+    jsonrpc: "2.0", id: 33, method: "initialize",
+    params: { protocolVersion: "2026-07-28", capabilities: {} },
+  }));
+  assert.equal(missingClientInfo.error.code, -32602, "clientInfo missing entirely");
+  const badNameType = await readJson(await post({
+    jsonrpc: "2.0", id: 34, method: "initialize",
+    params: { protocolVersion: "2026-07-28", capabilities: {}, clientInfo: { name: 1, version: "1.0" } },
+  }));
+  assert.equal(badNameType.error.code, -32602, "clientInfo.name not a string");
+  const badVersionType = await readJson(await post({
+    jsonrpc: "2.0", id: 35, method: "initialize",
+    params: { protocolVersion: "2026-07-28", capabilities: {}, clientInfo: { name: "x", version: 1 } },
+  }));
+  assert.equal(badVersionType.error.code, -32602, "clientInfo.version not a string");
+  // A well-formed initialize is unaffected.
+  const stillWorks = await readJson(await post({
+    jsonrpc: "2.0", id: 1, method: "initialize",
+    params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "protocol.test", version: "0" } },
+  }));
+  assert.equal(stillWorks.error, undefined, "a well-formed initialize is unaffected");
+});
