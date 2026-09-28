@@ -139,7 +139,10 @@ test("M7: the deliverables still carry the dated promises the site makes", async
   assert.doesNotMatch(JSON.stringify(SERVICES), /each scanner cycle reads higher/i);
   // Round 20 found this as E-2: the measured-result principle promises a higher reading only
   // for the fixes the audit report names, with the tradeoff clause beside it, as the site does.
+  // Corrected 2026-09-28 (V08-29): the principle no longer promises "reads higher" at
+  // all, so this now checks it matches /agent-readiness-audit.md's own wording instead.
   const principles = JSON.stringify(PRINCIPLES);
   assert.match(principles, /the fixes the audit report names/);
-  assert.match(principles, /reads higher[^"]*or the report explains which tradeoff was kept on purpose/);
+  assert.doesNotMatch(principles, /reads higher/);
+  assert.match(principles, /checks each one with the relevant scanner or a direct test/);
 });

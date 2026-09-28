@@ -1,4 +1,4 @@
-import { McpServer, PROTOCOL_VERSION_META_KEY, isJsonContentType, SUBSCRIPTION_ID_META_KEY, SERVER_INFO_META_KEY } from "@modelcontextprotocol/server";
+import { McpServer, PROTOCOL_VERSION_META_KEY, isJsonContentType, SUBSCRIPTION_ID_META_KEY, SERVER_INFO_META_KEY, validateOriginHeader } from "@modelcontextprotocol/server";
 import { createMcpHandler } from "agents/mcp/server";
 // The namespace import lets the bundler keep only the parts of zod the schemas below use.
 // Importing the named z export instead pulled in all of zod: a dry-run build measured
@@ -82,7 +82,10 @@ export const SERVICES = {
       url: "https://turva.dev/services#agent-operations",
       price: "on request",
       summary: "On request. The work beyond readiness: the data path an agent acts on, and the decision envelope of permissions and thresholds that bounds what it may decide.",
-      deliverable: "A data path that holds under real conditions and a decision envelope that does exactly what it claims.",
+      // Corrected 2026-09-28 (V08-U2): "does exactly what it claims" promised an
+      // unconditional result. /services.md itself disclaims that: this service covers
+      // the controls around an agent, not building the agent or certifying it is safe.
+      deliverable: "A data path that holds under real conditions and a decision envelope that matches the scope it was built for. This covers the controls around an agent, not building the agent itself or certifying that it is safe.",
     },
     {
       id: "mcp-server-design",
@@ -90,7 +93,9 @@ export const SERVICES = {
       url: "https://turva.dev/services#mcp-server-design",
       price: "on request",
       summary: "On request. Read-only discovery tools over Streamable HTTP. For public, non-sensitive data, no auth surface and no logging by default; auth and an audit trail follow the data and the misuse model.",
-      deliverable: "An endpoint that stays readable for agents without becoming an abuse vector.",
+      // Corrected 2026-09-28 (V08-U2): "without becoming an abuse vector" promised an
+      // unconditional result; /services.md names what still needs considering per tool.
+      deliverable: "An endpoint that stays readable for agents. Data exposure, bulk extraction and availability still need to be considered for each tool.",
     },
   ],
   bundled_implementation: [
@@ -101,7 +106,9 @@ export const SERVICES = {
       unit: "fixed",
       requires: "audit",
       sold_separately: false,
-      summary: "Implementation of exactly the fixes the audit report lists. Sold only together with the audit, and only when the access the listed fixes need is arranged in advance. Work outside that list is scoped at the implementation day rate.",
+      // Corrected 2026-09-28 (V08-28/P14): named the access /services.md already names
+      // for this add-on, instead of leaving "arranged in advance" unspecified here.
+      summary: "Implementation of exactly the fixes the audit report lists. Sold only together with the audit, and only when the required access is arranged in advance: an edge runtime in front of your origin, deployment access and any other access the listed fixes require, such as DNS. Work outside that list is scoped at the implementation day rate.",
     },
     {
       id: "shopify-fixes",
@@ -110,7 +117,9 @@ export const SERVICES = {
       unit: "fixed",
       requires: "shopify",
       sold_separately: false,
-      summary: "Implementation of exactly the corrections the Shopify agent storefront check lists. Sold only together with that check, and only when the access the listed corrections need is arranged in advance. Work outside the plan is scoped at the implementation day rate.",
+      // Corrected 2026-09-28 (V08-28/P14): named the access /services.md already names
+      // for this add-on, instead of leaving "arranged in advance" unspecified here.
+      summary: "Implementation of exactly the corrections the Shopify agent storefront check lists. Sold only together with that check, and only when the required access is arranged in advance: collaborator access to the Shopify store. Work outside the plan is scoped at the implementation day rate.",
     },
   ],
 } as const;
@@ -118,7 +127,9 @@ export const SERVICES = {
 export const AGENT_READINESS = {
   domain: "turva.dev",
   measured_at: "2026-09-23",
-  note: "Scores are a point-in-time reading by an independent public scanner, not a permanent state. Always verify against the live links below.",
+  // Corrected 2026-09-28 (32/T1-01): "Always verify against the live links below" was an
+  // imperative addressed to the caller; this states the fact instead.
+  note: "Scores are a point-in-time reading by an independent public scanner, not a permanent state; the live links below carry the current reading.",
   scans: [
     {
       provider: "isitagentready.com",
@@ -172,7 +183,12 @@ export const PRINCIPLES = {
   rules: [
     { id: "async-only", title: "All communication is async", rationale: "No calls and no calendar links. Everything stays in writing, so the work and the trail are auditable end to end." },
     { id: "least-access", title: "No production credentials, scoped write access", rationale: "Read access is enough for the audit. Write access is scoped per task only if implementation is purchased separately." },
-    { id: "measured-result", title: "The result shows up in scanner numbers", rationale: "Once the fixes the audit report names are implemented, the next scan either reads higher in the categories the report named or the report explains which tradeoff was kept on purpose. A fix the scanner does not score is checked by a direct test instead, and the report records that result even when no score moves." },
+    // Corrected 2026-09-28 (V08-29): "the next scan either reads higher ... or the
+    // report explains which tradeoff was kept on purpose" promised more than
+    // /agent-readiness-audit.md does; this now matches that page's own wording
+    // ("Technical fixes are checked with the relevant scanner or a direct test ... The
+    // follow-up shows both readings and any changes in the method").
+    { id: "measured-result", title: "The result shows up in scanner numbers", rationale: "Once the fixes the audit report names are implemented, the follow-up checks each one with the relevant scanner or a direct test and records both readings and any change in the method, even when no score moves." },
     { id: "transparency", title: "Open and verifiable", rationale: "Backed by a registered business, Business ID 3600281-7, Finland. Our own domain's scores are publicly verifiable." },
   ],
 } as const;
@@ -644,6 +660,12 @@ function discoveryDocument(head: boolean, doc: Record<string, unknown>): Respons
 // Notifications are left to the SDK, which checks its own required headers on requests only.
 const MAX_BODY_BYTES = 65_536;
 
+// P19 (Astra audit 2026-09-26, 32/T2-03): the SDK answers an unknown tool name with
+// "Tool <name> not found", echoing whatever the caller sent, without a length limit.
+// unknownToolError below reads that name only up to this many characters, keeps it in a
+// data field of its own instead of the message text, and marks a longer name as cut.
+const MAX_ECHOED_TOOL_NAME_LENGTH = 64;
+
 // T-02 (Astra audit 2026-09-26): the 2026-07-28 revision's JSONRPCErrorResponse allows id to
 // be a string, a number, or absent, and never null. id now defaults to absent, because most
 // callers of this function reject a request before any id can be read (an oversized body, a
@@ -712,6 +734,17 @@ function toolArgumentError(id: string | number, toolName: string, keys: string[]
   }, { status: 200 }));
 }
 
+// P19 (Astra audit 2026-09-26, 32/T2-03): pre-checks a tools/call name against the five
+// tools this server registers (NO_ARGUMENT_TOOL_NAMES above), before the SDK reaches it
+// and echoes an unrecognised name verbatim into "Tool <name> not found". The caller's
+// name is capped at MAX_ECHOED_TOOL_NAME_LENGTH and carried in its own data field, never
+// spliced into the message string.
+function unknownToolError(id: string | number, toolName: string): Response {
+  const truncated = toolName.length > MAX_ECHOED_TOOL_NAME_LENGTH;
+  const name = truncated ? toolName.slice(0, MAX_ECHOED_TOOL_NAME_LENGTH) : toolName;
+  return mcpError(200, -32602, "Invalid params: unknown tool name", id, { tool: { name, truncated } });
+}
+
 // Reads the body chunk by chunk and stops at the limit, so an oversized body is never held
 // whole, including one sent without a Content-Length header.
 async function readCapped(request: Request, limit: number): Promise<Uint8Array | null> {
@@ -756,11 +789,32 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
     if (Array.isArray(body)) {
       return mcpError(400, -32600, "Bad Request: JSON-RPC batches are not supported by this endpoint");
     }
+    // B1 (Astra audit 2026-09-28, V02-REGRESSIO / V02-T02): T-01 and T-04 below used to
+    // answer a malformed request before guardMcpPost reached the SDK's own Origin check
+    // (createMcpHandler, allowedOriginHostnames), so a disallowed Origin combined with a
+    // malformed params shape or a raw "__proto__" key got -32602 or a tool error instead
+    // of the 403 every other request from that Origin gets. This repeats the SDK's own
+    // rule (validateOriginHeader, exported by @modelcontextprotocol/server: a missing or
+    // empty Origin passes, any other value is parsed as a URL and its hostname checked
+    // against the same MCP_ALLOWED_ORIGIN_HOSTNAMES createMcpHandler is given below), so
+    // the two can never disagree, and answers with the same code and message text but no
+    // id, because none has been read yet (B2; mcpError omits an absent id entirely, never
+    // sends null). It runs after the batch check above and the oversized-body check at
+    // the top of this function, which is the order do-not-fix line 225 (Tek-458 P7)
+    // approves: a disallowed Origin still reads 400 for a batch and 413 for an oversized
+    // body, never 403, because the memory limit and the batch refusal are answered before
+    // Origin is even considered.
+    const originResult = validateOriginHeader(request.headers.get("Origin"), MCP_ALLOWED_ORIGIN_HOSTNAMES);
+    if (!originResult.ok) return mcpError(403, -32000, originResult.message);
     if (isPlainObject(body) && typeof body.method === "string"
       && (typeof body.id === "string" || typeof body.id === "number")) {
       const paramsProblem = invalidParamsReason(body.method, body.params);
       if (paramsProblem !== undefined) {
         return mcpError(200, -32602, `Invalid params: ${paramsProblem}`, body.id);
+      }
+      if (body.method === "tools/call" && isPlainObject(body.params) && typeof body.params.name === "string"
+        && !NO_ARGUMENT_TOOLS.has(body.params.name)) {
+        return unknownToolError(body.id, body.params.name);
       }
       if (body.method === "tools/call" && isPlainObject(body.params) && typeof body.params.name === "string"
         && NO_ARGUMENT_TOOLS.has(body.params.name) && isPlainObject(body.params.arguments)) {

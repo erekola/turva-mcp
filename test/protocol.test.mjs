@@ -309,3 +309,69 @@ test("P14: subscriptions/listen closes itself right after the acknowledgement", 
   assert.equal(messages[1].result.resultType, "complete");
   assert.equal(messages[1].result._meta[SUBSCRIPTION_ID_META_KEY], 5);
 });
+
+test("P15: a disallowed Origin is refused before the malformed-params and __proto__ checks", async () => {
+  // B1 (Astra audit 2026-09-28, V02-REGRESSIO / V02-T02): T-01 and T-04 (P12, P13
+  // above) used to answer before guardMcpPost reached the SDK's Origin check, so a
+  // disallowed Origin combined with a malformed params shape or a raw "__proto__" key
+  // read -32602 or a tool error instead of the 403 every other request from that
+  // Origin gets. Same malformed shapes as P12 and P13, now sent from a disallowed
+  // Origin: all three must now read 403, matching a well-formed request from that
+  // Origin (plainFromOtherSite in P7).
+  const evilOrigin = { Origin: "https://evil.example" };
+  const badCursor = await post(
+    { jsonrpc: "2.0", id: 7, method: "tools/list", params: { cursor: 123, _meta: META } },
+    { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list", ...evilOrigin },
+  );
+  assert.equal(badCursor.status, 403, "malformed params from a disallowed Origin");
+  const badCursorBody = await badCursor.json();
+  assert.equal(badCursorBody.error.code, -32000);
+  assert.equal(badCursorBody.id, undefined, "B2: no id field, never null");
+  const raw = '{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_contact","arguments":{"__proto__":{"audit":true}},"_meta":' + JSON.stringify(META) + '}}';
+  const protoFromEvil = await post(raw, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_contact", ...evilOrigin });
+  assert.equal(protoFromEvil.status, 403, "a raw __proto__ key from a disallowed Origin");
+  assert.equal((await protoFromEvil.json()).id, undefined, "B2: no id field, never null");
+  // do-not-fix line 225 (Tek-458 P7): a batch and an oversized body still answer 400
+  // and 413 before Origin is even considered, unchanged by B1.
+  const batchFromEvil = await post([{ jsonrpc: "2.0", id: 1, method: "tools/list" }], evilOrigin);
+  assert.equal(batchFromEvil.status, 400, "a batch from a disallowed Origin still reads 400, not 403");
+  await batchFromEvil.text();
+  const padded = (n) => JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(n) } });
+  const oversizeFromEvil = await post(padded(70_000), evilOrigin);
+  assert.equal(oversizeFromEvil.status, 413, "an oversized body from a disallowed Origin still reads 413, not 403");
+  await oversizeFromEvil.text();
+  // A well-formed request from the same Origin still reads the plain 403, unaffected.
+  const plain = await post({ jsonrpc: "2.0", id: 1, method: "tools/list" }, evilOrigin);
+  assert.equal(plain.status, 403, "a well-formed request from the same Origin");
+  await plain.text();
+  // A missing Origin, the case a non-browser client sends, is unaffected.
+  const noOrigin = await post({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+  assert.equal(noOrigin.status, 200, "no Origin header at all is not a browser request and passes");
+  await noOrigin.text();
+});
+
+test("P16: an unknown tool name is refused with a capped, separate data field", async () => {
+  // P19 (Astra audit 2026-09-26, 32/T2-03): the SDK's own "Tool <name> not found"
+  // echoed the caller's name into the message text verbatim and without a length
+  // limit. This is answered by guardMcpPost before the SDK ever sees the request.
+  const short = await readJson(await post(
+    { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "turva varmennus proba lause", arguments: {}, _meta: META } },
+    { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "turva varmennus proba lause" },
+  ));
+  assert.equal(short.error.code, -32602);
+  assert.equal(short.id, 3);
+  assert.doesNotMatch(short.error.message, /turva varmennus proba lause/, "the name is not spliced into the message text");
+  assert.equal(short.error.data.tool.name, "turva varmennus proba lause");
+  assert.equal(short.error.data.tool.truncated, false);
+  const longName = "x".repeat(200);
+  const long = await readJson(await post(
+    { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: longName, arguments: {}, _meta: META } },
+    { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": longName },
+  ));
+  assert.equal(long.error.data.tool.name.length, 64, "the echoed name is capped at 64 characters");
+  assert.equal(long.error.data.tool.truncated, true);
+  assert.doesNotMatch(JSON.stringify(long), new RegExp(longName), "the full 200-character name never appears anywhere in the response");
+  // A known tool name is unaffected.
+  const known = await call("tools/call", { name: "get_contact" });
+  assert.notEqual(known.isError, true);
+});
