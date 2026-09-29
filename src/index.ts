@@ -136,7 +136,7 @@ export const SERVICES = {
       sold_separately: false,
       // Corrected 2026-09-28 (V08-28/P14): named the access /services.md already names
       // for this add-on, instead of leaving "arranged in advance" unspecified here.
-      summary: "Implementation of exactly the fixes the audit report lists. Sold only together with the audit, and only when the required access is arranged in advance: an edge runtime in front of your origin, deployment access and any other access the listed fixes require, such as DNS. Work outside that list is scoped at the implementation day rate.",
+      summary: "Implementation of exactly the fixes the audit report lists. Sold only with the audit, bought with its report or after it and before implementation starts, and only when the required access is arranged in advance: an edge runtime in front of your origin, deployment access and any other access the listed fixes require, such as DNS. Work outside that list is scoped at the implementation day rate.",
     },
     {
       id: "shopify-fixes",
@@ -147,7 +147,7 @@ export const SERVICES = {
       sold_separately: false,
       // Corrected 2026-09-28 (V08-28/P14): named the access /services.md already names
       // for this add-on, instead of leaving "arranged in advance" unspecified here.
-      summary: "Implementation of exactly the corrections the Shopify agent storefront check lists. Sold only together with that check, and only when the required access is arranged in advance: collaborator access to the Shopify store. Work outside the plan is scoped at the implementation day rate.",
+      summary: "Implementation of exactly the corrections the Shopify agent storefront check lists. Sold only with that check, bought with its report or after it and before implementation starts, and only when the required access is arranged in advance: collaborator access to the Shopify store. Work outside the plan is scoped at the implementation day rate.",
     },
   ],
 } as const;
@@ -416,7 +416,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.7",
+  version: "1.6.8",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };
