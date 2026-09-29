@@ -184,7 +184,7 @@ test("M9: pricing_note and engagement.notes carry the VAT split and the P2/P4/P6
   assert.match(SERVICES.pricing_note, /25,5% for Finnish customers/, "D11: the same three-way VAT split as /services");
   assert.match(SERVICES.pricing_note, /reverse charge for EU B2B customers/);
   assert.match(SERVICES.pricing_note, /0% for non-EU/);
-  assert.match(SERVICES.pricing_note, /an add-on is bought with the report or after it, before implementation starts/, "P4");
+  assert.match(SERVICES.pricing_note, /an add-on can be bought together with that diagnosis, with its report, or after the report and before implementation starts/, "P4");
   const notes = JSON.stringify(SERVICES.engagement.notes);
   assert.match(notes, /how many fixes, questions or review pages the work covers/i, "P2");
   assert.match(notes, /Dates in the written scope move by the business days spent waiting/i, "P4");
@@ -196,8 +196,8 @@ test("M9: pricing_note and engagement.notes carry the VAT split and the P2/P4/P6
 
 test("M10: advisory keeps the first-month opt-out and implementation the direct-test alternative", async () => {
   const advisory = SERVICES.services.find((s) => s.id === "advisory");
-  assert.match(advisory.deliverable, /If you are not satisfied after the first month, you can end it by email before the second month starts/, "S00-4.1/P1");
-  assert.match(advisory.deliverable, /the remaining months are not charged/);
+  assert.match(advisory.deliverable, /If you are not satisfied with the first month, you can end the retainer by email sent at any time during the first month, up to the day before the second month starts/, "S00-4.1/P1");
+  assert.match(advisory.deliverable, /the second and third months are not charged/);
   // The already-approved minimum and the renewal terms are unchanged by the addition.
   assert.equal(advisory.minimum_commitment, "3 months");
   assert.match(advisory.deliverable, /runs month to month, and either party can end it by email/i);
