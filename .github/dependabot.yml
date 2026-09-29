@@ -26,6 +26,14 @@ updates:
     ignore:
       - dependency-name: "@cloudflare/workers-types"
         update-types: ["version-update:semver-major"]
+      # agents declares @modelcontextprotocol/client, /server and /sdk as peer
+      # dependencies at EXACT versions (measured 2026-09-29: agents 0.23.0 and 0.24.0
+      # both require client 2.0.0, server 2.0.0 and sdk 1.30.0). A grouped bump of the
+      # three alone makes `npm ci` fail with ERESOLVE, as PRs #9 and #11 did. They move
+      # only when an agents release moves its peer versions, by hand in the same change.
+      - dependency-name: "@modelcontextprotocol/client"
+      - dependency-name: "@modelcontextprotocol/server"
+      - dependency-name: "@modelcontextprotocol/sdk"
     groups:
       all-dependencies:
         patterns:
