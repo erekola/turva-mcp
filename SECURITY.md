@@ -9,10 +9,19 @@
 
 ## Open advisories
 
-None as of 2026-09-23, the date of the last `npm audit` run against this
-repository. CI also runs `npm audit --omit=dev --audit-level=moderate` on
+None as of 2026-10-01, the date of the last `npm audit` run against this
+repository, which reported no vulnerabilities in the full tree and none with
+`--omit=dev`. On that day two moderate advisories had been open in the
+dependency tree of `@modelcontextprotocol/sdk` 1.30.0: `hono` 4.13.5
+(GHSA-hxh3-vqpv-xpqv, `hono/jsx` renders plain strings unescaped in boundary
+components) and `ip-address` 10.7.0, which `express-rate-limit` 8.7.0 pulls
+in (GHSA-j6r3-76f7-8jcv and GHSA-h3mg-xc3c-68pw). `npm audit fix` cleared
+them by moving those two transitive packages to `hono` 4.13.12 and
+`ip-address` 10.7.2, inside the ranges their parents declare. `package.json`
+did not change and no direct dependency moved. CI also runs
+`npm audit --omit=dev --audit-level=moderate` on
 every push and pull request, so an advisory in a runtime dependency fails
-the build. The one that had been open was a path traversal in the
+the build. An earlier one was a path traversal in the
 `serve-static` part of `@hono/node-server`, and it arrived transitively:
 `@modelcontextprotocol/sdk` depends on that Node HTTP adapter, and the SDK
 version this repository pins, 1.30.0, declares `^1.19.9 || ^2.0.5`, so the
