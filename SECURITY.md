@@ -20,8 +20,8 @@ them by moving those two transitive packages to `hono` 4.13.12 and
 `ip-address` 10.7.2, inside the ranges their parents declare. `package.json`
 did not change and no direct dependency moved. CI also runs
 `npm audit --omit=dev --audit-level=moderate` on
-every push and pull request, so an advisory in a runtime dependency fails
-the build. An earlier one was a path traversal in the
+every push and pull request, so a moderate or higher advisory in a runtime dependency
+fails the build. An earlier one was a path traversal in the
 `serve-static` part of `@hono/node-server`, and it arrived transitively:
 `@modelcontextprotocol/sdk` depends on that Node HTTP adapter, and the SDK
 version this repository pins, 1.30.0, declares `^1.19.9 || ^2.0.5`, so the

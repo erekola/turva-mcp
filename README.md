@@ -113,7 +113,7 @@ The full signed MCP server card is published at [turva.dev/.well-known/mcp/serve
 
 A single Cloudflare Worker built on the Cloudflare Agents SDK serves the endpoint through `createMcpHandler` from `agents/mcp/server`, and it creates a fresh `McpServer` from `@modelcontextprotocol/server` for each request. There is no Durable Object or persistent MCP session.
 
-The current protocol lane uses revision `2026-07-28`. A legacy lane at the same endpoint serves 2025-era clients. That lane is an adapter in the Agents SDK, and it answers through the web-standard server transport of `@modelcontextprotocol/server`. On the current lane every request must carry `MCP-Protocol-Version` and `Mcp-Method`, plus `Mcp-Name` for `tools/call`, and a request without one of them receives `400` with error `-32020`. `@modelcontextprotocol/server` checks `Mcp-Method` and `Mcp-Name`, and the Worker checks `MCP-Protocol-Version` before the handler runs, because that package reads the version from the request body and would otherwise answer a request that lacks the header. On the current lane nothing checks `Accept`, while the legacy lane answers `406` unless `Accept` lists both `application/json` and `text/event-stream`. Standard MCP clients handle these details.
+The current protocol lane uses revision `2026-07-28`. A legacy lane at the same endpoint serves 2025-era clients. That lane is an adapter in the Agents SDK, and it answers through the web-standard server transport of `@modelcontextprotocol/server`. On the current lane every request must carry `MCP-Protocol-Version` and `Mcp-Method`, plus `Mcp-Name` for `tools/call`, and a request without one of them receives `400` with error `-32020`. Validation of the request body is answered first, with `-32602` or a tool error. Malformed `params` and an unknown tool name fall under it, and so do unexpected arguments. A JSON-RPC notification is passed to the SDK without this header check. `@modelcontextprotocol/server` checks `Mcp-Method` and `Mcp-Name`, and the Worker checks `MCP-Protocol-Version` before the handler runs, because that package reads the version from the request body and would otherwise answer a request that lacks the header. On the current lane nothing checks `Accept`, while the legacy lane answers `406` unless `Accept` lists both `application/json` and `text/event-stream`. Standard MCP clients handle these details.
 
 `server/discover` is supplied by `@modelcontextprotocol/server`. It declares the `tools` capability with `listChanged: false`, because the tool set changes only on deploy and the server sends no change notifications, and it returns short instructions that say which tool answers which question.
 
@@ -155,7 +155,7 @@ This repository is MIT licensed and can be adapted for another site. Before depl
 3. Give the Worker a unique `name` and a rate-limit `namespace_id` that is not shared with another Worker in your Cloudflare account.
 4. Attach your own custom domain. `workers_dev` is disabled in `wrangler.jsonc`.
 
-Use Node.js 22 or 24, matching the repository's CI. From the root of your clone, install dependencies, run the tests and check the types before deploying with your Cloudflare account:
+Use Node.js 22.18 or later, or Node.js 24.11 or later. The repository's CI runs the latest 22 and 24 releases. From the root of your clone, install dependencies, run the tests and check the types before deploying with your Cloudflare account:
 
 ```sh
 npm ci
