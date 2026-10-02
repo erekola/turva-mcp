@@ -68,7 +68,7 @@ export const SERVICES = {
       unit: "fixed",
       duration: "2 weeks",
       summary: "Fixed scope. An independent public scanner runs against the site or API, followed by a written report with a prioritized fix list.",
-      deliverable: "A measured baseline, a clear plan for what to fix first, and a fix instruction for every finding with a link to the matching guide on turva.dev where a guide covers that surface. You also receive the recorded AI questions and answers, one round of written follow-up questions submitted within 14 calendar days of the report and answered within five business days, and one re-scan within 30 days of the report, or within 30 days of the delivered corrections when the correction add-on is bought.",
+      deliverable: "A measured baseline, a clear plan for what to fix first, and a fix instruction for every finding with a link to the matching guide on turva.dev where a guide covers that surface. You also receive the recorded AI questions and answers, one round of written follow-up questions submitted within 14 calendar days of the report and answered within five business days, and one re-scan within 30 days of the report, or within 30 days of the delivered corrections when the correction add-on is bought. The written scope agreed before kickoff sets how many questions that round covers.",
     },
     {
       id: "advisory",
@@ -185,7 +185,8 @@ export const SECURITY_EVIDENCE = {
     {
       provider: "Hardenize",
       result: "24/24 categories passed",
-      note: "Hardenize no longer serves a public report page for turva.dev, so this entry carries the dated reading only and no link.",
+      measured_at: "2026-10-02",
+      url: "https://www.hardenize.com/report/turva.dev",
     },
     {
       provider: "Internet.nl",
@@ -335,7 +336,8 @@ const securityOutput = z.strictObject({
     score: z.number().optional(),
     scale: z.string().optional(),
     note: z.string().optional(),
-    url: z.string().optional(),
+    measured_at: z.string().optional().describe("Date of this reading, YYYY-MM-DD, when it differs from the top-level date."),
+    url: z.string(),
   })),
   note: z.string(),
 });
@@ -416,7 +418,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.13",
+  version: "1.6.14",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };
@@ -478,7 +480,7 @@ function createServer(): McpServer {
     "get_security_evidence",
     {
       title: "Web-security scan evidence",
-      description: "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl site and mail), with the scan date. Use this when a user asks about turva.dev's own security posture or wants evidence beyond agent-readiness scores. For the agent-readiness score itself, which is a separate measurement, use get_agent_readiness instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl site and mail), each with its scan date. Use this when a user asks about turva.dev's own security posture or wants evidence beyond agent-readiness scores. For the agent-readiness score itself, which is a separate measurement, use get_agent_readiness instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: securityOutput,
@@ -763,13 +765,17 @@ function invalidParamsReason(method: string, params: unknown): string | undefine
 // a normal extra key already gets (Tek-458), never a JSON-RPC protocol error. It acts only
 // when "__proto__" is among the keys, the one key the spread loses: every other extra key
 // still reaches the SDK's own check and keeps its own message.
-function toolArgumentError(id: string | number, toolName: string, keys: string[]): Response {
+// W16 F1 (ChatGPT review 2026-10-02): the 2026-07-28 revision requires resultType on every result, so
+// the modern lane gets "complete" here as the SDK adds it on every other result. The legacy lane
+// keeps its earlier bytes.
+function toolArgumentError(id: string | number, toolName: string, keys: string[], modern: boolean): Response {
   return withMcpCorsHeaders(Response.json({
     jsonrpc: "2.0",
     id,
     result: {
       content: [{ type: "text", text: `Input validation error: Invalid arguments for tool ${toolName}: unrecognized key(s) in object: ${keys.map((k) => `'${k}'`).join(", ")}` }],
       isError: true,
+      ...(modern ? { resultType: "complete" } : {}),
     },
   }, { status: 200 }));
 }
@@ -826,7 +832,12 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
     try {
       body = JSON.parse(new TextDecoder().decode(bytes));
     } catch {
-      body = undefined; // not JSON: the SDK answers it with its own parse error
+      // W16 U1 (ChatGPT review 2026-10-02): answered here, without an id field, because the SDK
+      // answers a parse error with "id":null, which the 2026-07-28 revision does not allow.
+      // The Origin check runs first so a disallowed Origin keeps its 403.
+      const early = validateOriginHeader(request.headers.get("Origin"), MCP_ALLOWED_ORIGIN_HOSTNAMES);
+      if (!early.ok) return mcpError(403, -32000, early.message);
+      return mcpError(400, -32700, "Parse error: Invalid JSON");
     }
     if (Array.isArray(body)) {
       return mcpError(400, -32600, "Bad Request: JSON-RPC batches are not supported by this endpoint");
@@ -870,7 +881,7 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
       if (body.method === "tools/call" && isPlainObject(body.params) && typeof body.params.name === "string"
         && NO_ARGUMENT_TOOLS.has(body.params.name) && isPlainObject(body.params.arguments)) {
         const keys = Object.keys(body.params.arguments);
-        if (keys.includes("__proto__")) return toolArgumentError(body.id, body.params.name, keys);
+        if (keys.includes("__proto__")) return toolArgumentError(body.id, body.params.name, keys, request.headers.get("MCP-Protocol-Version") === "2026-07-28");
       }
       if (body.method === "subscriptions/listen") listenSubscriptionId = body.id;
       if (!request.headers.has("MCP-Protocol-Version")) {

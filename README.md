@@ -88,7 +88,7 @@ Five read-only tools, each idempotent. Each returns its data as `structuredConte
 
 Tool responses come from static TypeScript objects bundled with the Worker. They do not depend on a live upstream request. The measurement tools include a `measured_at` date and public verification links, so compare the recorded values with a fresh scan when current status matters.
 
-The bundled snapshot dated 2026-09-23 records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), all 24 categories passed on Hardenize, 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/). These are third-party readings of turva.dev, not scores produced by this server.
+The bundled snapshot records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/), all dated 2026-09-23. It also records that all 24 categories passed on [Hardenize](https://www.hardenize.com/report/turva.dev) on 2026-10-02. These readings come from third parties. This server did not produce any of the scores.
 
 ## Endpoints
 
@@ -131,7 +131,7 @@ This server has no write path and returns only public data, so what it has to wi
 - Read-only MCP annotations on every tool. No destructive or open-world operation is declared, and no tool takes arguments.
 - Rate limit: about 100 requests per 60 seconds per client IP, with `429` and `Retry-After: 60` after it. Cloudflare's rate-limiting binding keeps a separate, approximate count in each location, so a burst can pass more requests before the first `429`. The endpoint fails open if the rate-limiter binding is missing or errors.
 - Request size: a body over 64 KiB receives `413` before the handler reads it, and a JSON-RPC batch receives `400` on both lanes, so one request cannot carry many tool calls past the rate limit.
-- Browser CORS on `/mcp` allows only `https://turva.dev` as `Origin`. Other origins receive `403`. The check compares the hostname, so the scheme and the port are not part of it. Non-browser MCP clients normally send no `Origin` header and can connect directly. Discovery documents use open CORS so directories can read them.
+- Browser CORS on `/mcp` accepts an `Origin` whose hostname is `turva.dev`, whatever the scheme or port, and refuses every other origin with `403`. Non-browser MCP clients normally send no `Origin` header and can connect directly. Discovery documents use open CORS so directories can read them.
 - The code does not store request bodies, client identities or tool inputs. Cloudflare Workers observability is disabled. A rate-limiter failure writes a diagnostic error without request data.
 - Security headers are applied to MCP and discovery responses.
 

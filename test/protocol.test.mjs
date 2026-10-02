@@ -280,6 +280,12 @@ test("P13: a raw __proto__ argument key is refused the same way any other extra 
   assert.equal(body.id, 42);
   assert.equal(body.result.isError, true);
   assert.match(body.result.content[0].text, /Input validation error/);
+  // W16 F1: the 2026-07-28 lane carries resultType on this hand-built result too.
+  assert.equal(body.result.resultType, "complete");
+  // The legacy lane keeps its earlier bytes: no resultType.
+  const legacy = await readJson(await post(raw));
+  assert.equal(legacy.result.isError, true);
+  assert.equal(legacy.result.resultType, undefined);
   // The set this check applies to is exactly the five argumentless tools, not every tool name.
   assert.deepEqual([...NO_ARGUMENT_TOOL_NAMES].sort(), Object.keys(TOOLS).sort());
 });
@@ -410,6 +416,24 @@ test("P17: a disallowed Origin is refused with the same no-id shape when Content
   await noOrigin.text();
 });
 
+test("P17b: a JSON body that does not parse is answered by the Worker with 400 and no id field", async () => {
+  // W16 U1 (ChatGPT review 2026-10-02): the SDK answers a parse error with "id":null, which the
+  // 2026-07-28 revision does not allow, so the Worker answers it itself, with and without the
+  // modern headers, and the id field is absent rather than null.
+  const cut = '{"jsonrpc":"2.0","id":"x","method":"tools/ca';
+  for (const headers of [{}, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call" }]) {
+    const r = await post(cut, headers);
+    assert.equal(r.status, 400);
+    const body = await r.json();
+    assert.equal(body.error.code, -32700);
+    assert.equal(body.error.message, "Parse error: Invalid JSON");
+    assert.equal("id" in body, false, "no id field, never null");
+  }
+  // A disallowed Origin on an unparseable body keeps its 403.
+  const evil = await post(cut, { Origin: "https://evil.example" });
+  assert.equal(evil.status, 403);
+  await evil.text();
+});
 test("P18: a malformed clientInfo in initialize is refused as Invalid params, not Internal error", async () => {
   // V02-UUSI-1 (Astra audit 2026-09-28, 3rd round): invalidParamsReason checked
   // protocolVersion and capabilities but not clientInfo, so a clientInfo of the wrong type
