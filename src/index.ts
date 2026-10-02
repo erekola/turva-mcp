@@ -82,7 +82,7 @@ export const SERVICES = {
       // monthly and quarterly measurements but not the renewal and cancellation terms
       // /services states, the per-check evidence attached to the summary, the review
       // cap that bounds the retainer, or the retainer's own exclusions.
-      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships within one business day up to four reviews per service month, recommendations for the roadmap, questions and answers by email or a shared document and a monthly written summary that reads the month's measurements next to the previous month's with the dated per-check results and recorded AI questions and answers attached. Up to four written change reviews per service month are included, each covering one named deployment, and unused reviews expire at month end. A quarterly summary of measurable progress is delivered within five business days after every third service month, counted from the agreed written kickoff anniversary. The monthly summary is delivered within five business days after the month ends. Each review explains what changed and what the evidence supports. The retainer excludes implementation, continuous monitoring, incident response and operating your production systems. If you are not satisfied with the first month, you can end the retainer by email sent at any time during the first month, up to the day before the second month starts. The retainer then ends when the first month ends, and the second and third months are not charged. Notice given in the second or third month ends the retainer at the end of the three-month minimum, and the months up to that end are charged. After the three-month minimum the retainer runs month to month, and either party can end it by email before the next month starts. A higher score or an AI mention is not guaranteed.",
+      deliverable: "A monthly re-scan with the same scanner and profile, shown beside the previous result, a monthly repeat of the AI question set, written review of the agent-readiness changes your team ships within one business day up to four reviews per service month, recommendations for the roadmap, questions and answers by email or a shared document and a monthly written summary that reads the month's measurements next to the previous month's with the dated per-check results and recorded AI questions and answers attached. Up to four written change reviews per service month are included, each covering one named deployment, and unused reviews expire at month end. A quarterly summary of measured changes, including unchanged or worse results, is delivered within five business days after every third service month, counted from the agreed written kickoff anniversary. The monthly summary is delivered within five business days after the month ends. Each review explains what changed and what the evidence supports. The retainer excludes implementation, continuous monitoring, incident response and operating your production systems. If you are not satisfied with the first month, you can end the retainer by email sent at any time during the first month, up to the day before the second month starts. The retainer then ends when the first month ends, and the second and third months are not charged. Notice given in the second or third month ends the retainer at the end of the three-month minimum, and the months up to that end are charged. After the three-month minimum the retainer runs month to month, and either party can end it by email before the next month starts. A higher score or an AI mention is not guaranteed.",
     },
     {
       id: "implementation",
@@ -185,7 +185,7 @@ export const SECURITY_EVIDENCE = {
     {
       provider: "Hardenize",
       result: "24/24 categories passed",
-      url: "https://www.hardenize.com/report/turva.dev",
+      note: "Hardenize no longer serves a public report page for turva.dev, so this entry carries the dated reading only and no link.",
     },
     {
       provider: "Internet.nl",
@@ -335,7 +335,7 @@ const securityOutput = z.strictObject({
     score: z.number().optional(),
     scale: z.string().optional(),
     note: z.string().optional(),
-    url: z.string(),
+    url: z.string().optional(),
   })),
   note: z.string(),
 });
@@ -416,7 +416,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.12",
+  version: "1.6.13",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };

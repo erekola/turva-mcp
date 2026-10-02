@@ -88,7 +88,7 @@ Five read-only tools, each idempotent. Each returns its data as `structuredConte
 
 Tool responses come from static TypeScript objects bundled with the Worker. They do not depend on a live upstream request. The measurement tools include a `measured_at` date and public verification links, so compare the recorded values with a fresh scan when current status matters.
 
-The bundled snapshot dated 2026-09-23 records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), all 24 categories passed on [Hardenize](https://www.hardenize.com/report/turva.dev), 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/). These are third-party readings of turva.dev, not scores produced by this server.
+The bundled snapshot dated 2026-09-23 records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), all 24 categories passed on Hardenize, 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/). These are third-party readings of turva.dev, not scores produced by this server.
 
 ## Endpoints
 
@@ -144,7 +144,7 @@ The two checks below are separate tools. They are not MCP tools, and this server
 - [turva-llms-txt-validator](https://www.npmjs.com/package/turva-llms-txt-validator) checks llms.txt structure and home-page discovery declarations. Its [browser version](https://turva.dev/llms-txt-validator) accepts any public domain.
 - [markdown-parity-check](https://www.npmjs.com/package/markdown-parity-check) compares the main content of HTML and Markdown pages. Its [browser version](https://turva.dev/markdown-parity-check) checks turva.dev's own published pages only.
 
-Both run with `npx`. The validator needs Node.js 18.17 or newer, and the comparison needs Node.js 22 or newer. Their [validator instructions](https://github.com/erekola/llms-txt-validator#quick-start) and [comparison instructions](https://github.com/erekola/markdown-parity-check#readme) explain the arguments and exit codes.
+Both run with `npx`. Both need Node.js 22 or newer. Their [validator instructions](https://github.com/erekola/llms-txt-validator#quick-start) and [comparison instructions](https://github.com/erekola/markdown-parity-check#readme) explain the arguments and exit codes.
 
 ## Deploy your own copy
 
@@ -155,7 +155,7 @@ This repository is MIT licensed and can be adapted for another site. Before depl
 3. Give the Worker a unique `name` and a rate-limit `namespace_id` that is not shared with another Worker in your Cloudflare account.
 4. Attach your own custom domain. `workers_dev` is disabled in `wrangler.jsonc`.
 
-Use Node.js 22.18 or later, or Node.js 24.11 or later. The repository's CI runs the latest 22 and 24 releases. From the root of your clone, install dependencies, run the tests and check the types before deploying with your Cloudflare account:
+Use Node.js 22.18.0 or a later 22.x release, or Node.js 24.11.0 or later. The repository's CI runs the latest 22 and 24 releases. From the root of your clone, install dependencies, run the tests and check the types before deploying with your Cloudflare account:
 
 ```sh
 npm ci
