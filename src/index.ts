@@ -123,7 +123,10 @@ export const SERVICES = {
       // only the outcome, not the design and build milestones, the starter scope
       // limits, its exclusions, or what the registry step actually does. Registry
       // work is a submission with a recorded status, not a promise of acceptance.
-      deliverable: "Within five business days of the agreed written kickoff, a written design covering tool names, input and output schemas, data fields, examples, errors and access rules. Within fifteen business days, the working server in the agreed hosting environment, its source code, deployment configuration and server card, plus submission to one agreed MCP registry with the listing's status recorded as accepted, pending or rejected. The starter scope covers one server, up to three read-only tools, one existing API, one hosting environment and compatibility checks with two named MCP clients, and excludes building or repairing the source API, correcting source data, recurring hosting charges and maintenance after handover. An endpoint that stays readable for agents. Data exposure, bulk extraction and availability still need to be considered for each tool. Registry acceptance and use of the server by an external assistant are not promised.",
+      // Corrected 2026-10-03 (W45, Tek-564): the sentence "An endpoint that stays readable for
+      // agents." was an orphan; it now says what /services serves, that read-only tools cannot
+      // modify the source through that interface.
+      deliverable: "Within five business days of the agreed written kickoff, a written design covering tool names, input and output schemas, data fields, examples, errors and access rules. Within fifteen business days, the working server in the agreed hosting environment, its source code, deployment configuration and server card, plus submission to one agreed MCP registry with the listing's status recorded as accepted, pending or rejected. The starter scope covers one server, up to three read-only tools, one existing API, one hosting environment and compatibility checks with two named MCP clients, and excludes building or repairing the source API, correcting source data, recurring hosting charges and maintenance after handover. Read-only tools cannot modify the source through that interface. Data exposure, bulk extraction and availability still need to be considered for each tool. Registry acceptance and use of the server by an external assistant are not promised.",
     },
   ],
   bundled_implementation: [
@@ -418,7 +421,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.14",
+  version: "1.6.15",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };
