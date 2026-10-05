@@ -88,7 +88,7 @@ Five read-only tools, each idempotent. Each returns its data as `structuredConte
 
 Tool responses come from static TypeScript objects bundled with the Worker. They do not depend on a live upstream request. The measurement tools include a `measured_at` date and public verification links, so compare the recorded values with a fresh scan when current status matters.
 
-The bundled snapshot records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/), all dated 2026-09-23. It also records that all 24 categories passed on [Hardenize](https://www.hardenize.com/report/turva.dev) on 2026-10-02. These readings come from third parties. This server did not produce any of the scores.
+The bundled snapshot records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/). It also records that all 24 categories passed on [Hardenize](https://www.hardenize.com/report/turva.dev). All of it is dated 2026-10-05. These readings come from third parties. This server did not produce any of the scores.
 
 ## Endpoints
 

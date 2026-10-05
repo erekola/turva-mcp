@@ -157,7 +157,7 @@ export const SERVICES = {
 
 export const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-09-23",
+  measured_at: "2026-10-05",
   // Corrected 2026-09-28 (32/T1-01): "Always verify against the live links below" was an
   // imperative addressed to the caller; this states the fact instead.
   // Corrected 2026-09-28 (V08-N01, 3rd round): "the live links below carry the current
@@ -183,12 +183,12 @@ export const AGENT_READINESS = {
 
 export const SECURITY_EVIDENCE = {
   domain: "turva.dev",
-  measured_at: "2026-09-23",
+  measured_at: "2026-10-05",
   scans: [
     {
       provider: "Hardenize",
       result: "24/24 categories passed",
-      measured_at: "2026-10-02",
+      measured_at: "2026-10-05",
       url: "https://www.hardenize.com/report/turva.dev",
     },
     {
@@ -421,7 +421,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.15",
+  version: "1.6.16",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
 };
