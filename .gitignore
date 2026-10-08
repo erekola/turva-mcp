@@ -146,3 +146,7 @@ dist
 # MCP registry publishing artifacts, local only
 mcp-publisher.exe
 server.json
+
+# Security analysis artifacts, do not commit to the public repo (mirrors turva-worker/.gitignore, Tek-577 P5)
+THREAT_MODEL.md
+VULN-FINDINGS.*
