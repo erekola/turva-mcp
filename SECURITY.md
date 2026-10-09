@@ -9,7 +9,7 @@
 
 ## Open advisories
 
-None as of 2026-10-06, the date of the last `npm audit` run against this
+None as of 2026-10-09, the date of the last `npm audit` run against this
 repository, which reported no vulnerabilities in the full tree and none with
 `--omit=dev`. CI runs `npm audit --omit=dev --audit-level=moderate` on every
 push and pull request, so a moderate or higher advisory in a runtime
@@ -24,7 +24,7 @@ critical, is IP spoofing through an IPv4-mapped IPv6 trust subnet in
 `proxy-addr` before 2.0.8, which the SDK reaches through `express`. The third,
 GHSA-wq5f-xc86-pv6w, rated high, is in the librsvg that `sharp` 0.35.4 bundles.
 It sat in the development tree, because `miniflare`, which wrangler 4.148.0
-pulls in, pins `sharp` at exactly 0.35.4.
+pulled in, pinned `sharp` at exactly 0.35.4.
 
 `agents` 0.24.0 declares the SDK at exactly 1.30.0 and the client at exactly
 2.0.0 as required peer dependencies, and so does 0.26.0, the newest `agents`
@@ -35,10 +35,12 @@ and `"$@modelcontextprotocol/client"`, point at those direct dependencies,
 which replaces the exact peer pins. `@modelcontextprotocol/server` stays at
 2.0.0, since GHSA-6qxp-vccf-f47h does not list it. `npm audit fix` moved
 `proxy-addr` to 2.0.8 inside the range `express` declares. A third new
-`overrides` entry forces `sharp` to `^0.35.5`, and `allowScripts` keeps a key
-for both 0.35.4, the version miniflare declares, and 0.35.5, the version
+`overrides` entry forced `sharp` to `^0.35.5`, and `allowScripts` kept a key
+for both 0.35.4, the version miniflare declared, and 0.35.5, the version
 installed. Each override comes out when the package that pins the old version
-moves past it.
+moves past it. The `sharp` override came out on 2026-10-09, together with the
+`allowScripts` key for 0.35.4: wrangler 4.149.0 pulls in `miniflare`
+5.20261006.1-alpha, which pins `sharp` at exactly 0.35.5.
 
 None of the three reached production. The source map of a build of this
 repository lists files from `@modelcontextprotocol/server` and its two core

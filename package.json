@@ -19,7 +19,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260523.1",
     "typescript": "^7.0.2",
-    "wrangler": "^4.148.0"
+    "wrangler": "^4.149.0"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.3.1",
@@ -32,15 +32,12 @@
     "@hono/node-server": "^2.0.5",
     "@cloudflare/workers-types": "$@cloudflare/workers-types",
     "@modelcontextprotocol/client": "$@modelcontextprotocol/client",
-    "@modelcontextprotocol/sdk": "$@modelcontextprotocol/sdk",
-    "sharp": "^0.35.5"
+    "@modelcontextprotocol/sdk": "$@modelcontextprotocol/sdk"
   },
   "allowScripts": {
     "core-js-pure@3.50.0": true,
-    "esbuild@0.28.1": true,
     "esbuild@0.28.2": true,
     "fsevents@2.3.3": true,
-    "sharp@0.35.4": true,
     "sharp@0.35.5": true,
     "workerd@1.20261006.1": true
   }
