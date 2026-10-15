@@ -289,32 +289,35 @@ export const CONTACT = {
 const noArguments = z.strictObject({});
 
 const servicesOutput = z.strictObject({
-  pricing_model: z.string(),
-  pricing_note: z.string(),
-  currency: z.string(),
-  vat_included: z.boolean(),
-  engagement: z.strictObject({ communication: z.string(), notes: z.array(z.string()) }),
+  pricing_model: z.string().describe("The pricing model. fixed_list_prices means fixed list prices, apart from the services priced on request."),
+  pricing_note: z.string().describe("The VAT treatment by customer type, the services quoted per engagement and the rule for the add-ons."),
+  currency: z.string().describe("ISO 4217 code of every price, EUR."),
+  vat_included: z.boolean().describe("Whether the prices include VAT. False means every price excludes VAT."),
+  engagement: z.strictObject({
+    communication: z.string().describe("How an engagement is communicated, async_only for written exchange with no calls."),
+    notes: z.array(z.string()).describe("Terms of an engagement, one per entry, covering access, scope, dates and completion."),
+  }).describe("How an engagement is run."),
   services: z.array(z.strictObject({
-    id: z.string(),
-    name: z.string(),
+    id: z.string().describe("Stable identifier of the service."),
+    name: z.string().describe("The name of the service."),
     url: z.string().describe("The turva.dev page that describes the service."),
     sample_url: z.string().optional().describe("A published sample of the deliverable, where one exists."),
     price: z.union([z.number(), z.literal("on request")]).describe("EUR, VAT not included, or on request."),
-    unit: z.string().optional(),
-    duration: z.string().optional(),
-    minimum_commitment: z.string().optional(),
-    summary: z.string(),
-    deliverable: z.string(),
-  })),
+    unit: z.string().optional().describe("What the price covers, such as fixed, month or day. Absent when the price is on request."),
+    duration: z.string().optional().describe("How long delivery takes, where the service states one."),
+    minimum_commitment: z.string().optional().describe("The shortest term the service is sold for, where one applies."),
+    summary: z.string().describe("What the service covers and its scope."),
+    deliverable: z.string().describe("What the customer receives and when."),
+  })).describe("The services with their prices."),
   bundled_implementation: z.array(z.strictObject({
-    id: z.string(),
-    name: z.string(),
-    price: z.number(),
-    unit: z.string(),
+    id: z.string().describe("Stable identifier of the add-on."),
+    name: z.string().describe("The name of the add-on."),
+    price: z.number().describe("Price in EUR, VAT not included."),
+    unit: z.string().describe("What the price covers, such as fixed."),
     requires: z.string().describe("The id of the service this add-on is sold with."),
-    sold_separately: z.boolean(),
-    summary: z.string(),
-  })),
+    sold_separately: z.boolean().describe("Whether the add-on can be bought without its service. False means it cannot."),
+    summary: z.string().describe("What the add-on covers and when it is bought."),
+  })).describe("Implementation add-ons that are sold only with another service."),
 });
 
 const readinessOutput = z.strictObject({
@@ -421,9 +424,13 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.16",
+  version: "1.6.17",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
+  icons: [
+    { src: "https://turva.dev/favicon.svg", mimeType: "image/svg+xml", sizes: ["any"] },
+    { src: "https://turva.dev/logo.png", mimeType: "image/png", sizes: ["512x512"] },
+  ],
 };
 
 // Each tool description repeats the routing to its neighbours, and this says it once for a
