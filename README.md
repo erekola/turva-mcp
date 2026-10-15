@@ -1,6 +1,6 @@
 # turva-mcp
 
-[![turva-mcp on Glama](https://glama.ai/mcp/connectors/dev.turva/turva-mcp/badges/score.svg)](https://glama.ai/mcp/connectors/dev.turva/turva-mcp)
+[![turva-mcp on Glama](https://glama.ai/mcp/connectors/dev.turva/turva-mcp/badges/score.svg)](https://glama.ai/mcp/connectors/dev.turva/turva-mcp) [![MCP quality score for turva.dev](https://manufact.com/api/og/checklist/badge?slug=turva-dev)](https://manufact.com/mcp-catalog/turva-dev)
 
 A public, read-only Model Context Protocol server for [turva.dev](https://turva.dev). It lets an AI client look up the site's published information, including contact details and dated measurement evidence.
 
