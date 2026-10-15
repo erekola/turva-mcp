@@ -295,7 +295,7 @@ const servicesOutput = z.strictObject({
   vat_included: z.boolean().describe("Whether the prices include VAT. False means every price excludes VAT."),
   engagement: z.strictObject({
     communication: z.string().describe("How an engagement is communicated, async_only for written exchange with no calls."),
-    notes: z.array(z.string()).describe("Terms of an engagement, one per entry, covering access, scope, dates and completion."),
+    notes: z.array(z.string().describe("One term of an engagement as a sentence.")).describe("Terms of an engagement, one per entry, covering access, scope, dates and completion."),
   }).describe("How an engagement is run."),
   services: z.array(z.strictObject({
     id: z.string().describe("Stable identifier of the service."),
@@ -321,60 +321,64 @@ const servicesOutput = z.strictObject({
 });
 
 const readinessOutput = z.strictObject({
-  domain: z.string(),
+  domain: z.string().describe("The domain the reading is about."),
   measured_at: z.string().describe("Date of the reading, YYYY-MM-DD."),
-  note: z.string(),
+  note: z.string().describe("A caveat that the scores are a point-in-time reading by an independent scanner and that the scan url opens the scanner's start page."),
   scans: z.array(z.strictObject({
-    provider: z.string(),
-    result: z.string(),
-    note: z.string(),
-    categories: z.record(z.string(), z.string()),
-    url: z.string(),
-  })),
+    provider: z.string().describe("The domain of the scanner that produced the reading."),
+    result: z.string().describe("The scanner's overall result as text, giving the score out of 100 and the level reached."),
+    note: z.string().describe("Who runs the scanner and a reminder that the reading is the scanner's and can be re-run by anyone."),
+    categories: z.record(z.string(), z.string().describe("The category score as text, out of 100.")).describe("Sub-scores by category. Each key is a category name: discoverability, content, bot_access_control, api_auth_mcp_a2a_discovery or commerce."),
+    url: z.string().describe("The scanner's start page, where a new check can be run. It does not show the recorded reading."),
+  })).describe("Readings from independent scanners, one per entry."),
 });
 
 const securityOutput = z.strictObject({
-  domain: z.string(),
+  domain: z.string().describe("The domain the scans are about."),
   measured_at: z.string().describe("Date of the scans, YYYY-MM-DD."),
   scans: z.array(z.strictObject({
-    provider: z.string(),
-    result: z.string().optional(),
-    score: z.number().optional(),
-    scale: z.string().optional(),
-    note: z.string().optional(),
-    measured_at: z.string().optional().describe("Date of this reading, YYYY-MM-DD, when it differs from the top-level date."),
-    url: z.string(),
-  })),
-  note: z.string(),
+    provider: z.string().describe("The name of the scan provider."),
+    result: z.string().optional().describe("The overall result as text, for a provider that reports passed categories instead of a number. Absent when a numeric score is given."),
+    score: z.number().optional().describe("The numeric score, on the range given in scale. Absent when the provider reports a text result."),
+    scale: z.string().optional().describe("The range of the score, written as low-high. Absent when there is no numeric score."),
+    note: z.string().optional().describe("What passed in full and where the points were lost. Absent when the provider adds no note."),
+    measured_at: z.string().optional().describe("Date of this reading, YYYY-MM-DD, on a reading that carries its own date. It can equal the top-level date."),
+    url: z.string().describe("The provider's public report page for the domain."),
+  })).describe("Web-security scan results, one per provider and test."),
+  note: z.string().describe("Why turva.dev publishes the scan results of its own domain."),
 });
 
 const principlesOutput = z.strictObject({
-  model: z.string(),
-  rules: z.array(z.strictObject({ id: z.string(), title: z.string(), rationale: z.string() })),
+  model: z.string().describe("The service model the principles belong to, agent_readiness_audit for the agent-readiness audit."),
+  rules: z.array(z.strictObject({
+    id: z.string().describe("Stable identifier of the principle."),
+    title: z.string().describe("The principle in a short phrase."),
+    rationale: z.string().describe("What the principle means in practice and why it holds."),
+  })).describe("The principles an engagement follows, one per entry."),
 });
 
 const contactOutput = z.strictObject({
-  email: z.string(),
-  signal: z.string(),
-  linkedin: z.string(),
-  business_id: z.string(),
-  location: z.string(),
-  engagement: z.string(),
-  correspondence_languages: z.array(z.string()),
-  first_reply: z.string(),
-  channel_note: z.string(),
-  how_to_start: z.array(z.string()),
+  email: z.string().describe("The email address for starting an engagement."),
+  signal: z.string().describe("A link that opens a Signal chat with the operator."),
+  linkedin: z.string().describe("The URL of the operator's LinkedIn profile."),
+  business_id: z.string().describe("The Finnish business ID of the business."),
+  location: z.string().describe("The city and country where the business is based."),
+  engagement: z.string().describe("How an engagement is communicated, async_only for written exchange with no calls."),
+  correspondence_languages: z.array(z.string().describe("An ISO 639-1 language code.")).describe("ISO 639-1 codes of the languages the correspondence is held in."),
+  first_reply: z.string().describe("How soon the first reply comes and by which channels, and that LinkedIn has no set reply time."),
+  channel_note: z.string().describe("Which channel suits which kind of message, and that there are no calls."),
+  how_to_start: z.array(z.string().describe("One step as a sentence.")).describe("The steps to start an engagement and the access an audit needs, one per entry."),
   operator: z.strictObject({
-    name: z.string(),
-    run_by: z.string(),
-    legal_form: z.string(),
-    business_id: z.string(),
-    vat_id: z.string(),
-    location: z.string(),
-    team: z.string(),
-    background: z.string(),
+    name: z.string().describe("The trading name of the business."),
+    run_by: z.string().describe("The person who runs the business."),
+    legal_form: z.string().describe("The legal form of the business."),
+    business_id: z.string().describe("The Finnish business ID of the business."),
+    vat_id: z.string().describe("The VAT identification number of the business."),
+    location: z.string().describe("Where the business is based: city, region and country."),
+    team: z.string().describe("Who works at the business and how clients work with them."),
+    background: z.string().describe("The professional background of the person who runs the business."),
     company_page: z.string().describe("The turva.dev page that states the business details."),
-  }),
+  }).describe("Who runs turva.dev and the registered business behind it."),
 });
 
 // Every tool returns its data twice: as structuredContent, which its outputSchema describes,
@@ -424,7 +428,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.17",
+  version: "1.6.18",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
