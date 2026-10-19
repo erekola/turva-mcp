@@ -19,26 +19,24 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260523.1",
     "typescript": "^7.0.2",
-    "wrangler": "^4.151.0"
+    "wrangler": "^4.151.2"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.3.1",
     "@modelcontextprotocol/sdk": "1.32.1",
-    "@modelcontextprotocol/server": "2.0.0",
-    "agents": "0.27.0",
-    "zod": "^4.6.5"
+    "@modelcontextprotocol/server": "2.3.1",
+    "agents": "0.28.1",
+    "zod": "^4.6.7"
   },
   "overrides": {
     "@hono/node-server": "^2.0.5",
-    "@cloudflare/workers-types": "$@cloudflare/workers-types",
-    "@modelcontextprotocol/client": "$@modelcontextprotocol/client",
-    "@modelcontextprotocol/sdk": "$@modelcontextprotocol/sdk"
+    "@cloudflare/workers-types": "$@cloudflare/workers-types"
   },
   "allowScripts": {
     "core-js-pure@3.50.0": true,
     "esbuild@0.28.2": true,
     "fsevents@2.3.3": true,
     "sharp@0.35.5": true,
-    "workerd@1.20261012.1": true
+    "workerd@1.20261019.1": true
   }
 }
