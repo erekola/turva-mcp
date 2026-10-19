@@ -4,13 +4,40 @@ import { readFileSync } from "node:fs";
 import worker, { SERVICES, AGENT_READINESS, SECURITY_EVIDENCE, PRINCIPLES, CONTACT, NO_ARGUMENT_TOOL_NAMES } from "../src/index.ts";
 import { SUBSCRIPTION_ID_META_KEY } from "@modelcontextprotocol/server";
 
-// The MCP endpoint itself, called the way a client calls it. catalog.test.mjs holds the
+// The MCP endpoint itself, called the way a client calls it. catalog.test.ts holds the
 // discovery routes and the catalogue data. This file holds the protocol: what
 // server/discover and tools/list declare, what every tool returns, and the limits the
 // Worker sets in front of @modelcontextprotocol/server, which the comments below call the SDK. Before audit round 20 on 2026-09-23 no test sent a single
 // MCP request, so a regression in the tools themselves showed only after a deploy.
 
-const ctx = { waitUntil() {}, passThroughOnException() {} };
+type Env = Parameters<typeof worker.fetch>[1];
+// worker.fetch reads nothing from the context, so every member is a no-op; the span mock
+// exists only so the object satisfies ExecutionContext without a cast.
+class NoSpan {
+  get isTraced() { return false; }
+  setAttribute() {}
+  end() {}
+}
+const ctx: ExecutionContext = {
+  waitUntil() {},
+  passThroughOnException() {},
+  props: undefined,
+  tracing: {
+    enterSpan: (_name, callback, ...args) => callback(new NoSpan(), ...args),
+    startActiveSpan: (_name, callback, ...args) => callback(new NoSpan(), ...args),
+    Span: NoSpan,
+  },
+};
+// Open-ended JSON-RPC payloads: the tests read many method-specific fields off them.
+type Result = Record<string, any>;
+interface RpcError { code: number; message: string; data?: { tool: { name: string; truncated: boolean } } }
+interface Rpc { id?: number | string; method?: string; params?: Result; result?: Result; error?: RpcError }
+interface Tool {
+  name: string;
+  annotations: unknown;
+  inputSchema: { type: string; properties: unknown; additionalProperties: boolean };
+  outputSchema?: { type: string; properties: Record<string, unknown>; additionalProperties: boolean };
+}
 const META = {
   "io.modelcontextprotocol/protocolVersion": "2026-07-28",
   "io.modelcontextprotocol/clientCapabilities": {},
@@ -22,9 +49,9 @@ const TOOLS = {
   get_principles: PRINCIPLES,
   get_contact: CONTACT,
 };
-const plain = (data) => JSON.parse(JSON.stringify(data));
+const plain = (data: unknown) => JSON.parse(JSON.stringify(data));
 
-function post(body, headers = {}, env = {}) {
+function post(body: unknown, headers: Record<string, string> = {}, env: Env = {}) {
   return worker.fetch(new Request("https://mcp.turva.dev/mcp", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...headers },
@@ -33,24 +60,24 @@ function post(body, headers = {}, env = {}) {
 }
 
 // The 2025-era lane answers as an event stream, the 2026-07-28 lane as JSON.
-async function readJson(r) {
+async function readJson(r: Response): Promise<Rpc> {
   const text = await r.text();
   if ((r.headers.get("content-type") || "").includes("text/event-stream")) {
     const data = text.split(/\r?\n/).filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim());
-    return JSON.parse(data.at(-1));
+    return JSON.parse(data.at(-1)!);
   }
   return JSON.parse(text);
 }
 
 // A request on the 2026-07-28 lane, with the headers and the envelope the revision requires.
-async function call(method, params = {}) {
-  const headers = { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": method };
-  if (method === "tools/call") headers["Mcp-Name"] = params.name;
+async function call(method: string, params: { name?: string; arguments?: object } = {}): Promise<Result> {
+  const headers: Record<string, string> = { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": method };
+  if (method === "tools/call") headers["Mcp-Name"] = params.name!;
   const r = await post({ jsonrpc: "2.0", id: 1, method, params: { ...params, _meta: META } }, headers);
   assert.equal(r.status, 200, method + " is answered");
   const body = await readJson(r);
   assert.equal(body.error, undefined, method + " returns a result and not an error");
-  return body.result;
+  return body.result!;
 }
 
 test("P1: server/discover declares what the server does and nothing it does not", async () => {
@@ -80,17 +107,17 @@ test("P2: subscriptions/listen acknowledges no tools filter, because none can fi
   );
   assert.equal(r.status, 200);
   // The stream stays open for notifications, so only its first event is read.
-  const reader = r.body.getReader();
+  const reader = r.body!.getReader();
   const { value } = await reader.read();
   await reader.cancel();
   const line = new TextDecoder().decode(value).split(/\r?\n/).find((l) => l.startsWith("data:"));
-  const ack = JSON.parse(line.slice(5));
+  const ack = JSON.parse(line!.slice(5));
   assert.equal(ack.method, "notifications/subscriptions/acknowledged");
   assert.deepEqual(ack.params.notifications, {});
 });
 
 test("P3: tools/list declares five read-only tools that take no arguments and describe their output", async () => {
-  const { tools } = await call("tools/list");
+  const { tools } = await call("tools/list") as { tools: Tool[] };
   assert.deepEqual(tools.map((t) => t.name), Object.keys(TOOLS));
   for (const t of tools) {
     assert.deepEqual(t.annotations, { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, t.name);
@@ -98,8 +125,8 @@ test("P3: tools/list declares five read-only tools that take no arguments and de
     assert.deepEqual(t.inputSchema.properties, {}, t.name + " takes no arguments");
     assert.equal(t.inputSchema.additionalProperties, false, t.name + " says it takes no arguments");
     assert.equal(t.outputSchema?.type, "object", t.name + " describes its output");
-    assert.equal(t.outputSchema.additionalProperties, false, t.name + " names every field it returns");
-    assert.deepEqual(Object.keys(t.outputSchema.properties).sort(), Object.keys(TOOLS[t.name]).sort(), t.name + " schema and data name the same fields");
+    assert.equal(t.outputSchema!.additionalProperties, false, t.name + " names every field it returns");
+    assert.deepEqual(Object.keys(t.outputSchema!.properties).sort(), Object.keys(TOOLS[t.name as keyof typeof TOOLS]).sort(), t.name + " schema and data name the same fields");
   }
 });
 
@@ -127,14 +154,14 @@ test("P6: the 2025-era lane declares the same capabilities and serves the same t
     jsonrpc: "2.0", id: 1, method: "initialize",
     params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "protocol.test", version: "0" } },
   }));
-  assert.deepEqual(init.result.capabilities, { tools: { listChanged: false } });
-  assert.equal(init.result.serverInfo.title, "turva.dev");
-  assert.ok(init.result.instructions, "initialize carries the same instructions");
+  assert.deepEqual(init.result!.capabilities, { tools: { listChanged: false } });
+  assert.equal(init.result!.serverInfo.title, "turva.dev");
+  assert.ok(init.result!.instructions, "initialize carries the same instructions");
   const legacy = { "MCP-Protocol-Version": "2025-06-18" };
   const list = await readJson(await post({ jsonrpc: "2.0", id: 2, method: "tools/list" }, legacy));
-  assert.deepEqual(list.result.tools.map((t) => t.name), Object.keys(TOOLS));
+  assert.deepEqual(list.result!.tools.map((t: Tool) => t.name), Object.keys(TOOLS));
   const res = await readJson(await post({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "get_contact", arguments: {} } }, legacy));
-  assert.deepEqual(res.result.structuredContent, plain(CONTACT));
+  assert.deepEqual(res.result!.structuredContent, plain(CONTACT));
 });
 
 test("P7: a JSON-RPC batch is refused on both lanes", async () => {
@@ -142,11 +169,11 @@ test("P7: a JSON-RPC batch is refused on both lanes", async () => {
   // POST, and the rate limiter in front of it counted one request.
   const legacyBatch = [1, 2, 3].map((id) => ({ jsonrpc: "2.0", id, method: "tools/call", params: { name: "get_services", arguments: {} } }));
   const modernBatch = [{ jsonrpc: "2.0", id: 1, method: "tools/list", params: { _meta: META } }];
-  for (const [batch, label] of [[legacyBatch, "2025-era batch"], [modernBatch, "2026-07-28 batch"], [[], "empty batch"]]) {
+  for (const [batch, label] of [[legacyBatch, "2025-era batch"], [modernBatch, "2026-07-28 batch"], [[], "empty batch"]] as [unknown, string][]) {
     const r = await post(batch);
     assert.equal(r.status, 400, label);
-    const body = await r.json();
-    assert.equal(body.error.code, -32600, label);
+    const body = await r.json() as Rpc;
+    assert.equal(body.error!.code, -32600, label);
     // T-02 (Astra audit 2026-09-26): the 2026-07-28 revision's JSONRPCErrorResponse allows
     // id to be a string, a number, or absent, never null; this rejection cannot know the
     // id of a batch's individual messages, so it now omits the field instead of sending null.
@@ -164,10 +191,10 @@ test("P7: a JSON-RPC batch is refused on both lanes", async () => {
 
 test("P8: a body over 64 KiB is refused before the handler reads it", async () => {
   // A2-2 in round 20: nothing capped the body, and 50 MB was read into memory whole.
-  const padded = (n) => JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(n) } });
+  const padded = (n: number) => JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(n) } });
   const streamed = await post(padded(70_000));
   assert.equal(streamed.status, 413, "a body over the limit");
-  assert.equal((await streamed.json()).error.code, -32000);
+  assert.equal(((await streamed.json()) as Rpc).error!.code, -32000);
   assert.equal(streamed.headers.get("access-control-allow-origin"), "https://turva.dev", "the 413 carries the /mcp policy");
   const declared = await post("{}", { "Content-Length": "70000" });
   assert.equal(declared.status, 413, "a Content-Length over the limit, refused before any read");
@@ -180,12 +207,12 @@ test("P8: a body over 64 KiB is refused before the handler reads it", async () =
 test("P9: a request on the 2026-07-28 lane without MCP-Protocol-Version is refused", async () => {
   // D-2 in round 20: the SDK reads the version from the body envelope alone, so a request
   // with the envelope and without the header the revision requires was answered normally.
-  for (const [headers, label] of [[{ "Mcp-Method": "server/discover" }, "envelope and Mcp-Method"], [{}, "envelope alone"]]) {
+  for (const [headers, label] of [[{ "Mcp-Method": "server/discover" }, "envelope and Mcp-Method"], [{}, "envelope alone"]] as [Record<string, string>, string][]) {
     const r = await post({ jsonrpc: "2.0", id: 7, method: "server/discover", params: { _meta: META } }, headers);
     assert.equal(r.status, 400, label);
-    const body = await r.json();
-    assert.equal(body.error.code, -32020, label);
-    assert.match(body.error.message, /MCP-Protocol-Version/, label + ": the message names the missing header");
+    const body = await r.json() as Rpc;
+    assert.equal(body.error!.code, -32020, label);
+    assert.match(body.error!.message, /MCP-Protocol-Version/, label + ": the message names the missing header");
     assert.equal(body.id, 7, label + ": the error answers the request's id");
   }
   const methodOnly = await post({ jsonrpc: "2.0", id: 9, method: "tools/list" }, { "Mcp-Method": "tools/list" });
@@ -242,23 +269,23 @@ test("P12: malformed initialize and tools/list params are refused as Invalid par
   // methods threw a plain Error on a malformed shape, which its catch defaulted to
   // -32603 Internal error instead of -32602 Invalid params.
   const missingParams = await readJson(await post({ jsonrpc: "2.0", id: 27, method: "initialize" }));
-  assert.equal(missingParams.error.code, -32602, "initialize with no params at all");
+  assert.equal(missingParams.error!.code, -32602, "initialize with no params at all");
   assert.equal(missingParams.id, 27);
   const missingCapabilities = await readJson(await post({
     jsonrpc: "2.0", id: 28, method: "initialize",
     params: { protocolVersion: "2025-06-18", clientInfo: { name: "protocol.test", version: "0" } },
   }));
-  assert.equal(missingCapabilities.error.code, -32602, "initialize with no capabilities");
+  assert.equal(missingCapabilities.error!.code, -32602, "initialize with no capabilities");
   const badVersionType = await readJson(await post({
     jsonrpc: "2.0", id: 32, method: "initialize",
     params: { protocolVersion: 42, capabilities: {}, clientInfo: { name: "protocol.test", version: "0" } },
   }));
-  assert.equal(badVersionType.error.code, -32602, "initialize with a numeric protocolVersion");
+  assert.equal(badVersionType.error!.code, -32602, "initialize with a numeric protocolVersion");
   const cursorNumber = await readJson(await post(
     { jsonrpc: "2.0", id: 7, method: "tools/list", params: { cursor: 123, _meta: META } },
     { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" },
   ));
-  assert.equal(cursorNumber.error.code, -32602, "tools/list with a numeric cursor");
+  assert.equal(cursorNumber.error!.code, -32602, "tools/list with a numeric cursor");
   assert.equal(cursorNumber.id, 7);
   // The check answers only the malformed shapes above; a well-formed initialize still works.
   const stillWorks = await readJson(await post({
@@ -278,14 +305,14 @@ test("P13: a raw __proto__ argument key is refused the same way any other extra 
   const r = await post(raw, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_contact" });
   const body = await readJson(r);
   assert.equal(body.id, 42);
-  assert.equal(body.result.isError, true);
-  assert.match(body.result.content[0].text, /Input validation error/);
+  assert.equal(body.result!.isError, true);
+  assert.match(body.result!.content[0].text, /Input validation error/);
   // W16 F1: the 2026-07-28 lane carries resultType on this hand-built result too.
-  assert.equal(body.result.resultType, "complete");
+  assert.equal(body.result!.resultType, "complete");
   // The legacy lane keeps its earlier bytes: no resultType.
   const legacy = await readJson(await post(raw));
-  assert.equal(legacy.result.isError, true);
-  assert.equal(legacy.result.resultType, undefined);
+  assert.equal(legacy.result!.isError, true);
+  assert.equal(legacy.result!.resultType, undefined);
   // The set this check applies to is exactly the five argumentless tools, not every tool name.
   assert.deepEqual([...NO_ARGUMENT_TOOL_NAMES].sort(), Object.keys(TOOLS).sort());
 });
@@ -299,8 +326,8 @@ test("P14: subscriptions/listen closes itself right after the acknowledgement", 
     { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "subscriptions/listen" },
   );
   assert.equal(r.status, 200);
-  const reader = r.body.getReader();
-  const chunks = [];
+  const reader = r.body!.getReader();
+  const chunks: string[] = [];
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -330,19 +357,19 @@ test("P15: a disallowed Origin is refused before the malformed-params and __prot
     { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list", ...evilOrigin },
   );
   assert.equal(badCursor.status, 403, "malformed params from a disallowed Origin");
-  const badCursorBody = await badCursor.json();
-  assert.equal(badCursorBody.error.code, -32000);
+  const badCursorBody = await badCursor.json() as Rpc;
+  assert.equal(badCursorBody.error!.code, -32000);
   assert.equal(badCursorBody.id, undefined, "B2: no id field, never null");
   const raw = '{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_contact","arguments":{"__proto__":{"audit":true}},"_meta":' + JSON.stringify(META) + '}}';
   const protoFromEvil = await post(raw, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_contact", ...evilOrigin });
   assert.equal(protoFromEvil.status, 403, "a raw __proto__ key from a disallowed Origin");
-  assert.equal((await protoFromEvil.json()).id, undefined, "B2: no id field, never null");
+  assert.equal(((await protoFromEvil.json()) as Rpc).id, undefined, "B2: no id field, never null");
   // do-not-fix line 225 (Tek-458 P7): a batch and an oversized body still answer 400
   // and 413 before Origin is even considered, unchanged by B1.
   const batchFromEvil = await post([{ jsonrpc: "2.0", id: 1, method: "tools/list" }], evilOrigin);
   assert.equal(batchFromEvil.status, 400, "a batch from a disallowed Origin still reads 400, not 403");
   await batchFromEvil.text();
-  const padded = (n) => JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(n) } });
+  const padded = (n: number) => JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(n) } });
   const oversizeFromEvil = await post(padded(70_000), evilOrigin);
   assert.equal(oversizeFromEvil.status, 413, "an oversized body from a disallowed Origin still reads 413, not 403");
   await oversizeFromEvil.text();
@@ -364,18 +391,18 @@ test("P16: an unknown tool name is refused with a capped, separate data field", 
     { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "turva varmennus proba lause", arguments: {}, _meta: META } },
     { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "turva varmennus proba lause" },
   ));
-  assert.equal(short.error.code, -32602);
+  assert.equal(short.error!.code, -32602);
   assert.equal(short.id, 3);
-  assert.doesNotMatch(short.error.message, /turva varmennus proba lause/, "the name is not spliced into the message text");
-  assert.equal(short.error.data.tool.name, "turva varmennus proba lause");
-  assert.equal(short.error.data.tool.truncated, false);
+  assert.doesNotMatch(short.error!.message, /turva varmennus proba lause/, "the name is not spliced into the message text");
+  assert.equal(short.error!.data!.tool.name, "turva varmennus proba lause");
+  assert.equal(short.error!.data!.tool.truncated, false);
   const longName = "x".repeat(200);
   const long = await readJson(await post(
     { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: longName, arguments: {}, _meta: META } },
     { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": longName },
   ));
-  assert.equal(long.error.data.tool.name.length, 64, "the echoed name is capped at 64 characters");
-  assert.equal(long.error.data.tool.truncated, true);
+  assert.equal(long.error!.data!.tool.name.length, 64, "the echoed name is capped at 64 characters");
+  assert.equal(long.error!.data!.tool.truncated, true);
   assert.doesNotMatch(JSON.stringify(long), new RegExp(longName), "the full 200-character name never appears anywhere in the response");
   // A known tool name is unaffected.
   const known = await call("tools/call", { name: "get_contact" });
@@ -393,9 +420,9 @@ test("P17: a disallowed Origin is refused with the same no-id shape when Content
     body: JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/list", params: {} }),
   }), {}, ctx);
   assert.equal(r.status, 403);
-  const body = await r.json();
-  assert.equal(body.error.code, -32000);
-  assert.match(body.error.message, /Invalid Origin/);
+  const body = await r.json() as Rpc;
+  assert.equal(body.error!.code, -32000);
+  assert.match(body.error!.message, /Invalid Origin/);
   assert.equal(body.id, undefined, "no id field, never null");
   // An allowed Origin with a non-JSON Content-Type is unaffected: the Origin check passes and
   // the SDK answers its own way for the wrong Content-Type, not refused as a 403 here.
@@ -421,12 +448,12 @@ test("P17b: a JSON body that does not parse is answered by the Worker with 400 a
   // 2026-07-28 revision does not allow, so the Worker answers it itself, with and without the
   // modern headers, and the id field is absent rather than null.
   const cut = '{"jsonrpc":"2.0","id":"x","method":"tools/ca';
-  for (const headers of [{}, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call" }]) {
+  for (const headers of [{}, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call" }] as Record<string, string>[]) {
     const r = await post(cut, headers);
     assert.equal(r.status, 400);
-    const body = await r.json();
-    assert.equal(body.error.code, -32700);
-    assert.equal(body.error.message, "Parse error: Invalid JSON");
+    const body = await r.json() as Rpc;
+    assert.equal(body.error!.code, -32700);
+    assert.equal(body.error!.message, "Parse error: Invalid JSON");
     assert.equal("id" in body, false, "no id field, never null");
   }
   // A disallowed Origin on an unparseable body keeps its 403.
@@ -443,23 +470,23 @@ test("P18: a malformed clientInfo in initialize is refused as Invalid params, no
     jsonrpc: "2.0", id: 31, method: "initialize",
     params: { protocolVersion: "2026-07-28", capabilities: {}, clientInfo: "not-an-object" },
   }));
-  assert.equal(badClientInfoType.error.code, -32602, "clientInfo as a string");
+  assert.equal(badClientInfoType.error!.code, -32602, "clientInfo as a string");
   assert.equal(badClientInfoType.id, 31);
   const missingClientInfo = await readJson(await post({
     jsonrpc: "2.0", id: 33, method: "initialize",
     params: { protocolVersion: "2026-07-28", capabilities: {} },
   }));
-  assert.equal(missingClientInfo.error.code, -32602, "clientInfo missing entirely");
+  assert.equal(missingClientInfo.error!.code, -32602, "clientInfo missing entirely");
   const badNameType = await readJson(await post({
     jsonrpc: "2.0", id: 34, method: "initialize",
     params: { protocolVersion: "2026-07-28", capabilities: {}, clientInfo: { name: 1, version: "1.0" } },
   }));
-  assert.equal(badNameType.error.code, -32602, "clientInfo.name not a string");
+  assert.equal(badNameType.error!.code, -32602, "clientInfo.name not a string");
   const badVersionType = await readJson(await post({
     jsonrpc: "2.0", id: 35, method: "initialize",
     params: { protocolVersion: "2026-07-28", capabilities: {}, clientInfo: { name: "x", version: 1 } },
   }));
-  assert.equal(badVersionType.error.code, -32602, "clientInfo.version not a string");
+  assert.equal(badVersionType.error!.code, -32602, "clientInfo.version not a string");
   // A well-formed initialize is unaffected.
   const stillWorks = await readJson(await post({
     jsonrpc: "2.0", id: 1, method: "initialize",

@@ -26,6 +26,13 @@ updates:
     ignore:
       - dependency-name: "@cloudflare/workers-types"
         update-types: ["version-update:semver-major"]
+      # @types/node is held on major 22 because the types' major tracks the Node major
+      # and engines declares a lower bound of ^22.18.0 (the CI matrix runs Node 22 and
+      # 24), so a major jump would type the tests against APIs the oldest supported
+      # Node lacks. It moves by hand when the engines floor moves (mds/decisions.md
+      # Tek-663).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
       # agents declares @modelcontextprotocol/client, /server and /sdk as peer
       # dependencies at EXACT versions (measured 2026-09-29: agents 0.23.0 and 0.24.0
       # both require client 2.0.0, server 2.0.0 and sdk 1.30.0). A grouped bump of the

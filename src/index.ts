@@ -280,7 +280,7 @@ export const CONTACT = {
 
 // One output schema per tool, written against the objects above. Every object is strict, so
 // the SDK's check of structuredContent against the schema fails on a field the schema does
-// not name, and test/protocol.test.mjs calls every tool: a field added above without its
+// not name, and test/protocol.test.ts calls every tool: a field added above without its
 // schema fails the tests before it can fail a client.
 //
 // No tool reads its input. noArguments makes the published inputSchema say so with
@@ -582,7 +582,7 @@ const CORS_HEADERS: Record<string, string> = {
 
 // The rate limit, written once: RateLimit-Policy and the 429 answer below are derived from
 // it. wrangler.jsonc configures the binding with the same two numbers, and the binding
-// exposes limit() alone, so test/protocol.test.mjs compares the two files.
+// exposes limit() alone, so test/protocol.test.ts compares the two files.
 const RATE_LIMIT = { requests: 100, windowSeconds: 60 } as const;
 
 // The same protections turva.dev applies to its agent-API responses. This endpoint is
@@ -731,7 +731,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 // The five names server.registerTool gives below, every one with noArguments as its
-// inputSchema. protocol.test.mjs asserts this list matches tools/list's own names, so the two
+// inputSchema. protocol.test.ts asserts this list matches tools/list's own names, so the two
 // cannot drift apart silently.
 export const NO_ARGUMENT_TOOL_NAMES = ["get_services", "get_agent_readiness", "get_security_evidence", "get_principles", "get_contact"] as const;
 const NO_ARGUMENT_TOOLS = new Set<string>(NO_ARGUMENT_TOOL_NAMES);

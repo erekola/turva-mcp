@@ -11,14 +11,31 @@ import worker, { SERVICES, PRINCIPLES, AGENT_READINESS } from "../src/index.ts";
 // deliverable would ship first and fail afterwards. This file catches it before the deploy.
 
 const noLimiter = {}; // no RATE_LIMITER binding: the documented fail-open path
-const ctx = { waitUntil() {}, passThroughOnException() {} };
-const call = (path, opts = {}) =>
+type Env = Parameters<typeof worker.fetch>[1];
+// worker.fetch reads nothing from the context, so every member is a no-op; the span mock
+// exists only so the object satisfies ExecutionContext without a cast.
+class NoSpan {
+  get isTraced() { return false; }
+  setAttribute() {}
+  end() {}
+}
+const ctx: ExecutionContext = {
+  waitUntil() {},
+  passThroughOnException() {},
+  props: undefined,
+  tracing: {
+    enterSpan: (_name, callback, ...args) => callback(new NoSpan(), ...args),
+    startActiveSpan: (_name, callback, ...args) => callback(new NoSpan(), ...args),
+    Span: NoSpan,
+  },
+};
+const call = (path: string, opts: { method?: string; headers?: Record<string, string>; env?: Env } = {}) =>
   worker.fetch(
     new Request("https://mcp.turva.dev" + path, { method: opts.method || "GET", headers: opts.headers || {} }),
     opts.env || noLimiter,
     ctx,
   );
-const limiter = (success) => ({ RATE_LIMITER: { limit: async () => ({ success }) } });
+const limiter = (success: boolean) => ({ RATE_LIMITER: { limit: async () => ({ success }) } });
 
 test("M1: the discovery routes answer with the endpoint the card points at", async () => {
   for (const path of ["/", "/.well-known/mcp"]) {
@@ -72,7 +89,7 @@ test("M3: every answer carries the security headers", async () => {
 
 // M4 proves the 429 code path with a stand-in binding that always refuses. It cannot prove
 // the limit itself, because Cloudflare's binding is approximate and counts per location, as
-// round 20 measured in TJ-2. protocol.test.mjs P11 holds the numbers the answer states.
+// round 20 measured in TJ-2. protocol.test.ts P11 holds the numbers the answer states.
 test("M4: a refusing limiter gets a 429 with the declared window, and the 429 answers with its own path's policy", async () => {
   const denied = await call("/", { env: limiter(false) });
   assert.equal(denied.status, 429);
@@ -115,7 +132,7 @@ test("M6: every service the catalogue sells has a price and a deliverable", asyn
 // had lost the monthly written summary, and the Shopify retest gave 14 days without the
 // day it counts from. A promise carrying a DATE is the kind an agent acts on.
 test("M7: the deliverables still carry the dated promises the site makes", async () => {
-  const want = [
+  const want: [string, RegExp][] = [
     ["audit", /re-scan within 30 days of the report/i],
     ["audit", /round of written follow-up questions/i],
     ["advisory", /monthly re-scan/i],
@@ -151,7 +168,7 @@ test("M7: the deliverables still carry the dated promises the site makes", async
 // states for these four services, so a mirroring drift is caught here instead of only
 // by a live read of the deployed server.
 test("M8: the deliverables mirror the approved delivery content for the four scoped services", async () => {
-  const want = [
+  const want: [string, RegExp][] = [
     ["advisory", /runs month to month, and either party can end it by email/i],
     ["advisory", /end it by email before the next month starts/i],
     ["advisory", /Up to four written change reviews per service month/i],
@@ -195,13 +212,13 @@ test("M9: pricing_note and engagement.notes carry the VAT split and the P2/P4/P6
 });
 
 test("M10: advisory keeps the first-month opt-out and implementation the direct-test alternative", async () => {
-  const advisory = SERVICES.services.find((s) => s.id === "advisory");
+  const advisory = SERVICES.services.find((s) => s.id === "advisory")!;
   assert.match(advisory.deliverable, /If you are not satisfied with the first month, you can end the retainer by email sent at any time during the first month, up to the day before the second month starts/, "S00-4.1/P1");
   assert.match(advisory.deliverable, /the second and third months are not charged/);
   // The already-approved minimum and the renewal terms are unchanged by the addition.
   assert.equal(advisory.minimum_commitment, "3 months");
   assert.match(advisory.deliverable, /runs month to month, and either party can end it by email/i);
-  const implementation = SERVICES.services.find((s) => s.id === "implementation");
+  const implementation = SERVICES.services.find((s) => s.id === "implementation")!;
   assert.match(implementation.deliverable, /verifiable against the audit baseline in the next scan, or a direct test/, "V08-N02/V08-4");
 });
 
