@@ -9,7 +9,7 @@
 
 ## Open advisories
 
-None as of 2026-10-19, the date of the last `npm audit` run against this
+None as of 2026-10-20, the date of the last `npm audit` run against this
 repository, which reported no vulnerabilities in the full tree and none with
 `--omit=dev`. CI runs `npm audit --omit=dev --audit-level=moderate` on every
 push and pull request, so a moderate or higher advisory in a runtime

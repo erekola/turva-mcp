@@ -20,7 +20,7 @@
     "@cloudflare/workers-types": "^4.20260523.1",
     "@types/node": "^22.20.5",
     "typescript": "^7.0.2",
-    "wrangler": "^4.151.2"
+    "wrangler": "^4.151.3"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.3.1",
