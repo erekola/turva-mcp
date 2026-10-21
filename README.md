@@ -7,7 +7,7 @@
   <a href="https://glama.ai/mcp/connectors/dev.turva/turva-mcp"><img src="https://glama.ai/mcp/connectors/dev.turva/turva-mcp/badges/score.svg" alt="turva-mcp on Glama"></a>
 </p>
 
-A public, read-only Model Context Protocol server for [turva.dev](https://turva.dev). It lets an AI client look up the site's published information, including contact details and dated measurement evidence.
+A public, read-only Model Context Protocol server for [turva.dev](https://turva.dev), written in TypeScript. It lets an AI client look up the site's published information, including contact details and dated measurement evidence.
 
 For example, a client can use `get_contact` when someone asks how to reach me. The reply explains how to start. The server answers questions about turva.dev itself. It does not scan another domain, run an audit or perform transactions.
 
@@ -93,7 +93,7 @@ Five read-only tools, each idempotent. Each returns its data as `structuredConte
 
 Tool responses come from static TypeScript objects bundled with the Worker. They do not depend on a live upstream request. The measurement tools include a `measured_at` date and public verification links, so compare the recorded values with a fresh scan when current status matters.
 
-The bundled snapshot records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/). It also records that all 24 categories passed on [Hardenize](https://www.hardenize.com/report/turva.dev). All of it is dated 2026-10-05. These readings come from third parties. This server did not produce any of the scores.
+The bundled snapshot records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/). It also records that all 24 categories passed on [Hardenize](https://www.hardenize.com/report/turva.dev). All of it is dated 2026-10-21. These readings come from third parties. This server did not produce any of the scores.
 
 ## Endpoints
 
@@ -112,13 +112,17 @@ The bundled snapshot records 100/100, Level 5 Agent-Native on [isitagentready.co
 
 `HEAD` on a discovery document returns its headers without a body. The discovery documents carry `Cache-Control: public, max-age=3600`, the same hour that `tools/list` and `server/discover` declare.
 
-The full signed MCP server card is published at [turva.dev/.well-known/mcp/server-card.json](https://turva.dev/.well-known/mcp/server-card.json).
+The main site serves the full signed MCP server card at [turva.dev/.well-known/mcp/server-card.json](https://turva.dev/.well-known/mcp/server-card.json).
 
 ## Protocol and implementation
 
 A single Cloudflare Worker built on the Cloudflare Agents SDK serves the endpoint through `createMcpHandler` from `agents/mcp/server`, and it creates a fresh `McpServer` from `@modelcontextprotocol/server` for each request. There is no Durable Object or persistent MCP session.
 
-The current protocol lane uses revision `2026-07-28`. A legacy lane at the same endpoint serves 2025-era clients. That lane is an adapter in the Agents SDK, and it answers through the web-standard server transport of `@modelcontextprotocol/server`. On the current lane every request must carry `MCP-Protocol-Version` and `Mcp-Method`, plus `Mcp-Name` for `tools/call`, and a request without one of them receives `400` with error `-32020`. Validation of the request body is answered first, with `-32602` or a tool error. Malformed `params` and an unknown tool name fall under it, and so do unexpected arguments. A JSON-RPC notification is passed to the SDK without this header check. `@modelcontextprotocol/server` checks `Mcp-Method` and `Mcp-Name`, and the Worker checks `MCP-Protocol-Version` before the handler runs, because that package reads the version from the request body and would otherwise answer a request that lacks the header. On the current lane nothing checks `Accept`, while the legacy lane answers `406` unless `Accept` lists both `application/json` and `text/event-stream`. Standard MCP clients handle these details.
+The current protocol lane uses revision `2026-07-28`. A legacy lane at the same endpoint serves 2025-era clients. That lane is an adapter in the Agents SDK, and it answers through the web-standard server transport of `@modelcontextprotocol/server`.
+
+On the current lane every request must carry `MCP-Protocol-Version` and `Mcp-Method`, plus `Mcp-Name` for `tools/call`, and a request without one of them receives `400` with error `-32020`. Validation of the request body is answered first, with `-32602` or a tool error. Malformed `params` and an unknown tool name fall under it, and so does an argument named `__proto__`. Any other unexpected argument is checked after the headers, and the SDK answers it with a tool error. A JSON-RPC notification is passed to the SDK without this header check. `@modelcontextprotocol/server` checks `Mcp-Method` and `Mcp-Name`, and the Worker checks `MCP-Protocol-Version` before the handler runs, because that package reads the version from the request body and would otherwise answer a request that lacks the header.
+
+On the current lane nothing checks `Accept`, while the legacy lane answers `406` unless `Accept` lists both `application/json` and `text/event-stream`. Standard MCP clients handle these details.
 
 `server/discover` is supplied by `@modelcontextprotocol/server`. It declares the `tools` capability with `listChanged: false`, because the tool set changes only on deploy and the server sends no change notifications, and it returns short instructions that say which tool answers which question.
 
@@ -126,11 +130,11 @@ The discovery documents and tool data are compiled into the Worker. This Worker 
 
 ## Dependencies
 
-The code imports `@modelcontextprotocol/server`, `agents` and `zod`. `package.json` also lists `@modelcontextprotocol/client` and `@modelcontextprotocol/sdk`, which the code does not import. The `agents` version pinned in `package.json` declares all three MCP packages as required peer dependencies at exact versions, so npm has to install them, but neither of the two is in the built Worker.
+The code imports `@modelcontextprotocol/server`, `agents` and `zod`. `package.json` also lists `@modelcontextprotocol/client` and `@modelcontextprotocol/sdk`, which the code does not import. The `agents` version pinned in `package.json` declares all three MCP packages as required peer dependencies at exact versions, so npm has to install them, but neither `@modelcontextprotocol/client` nor `@modelcontextprotocol/sdk` is in the built Worker.
 
 ## Security and operating limits
 
-This server has no write path and returns only public data, so what it has to withstand is abuse of the endpoint itself: load from one address, requests built to be expensive, and a page on another site that calls it from a visitor's browser. The list below says how the endpoint meets them.
+This server has no write path and returns only public data, so what it has to withstand is abuse of the endpoint itself: load from one address, requests built to be expensive, and a page on another site that calls it from a visitor's browser.
 
 - Public and unauthenticated by design. Every exposed value is already public.
 - Read-only MCP annotations on every tool. No destructive or open-world operation is declared, and no tool takes arguments.
@@ -151,6 +155,24 @@ The two checks below are separate tools. They are not MCP tools, and this server
 
 Both run with `npx`. Both need Node.js 22 or newer. Their [validator instructions](https://github.com/erekola/llms-txt-validator#quick-start) and [comparison instructions](https://github.com/erekola/markdown-parity-check#readme) explain the arguments and exit codes.
 
+## Develop and test
+
+The Worker needs Node.js `^22.18.0 || >=24.11.0`, the range in the `engines` field of `package.json`. The entry point is [src/index.ts](src/index.ts). There is no build step: Wrangler bundles the TypeScript when you run or deploy it, and Node runs the tests by stripping types.
+
+```sh
+npm ci
+npm run dev
+npm test
+npm run typecheck
+```
+
+- `npm run dev` starts `wrangler dev` for a local copy of the Worker.
+- `npm test` runs `node --experimental-strip-types --test` over `test/catalog.test.ts` and `test/protocol.test.ts`.
+- `npm run typecheck` runs `tsc --noEmit` twice, once for `src` with `tsconfig.json` and once for `test` with `tsconfig.test.json`.
+- The two `overrides` in `package.json` are deliberate. One keeps `@hono/node-server` on a patched release, as [SECURITY.md](SECURITY.md) explains, and the other points every copy of the Workers types at the direct dependency. Run `npm ci` and `npm audit` again before removing either.
+
+[The workflow](.github/workflows/ci.yml) runs on every push and pull request with read-only permissions. It has one job, `test`, on Node.js 22 and 24. The job runs `npm ci`, then `npm audit --omit=dev --audit-level=moderate`, then `npm test` and `npm run typecheck`. A runtime dependency with a moderate or worse advisory fails the build at the audit step. Nothing in the workflow deploys.
+
 ## Deploy your own copy
 
 This repository is MIT licensed and can be adapted for another site. Before deploying a fork:
@@ -160,12 +182,9 @@ This repository is MIT licensed and can be adapted for another site. Before depl
 3. Give the Worker a unique `name` and a rate-limit `namespace_id` that is not shared with another Worker in your Cloudflare account.
 4. Attach your own custom domain. `workers_dev` is disabled in `wrangler.jsonc`.
 
-Use Node.js 22.18.0 or a later 22.x release, or Node.js 24.11.0 or later. The repository's CI runs the latest 22 and 24 releases. From the root of your clone, install dependencies, run the tests and check the types before deploying with your Cloudflare account:
+Run the checks from Develop and test, then deploy with your Cloudflare account:
 
 ```sh
-npm ci
-npm test
-npm run typecheck
 npm run deploy
 ```
 

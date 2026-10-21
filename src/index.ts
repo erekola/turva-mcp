@@ -42,7 +42,7 @@ export const SERVICES = {
   // not carry the re-scan within 30 days of the report that /services, /agent-readiness-
   // audit and the JSON-LD promise in seven places, the advisory deliverable dropped the
   // monthly written summary, and the Shopify retest gave 14 days without the day it
-  // counts from. verify.mjs --live now reads these strings for the dated promises, so a
+  // counts from. verify.mts --live now reads these strings for the dated promises, so a
   // deliverable that loses one fails the gate rather than the reader.
   //
   // url is the turva.dev page that describes the service, and sample_url a published
@@ -157,7 +157,7 @@ export const SERVICES = {
 
 export const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-10-05",
+  measured_at: "2026-10-21",
   // Corrected 2026-09-28 (32/T1-01): "Always verify against the live links below" was an
   // imperative addressed to the caller; this states the fact instead.
   // Corrected 2026-09-28 (V08-N01, 3rd round): "the live links below carry the current
@@ -183,12 +183,12 @@ export const AGENT_READINESS = {
 
 export const SECURITY_EVIDENCE = {
   domain: "turva.dev",
-  measured_at: "2026-10-05",
+  measured_at: "2026-10-21",
   scans: [
     {
       provider: "Hardenize",
       result: "24/24 categories passed",
-      measured_at: "2026-10-05",
+      measured_at: "2026-10-21",
       url: "https://www.hardenize.com/report/turva.dev",
     },
     {
@@ -230,14 +230,14 @@ export const PRINCIPLES = {
 
 // The fifth tool's data. Every channel here is mirrored from
 // turva-worker/tools/facts.json channels, which is the one home for them, and the
-// engagement lines say the same as the /contact twin in worker.js. The channels are a
+// engagement lines say the same as the /contact twin in worker.ts. The channels are a
 // deliberate subset of that file: email, Signal and LinkedIn are ways to start an
 // engagement, while its Mastodon, Gravatar and GitHub entries are profiles, and they are
-// left out here for the same reason turva-worker/tools/verify.mjs leaves them out of its
+// left out here for the same reason turva-worker/tools/verify.mts leaves them out of its
 // comparison. The decision is Tek-372.
 //
 // A tool named get_contact ALSO exists on a different protocol: the in-page WebMCP
-// script (WEBMCP_SCRIPT in worker.js) offers one to a browser. Same name, different
+// script (WEBMCP_SCRIPT in worker.ts) offers one to a browser. Same name, different
 // shape on purpose. That one carries the Signal handle beside the link and no
 // engagement fields, this one carries the first reply time and what access an audit
 // needs, and the two are not merged because the WebMCP script's bytes are pinned by a
@@ -246,7 +246,7 @@ export const PRINCIPLES = {
 // substance; if either one gains a CHANNEL, change facts.json first and mirror both.
 //
 // The operator object says who runs turva.dev in the words of the Business details section
-// of the /company twin in worker.js, and its business_id and vat_id are facts.json businessId
+// of the /company twin in worker.ts, and its business_id and vat_id are facts.json businessId
 // and vatId, which the public verify compares live. It was added in 1.6.0 because Glama's
 // tool-definition review found no company background or team information in the tool set,
 // although the /company page states both.
@@ -428,7 +428,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.19",
+  version: "1.6.20",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
