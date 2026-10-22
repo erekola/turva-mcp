@@ -199,8 +199,8 @@ test("M8: the deliverables mirror the approved delivery content for the four sco
 // so the wording each decision adds is caught here instead of only by a live read.
 test("M9: pricing_note and engagement.notes carry the VAT split and the P2/P4/P6 wording", async () => {
   assert.match(SERVICES.pricing_note, /25,5% for Finnish customers/, "D11: the same three-way VAT split as /services");
-  assert.match(SERVICES.pricing_note, /reverse charge for EU B2B customers/);
-  assert.match(SERVICES.pricing_note, /0% for non-EU/);
+  assert.match(SERVICES.pricing_note, /reverse charge for business customers in another EU member state with a valid VAT ID/);
+  assert.match(SERVICES.pricing_note, /no Finnish VAT for customers outside the EU, because the place of supply is outside Finland/);
   assert.match(SERVICES.pricing_note, /an add-on can be bought together with that diagnosis, with its report, or after the report and before implementation starts/, "P4");
   const notes = JSON.stringify(SERVICES.engagement.notes);
   assert.match(notes, /how many fixes, questions or review pages the work covers/i, "P2");
