@@ -433,7 +433,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.21",
+  version: "1.6.22",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -842,9 +842,10 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
   const bytes = await readCapped(request, MAX_BODY_BYTES);
   if (bytes === null) return tooLarge();
   let listenSubscriptionId: string | number | undefined;
-  // The SDK answers a body not declared as JSON with 415 before it reads it as JSON-RPC, so
-  // the checks below that read the body as JSON-RPC leave such a body to it and keep that
-  // order. The Origin check further down does not: it runs for every Content-Type.
+  // A body not declared as JSON is refused with 415 below, after the Origin check and before
+  // the SDK, which would answer the same 415 with "id":null. The checks that read the body
+  // as JSON-RPC therefore run only when the Content-Type is JSON. The Origin check runs for
+  // every Content-Type.
   const contentTypeIsJson = isJsonContentType(request.headers.get("Content-Type"));
   let body: unknown;
   if (contentTypeIsJson) {
@@ -886,6 +887,13 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
   // no-id shape.
   const originResult = validateOriginHeader(request.headers.get("Origin"), MCP_ALLOWED_ORIGIN_HOSTNAMES);
   if (!originResult.ok) return mcpError(403, -32000, originResult.message);
+  // Same condition, code and message as the SDK's own check (isJsonContentType in handle()),
+  // answered here without an id field because the SDK sends "id":null, which the 2026-07-28
+  // revision does not allow. A header the SDK accepts, such as application/json with a
+  // charset, still reaches it.
+  if (!contentTypeIsJson) {
+    return mcpError(415, -32000, "Unsupported Media Type: Content-Type must be application/json");
+  }
   if (contentTypeIsJson) {
     if (isPlainObject(body) && typeof body.method === "string"
       && (typeof body.id === "string" || typeof body.id === "number")) {

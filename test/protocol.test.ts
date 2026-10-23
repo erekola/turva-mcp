@@ -443,6 +443,46 @@ test("P17: a disallowed Origin is refused with the same no-id shape when Content
   await noOrigin.text();
 });
 
+test("P17c: a body not declared as JSON is answered 415 by the Worker with no id field, on both lanes", async () => {
+  // The SDK answers 415 with "id":null, which the 2026-07-28 revision does not allow, so the
+  // Worker answers it itself after the Origin check. Same code and message as the SDK.
+  const body = JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/list", params: {} });
+  const modern = { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" };
+  for (const [lane, extra] of [["current", modern], ["legacy", {}]] as const) {
+    const wrongType = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain", Accept: "application/json, text/event-stream", ...extra },
+      body,
+    }), {}, ctx);
+    assert.equal(wrongType.status, 415, lane);
+    const wrongTypeBody = await wrongType.json() as Rpc;
+    assert.equal(wrongTypeBody.error!.code, -32000, lane);
+    assert.equal(wrongTypeBody.error!.message, "Unsupported Media Type: Content-Type must be application/json", lane);
+    assert.equal("id" in wrongTypeBody, false, `${lane}: no id key, never null`);
+    // A request with no Content-Type header at all is refused the same way.
+    const noType = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
+      method: "POST",
+      headers: { Accept: "application/json, text/event-stream", ...extra },
+      body: new Uint8Array(new TextEncoder().encode(body)),
+    }), {}, ctx);
+    assert.equal(noType.status, 415, `${lane}: no Content-Type`);
+    assert.equal("id" in (await noType.json() as Rpc), false, `${lane}: no Content-Type, no id key`);
+  }
+  // A disallowed Origin keeps its 403 ahead of the 415.
+  const evil = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
+    method: "POST",
+    headers: { "Content-Type": "text/plain", Origin: "https://evil.example" },
+    body,
+  }), {}, ctx);
+  assert.equal(evil.status, 403);
+  await evil.text();
+  // A charset parameter is a JSON Content-Type to the SDK and still reaches it.
+  const charset = await post({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { _meta: META } }, { ...modern, "Content-Type": "application/json; charset=utf-8" });
+  assert.notEqual(charset.status, 415, "application/json with a charset is not refused");
+  assert.equal(charset.status, 200);
+  await charset.text();
+});
+
 test("P17b: a JSON body that does not parse is answered by the Worker with 400 and no id field", async () => {
   // W16 U1 (ChatGPT review 2026-10-02): the SDK answers a parse error with "id":null, which the
   // 2026-07-28 revision does not allow, so the Worker answers it itself, with and without the

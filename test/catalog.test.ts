@@ -6,7 +6,7 @@ import worker, { SERVICES, PRINCIPLES, AGENT_READINESS } from "../src/index.ts";
 // about runtime behaviour, and the two things this server can get wrong in production,
 // the routing contract and the service promises, are both cheap to hold here.
 //
-// The service catalogue is the half a static check can reach: turva-worker/tools/verify.mjs
+// The service catalogue is the half a static check can reach: turva-worker/tools/verify.mts
 // reads the same promises but only with --live, against the deployed server, so a wrong
 // deliverable would ship first and fail afterwards. This file catches it before the deploy.
 

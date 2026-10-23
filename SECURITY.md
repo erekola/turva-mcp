@@ -9,11 +9,20 @@
 
 ## Open advisories
 
-None as of 2026-10-20, the date of the last `npm audit` run against this
+None as of 2026-10-23, the date of the last `npm audit` run against this
 repository, which reported no vulnerabilities in the full tree and none with
 `--omit=dev`. CI runs `npm audit --omit=dev --audit-level=moderate` on every
 push and pull request, so a moderate or higher advisory in a runtime
 dependency fails the build.
+
+A moderate advisory in one transitive package was open from 2026-10-22 to
+2026-10-23 and failed that CI step on the main branch. `ip-address` 10.7.2,
+which `express-rate-limit` 8.7.0 pulls in, carried advisory
+GHSA-rxp7-6hxx-x8q5, also numbered CVE-2026-111997. In it, `Address6` matches
+a zone identifier in quadratic time before it applies its length limit. The
+lockfile now holds `ip-address` 10.7.4, the first patched version, inside the
+range `express-rate-limit` declares. The Worker bundle contains neither
+`ip-address` nor `express-rate-limit`.
 
 Before the changes below, three advisories were open on 2026-10-06, two of
 them in the runtime tree. GHSA-6qxp-vccf-f47h, rated high, concerns the OAuth
