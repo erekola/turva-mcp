@@ -173,6 +173,8 @@ npm run typecheck
 
 [The workflow](.github/workflows/ci.yml) runs on every push and pull request with read-only permissions. It has one job, `test`, on Node.js 22 and 24. The job runs `npm ci`, then `npm audit --omit=dev --audit-level=moderate`, then `npm test` and `npm run typecheck`. A runtime dependency with a moderate or worse advisory fails the build at the audit step. Nothing in the workflow deploys.
 
+The last JavaScript files in this repository were the two test files. They moved to TypeScript on 20 October 2026, the day the site Worker was renamed, and `tsconfig.test.json` has type-checked them since then. The server source in `src/index.ts` was already TypeScript.
+
 ## Deploy your own copy
 
 This repository is MIT licensed and can be adapted for another site. Before deploying a fork:
