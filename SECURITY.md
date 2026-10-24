@@ -9,11 +9,30 @@
 
 ## Open advisories
 
-None as of 2026-10-23, the date of the last `npm audit` run against this
-repository, which reported no vulnerabilities in the full tree and none with
-`--omit=dev`. CI runs `npm audit --omit=dev --audit-level=moderate` on every
-push and pull request, so a moderate or higher advisory in a runtime
-dependency fails the build.
+None in the runtime tree as of 2026-10-24, the date of the last
+`npm audit --omit=dev` run against this repository. CI runs
+`npm audit --omit=dev --audit-level=moderate` on every push and pull request,
+so a moderate or higher advisory in a runtime dependency fails the build.
+
+The development tree holds one open advisory source on 2026-10-24. `undici`
+7.29.1, which `miniflare` 5.20261019.2-beta pins exactly and wrangler 4.152.0
+pulls in, carries GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472 and
+GHSA-xjj6-f33q-929c, fixed in 7.30.1; `npm audit` lists `miniflare` and
+`wrangler` as well because of it. wrangler 4.152.0 was the newest release on
+that day, so the version moves when a wrangler release moves the pin. wrangler
+is the local build and deploy tool and is not part of the Worker.
+
+Two advisory sources in the runtime tree were open on 2026-10-24 and stopped
+the dependency audit before a push. `body-parser` 2.3.0, which `express` 5.2.1
+pulls in through `@modelcontextprotocol/sdk`, carried GHSA-27r3-jxmh-p828,
+rated high: a denial of service through trailing bytes after a compressed
+request body. `fast-uri` 3.1.8, which `ajv` 8.20.0 pulls in through the same
+SDK, carried GHSA-w74x-v6f9-j3xg, GHSA-xhq7-xmqj-769h, GHSA-wjr9-j795-jxcr and
+GHSA-333x-w4r6-6crp, rated moderate. `npm update body-parser fast-uri
+--package-lock-only` moved them to 2.4.0 and 3.1.9, the first patched
+versions, inside the ranges `express` and `ajv` declare, and moved `qs` to
+6.16.1, which `body-parser` 2.4.0 requires. The source-map reading below lists
+no file from the SDK or `express`.
 
 A moderate advisory in one transitive package was open from 2026-10-22 to
 2026-10-23 and failed that CI step on the main branch. `ip-address` 10.7.2,
