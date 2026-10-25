@@ -31,7 +31,8 @@
   },
   "overrides": {
     "@hono/node-server": "^2.0.5",
-    "@cloudflare/workers-types": "$@cloudflare/workers-types"
+    "@cloudflare/workers-types": "$@cloudflare/workers-types",
+    "undici": "^7.30.1"
   },
   "allowScripts": {
     "core-js-pure@3.50.0": true,
