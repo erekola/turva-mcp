@@ -433,7 +433,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.22",
+  version: "1.6.23",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -445,7 +445,7 @@ const SERVER_INFO = {
 // Each tool description repeats the routing to its neighbours, and this says it once for a
 // client that reads server/discover, or initialize on the 2025-era lane, before it lists the
 // tools.
-const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. Use get_services for the services, their prices and how an engagement runs. Use get_contact for who runs turva.dev, how to reach it and what access an audit needs, and get_principles for the rules an engagement follows. get_agent_readiness returns turva.dev's own score from the independent scanner isitagentready.com. get_security_evidence returns its own web-security scan results, which are a separate measurement. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit other sites.";
+const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. Use get_services for the services, their prices, how an engagement runs and the published sample reports. Use get_contact for who runs turva.dev, how to reach it and what access an audit needs, and get_principles for the rules an engagement follows. get_agent_readiness returns turva.dev's own score from the independent scanner isitagentready.com. get_security_evidence returns its own web-security scan results, which are a separate measurement. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
 
 function createServer(): McpServer {
   const server = new McpServer(
@@ -475,7 +475,7 @@ function createServer(): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog: the Shopify agent storefront check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for the Shopify agent storefront check, audit, advisory and implementation; agent operations and MCP server design on request), and two implementation add-ons that carry a fixed price and are sold only with the diagnosis they follow, bought with it, with its report, or after the report and before implementation starts. Use this when a user asks what turva.dev offers, what it costs, or how an engagement works. For how to reach turva.dev use get_contact instead, and for the rules an engagement follows use get_principles. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns turva.dev's service catalog: the Shopify agent storefront check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for the Shopify agent storefront check, audit, advisory and implementation; agent operations and MCP server design on request), and two implementation add-ons that carry a fixed price and are sold only with the diagnosis they follow, bought with it, with its report, or after the report and before implementation starts. The Shopify agent storefront check and the audit each link a published sample report in sample_url, a fictional worked example of the deliverable. Use this when a user asks what turva.dev offers, what it costs, how an engagement works, or what a delivered report looks like. For how to reach turva.dev use get_contact instead, and for the rules an engagement follows use get_principles. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: servicesOutput,

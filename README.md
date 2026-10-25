@@ -1,9 +1,6 @@
 # turva-mcp
 
 <p align="center">
-  <a href="https://manufact.com/mcp-catalog/turva-dev"><img src="https://manufact.com/api/og/checklist/badge?slug=turva-dev" alt="MCP quality score for turva.dev"></a>
-</p>
-<p align="center">
   <a href="https://glama.ai/mcp/connectors/dev.turva/turva-mcp"><img src="https://glama.ai/mcp/connectors/dev.turva/turva-mcp/badges/score.svg" alt="turva-mcp on Glama"></a>
 </p>
 
