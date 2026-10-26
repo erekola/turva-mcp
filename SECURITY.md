@@ -9,7 +9,7 @@
 
 ## Open advisories
 
-None in the runtime tree as of 2026-10-24, the date of the last
+None in the runtime tree as of 2026-10-26, the date of the last
 `npm audit --omit=dev` run against this repository. CI runs
 `npm audit --omit=dev --audit-level=moderate` on every push and pull request,
 so a moderate or higher advisory in a runtime dependency fails the build.
@@ -18,11 +18,12 @@ The development tree held one open advisory source on 2026-10-24. `undici`
 7.29.1, which `miniflare` 5.20261019.2-beta pins exactly and wrangler 4.152.0
 pulls in, carried GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472 and
 GHSA-xjj6-f33q-929c, fixed in 7.30.1; `npm audit` listed `miniflare` and
-`wrangler` as well because of it. wrangler 4.152.0 was still the newest
-release on 2026-10-25 and still carried that pin, so an `overrides` entry in
-`package.json` forces `undici` to `^7.30.1`. The entry comes out when a
-wrangler release moves the pin to a patched version. wrangler is the local
-build and deploy tool and is not part of the Worker.
+`wrangler` as well because of it. An `overrides` entry in `package.json`
+forced `undici` to `^7.30.1` from 2026-10-25, while wrangler 4.152.0 was the
+newest release and carried that pin. wrangler 4.153.0 brought in `miniflare`
+5.20261023.0-beta on 2026-10-26, which pins `undici` at exactly 7.30.1, and
+the override came out the same day. wrangler is the local build and deploy
+tool and is not part of the Worker.
 
 Two advisory sources in the runtime tree were open on 2026-10-24 and stopped
 the dependency audit before a push. `body-parser` 2.3.0, which `express` 5.2.1
