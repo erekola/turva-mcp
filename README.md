@@ -168,7 +168,7 @@ npm run typecheck
 - `npm run typecheck` runs `tsc --noEmit` twice, once for `src` with `tsconfig.json` and once for `test` with `tsconfig.test.json`.
 - The two `overrides` in `package.json` are deliberate. One keeps `@hono/node-server` on a patched release, as [SECURITY.md](SECURITY.md) explains, and the other points every copy of the Workers types at the direct dependency. Run `npm ci` and `npm audit` again before removing either.
 
-[The workflow](.github/workflows/ci.yml) runs on every push and pull request with read-only permissions. It has one job, `test`, on Node.js 22 and 24. The job runs `npm ci`, then `npm audit --omit=dev --audit-level=moderate`, then `npm test` and `npm run typecheck`. A runtime dependency with a moderate or worse advisory fails the build at the audit step. Nothing in the workflow deploys.
+[The workflow](.github/workflows/ci.yml) runs on every push and pull request with read-only permissions. It has one job, `test`, on Node.js 22, 24 and 26. The job runs `npm ci`, then `npm audit --omit=dev --audit-level=moderate`, then `npm test` and `npm run typecheck`. A runtime dependency with a moderate or worse advisory fails the build at the audit step. Nothing in the workflow deploys.
 
 The last JavaScript files in this repository were the two test files. They moved to TypeScript on 20 October 2026, the day the site Worker was renamed, and `tsconfig.test.json` has type-checked them since then. The server source in `src/index.ts` was already TypeScript.
 
