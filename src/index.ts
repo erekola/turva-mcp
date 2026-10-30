@@ -204,7 +204,7 @@ export const SECURITY_EVIDENCE = {
     {
       provider: "Hardenize",
       result: "24/24 categories passed",
-      measured_at: "2026-10-21",
+      measured_at: "2026-10-30",
       url: "https://www.hardenize.com/report/turva.dev",
     },
     {
@@ -445,7 +445,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.24",
+  version: "1.6.25",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (external domain check, Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
