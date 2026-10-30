@@ -18,7 +18,7 @@ export const SERVICES = {
   // Corrected 2026-09-28 (P4, 3rd round): named when an implementation add-on is bought.
   // Corrected 2026-10-22 (outside review, A2): reverse charge is named for business customers in another
   // EU member state, and outside the EU no Finnish VAT applies because the place of supply is outside Finland.
-  pricing_note: "The Shopify agent storefront check, audit, advisory and implementation have fixed list prices in EUR, VAT not included: 25,5% for Finnish customers, reverse charge for business customers in another EU member state with a valid VAT ID, no Finnish VAT for customers outside the EU, because the place of supply is outside Finland. Agent operations and MCP server design are scoped and quoted per engagement. Two implementation add-ons carry a fixed price and are sold only with the diagnosis they follow, listed under bundled_implementation; an add-on can be bought together with that diagnosis, with its report, or after the report and before implementation starts. Request a quote: turva.dev",
+  pricing_note: "The external domain check, Shopify agent storefront check, audit, advisory and implementation have fixed list prices in EUR, VAT not included: 25,5% for Finnish customers, reverse charge for business customers in another EU member state with a valid VAT ID, no Finnish VAT for customers outside the EU, because the place of supply is outside Finland. Agent operations and MCP server design are scoped and quoted per engagement. Two implementation add-ons carry a fixed price and are sold only with the diagnosis they follow, listed under bundled_implementation. An add-on can be bought together with that diagnosis, with its report, or after the report and before implementation starts. Request a quote: turva.dev",
   currency: "EUR",
   vat_included: false,
   engagement: {
@@ -50,6 +50,18 @@ export const SERVICES = {
   // url is the turva.dev page that describes the service, and sample_url a published
   // sample of its deliverable where one exists. The /services anchors are the service ids.
   services: [
+    {
+      id: "domain-check",
+      name: "External domain check",
+      url: "https://turva.dev/external-domain-check",
+      sample_url: "https://turva.dev/samples/external-domain-check",
+      price: 99,
+      unit: "fixed",
+      duration: "2 business days",
+      duration_from: "confirmed payment",
+      summary: "Fixed scope. One domain read from outside with two public tools, isitagentready.com and internet.nl, and a short published list of requests. It covers the domain only.",
+      deliverable: "A written report within two business days of confirmed payment: the domain's agent-readiness reading, or the reason none could be taken, the website and email settings visible from outside, and up to three fixes in the order to make them. The check does not tell you how secure your company is. It is ordered by email. turva.dev verifies the domain and sends a one-time payment link for that order. The 99 euros are deducted from a Shopify agent storefront check or an audit for the same domain ordered within 60 days of delivery, once per company.",
+    },
     {
       id: "shopify",
       name: "Shopify Agent Storefront Check",
@@ -433,8 +445,8 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.23",
-  description: "Public read-only MCP server for turva.dev. Exposes the service catalog (Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
+  version: "1.6.24",
+  description: "Public read-only MCP server for turva.dev. Exposes the service catalog (external domain check, Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
     { src: "https://turva.dev/favicon.svg", mimeType: "image/svg+xml", sizes: ["any"] },
@@ -475,7 +487,7 @@ function createServer(): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog: the Shopify agent storefront check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing (fixed list prices for the Shopify agent storefront check, audit, advisory and implementation; agent operations and MCP server design on request), and two implementation add-ons that carry a fixed price and are sold only with the diagnosis they follow, bought with it, with its report, or after the report and before implementation starts. The Shopify agent storefront check and the audit each link a published sample report in sample_url, a fictional worked example of the deliverable. Use this when a user asks what turva.dev offers, what it costs, how an engagement works, or what a delivered report looks like. For how to reach turva.dev use get_contact instead, and for the rules an engagement follows use get_principles. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns turva.dev's service catalog: the external domain check, the Shopify agent storefront check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing. Fixed list prices apply to the external domain check, Shopify agent storefront check, audit, advisory and implementation. Agent operations and MCP server design are on request. The catalog also lists two implementation add-ons that carry a fixed price and are sold only with the diagnosis they follow, bought with it, with its report, or after the report and before implementation starts. The Shopify agent storefront check and the audit each link a published sample report in sample_url, a fictional worked example of the deliverable. The external domain check links a sample report made from turva.dev's own domain, with real readings. Use this when a user asks what turva.dev offers, what it costs, how an engagement works, or what a delivered report looks like. For how to reach turva.dev use get_contact instead, and for the rules an engagement follows use get_principles. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: servicesOutput,

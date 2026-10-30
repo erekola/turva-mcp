@@ -118,7 +118,7 @@ test("M5: a limiter that throws fails open rather than taking the endpoint down"
 
 test("M6: every service the catalogue sells has a price and a deliverable", async () => {
   const ids = SERVICES.services.map((s) => s.id);
-  assert.deepEqual(ids, ["shopify", "audit", "advisory", "implementation", "agent-operations", "mcp-server-design"]);
+  assert.deepEqual(ids, ["domain-check", "shopify", "audit", "advisory", "implementation", "agent-operations", "mcp-server-design"]);
   for (const s of SERVICES.services) {
     assert.ok(s.name && s.summary && s.deliverable, s.id + " is fully described");
     assert.ok(typeof s.price === "number" || s.price === "on request", s.id + " carries a price or says on request");
@@ -201,7 +201,7 @@ test("M9: pricing_note and engagement.notes carry the VAT split and the P2/P4/P6
   assert.match(SERVICES.pricing_note, /25,5% for Finnish customers/, "D11: the same three-way VAT split as /services");
   assert.match(SERVICES.pricing_note, /reverse charge for business customers in another EU member state with a valid VAT ID/);
   assert.match(SERVICES.pricing_note, /no Finnish VAT for customers outside the EU, because the place of supply is outside Finland/);
-  assert.match(SERVICES.pricing_note, /an add-on can be bought together with that diagnosis, with its report, or after the report and before implementation starts/, "P4");
+  assert.match(SERVICES.pricing_note, /An add-on can be bought together with that diagnosis, with its report, or after the report and before implementation starts/, "P4");
   const notes = JSON.stringify(SERVICES.engagement.notes);
   assert.match(notes, /how many fixes, questions or review pages the work covers/i, "P2");
   assert.match(notes, /Dates in the written scope move by the business days spent waiting/i, "P4");
