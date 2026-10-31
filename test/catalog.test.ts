@@ -118,7 +118,7 @@ test("M5: a limiter that throws fails open rather than taking the endpoint down"
 
 test("M6: every service the catalogue sells has a price and a deliverable", async () => {
   const ids = SERVICES.services.map((s) => s.id);
-  assert.deepEqual(ids, ["domain-check", "shopify", "audit", "advisory", "implementation", "agent-operations", "mcp-server-design"]);
+  assert.deepEqual(ids, ["domain-check", "audit", "advisory", "implementation", "agent-operations", "mcp-server-design"]);
   for (const s of SERVICES.services) {
     assert.ok(s.name && s.summary && s.deliverable, s.id + " is fully described");
     assert.ok(typeof s.price === "number" || s.price === "on request", s.id + " carries a price or says on request");
@@ -129,7 +129,7 @@ test("M6: every service the catalogue sells has a price and a deliverable", asyn
 
 // Astra measured the drift 2026-09-10: the audit deliverable had lost the re-scan within
 // 30 days of the report that seven places on turva.dev promise, the advisory deliverable
-// had lost the monthly written summary, and the Shopify retest gave 14 days without the
+// had lost the monthly written summary, and the retest of the since-retired Shopify check gave 14 days without the
 // day it counts from. A promise carrying a DATE is the kind an agent acts on.
 test("M7: the deliverables still carry the dated promises the site makes", async () => {
   const want: [string, RegExp][] = [
@@ -138,13 +138,10 @@ test("M7: the deliverables still carry the dated promises the site makes", async
     ["advisory", /monthly re-scan/i],
     ["advisory", /monthly written summary/i],
     ["advisory", /quarterly summary/i],
-    ["shopify", /within 48 hours of the agreed written kickoff/i],
-    ["shopify", /within 14 days of that first package/i],
-    // Tek-481 gave both retest windows the correction add-on exception and Tek-482 reads it
+    // Tek-481 gave the retest window the correction add-on exception and Tek-482 reads it
     // back: without it the window would again count from the report or the first package
     // for a buyer whose fixes arrive later.
     ["audit", /or within 30 days of the delivered corrections when the correction add-on is bought/i],
-    ["shopify", /or of the delivered corrections when the correction add-on is bought/i],
   ];
   for (const [id, re] of want) {
     const s = SERVICES.services.find((x) => x.id === id);
@@ -201,7 +198,7 @@ test("M9: pricing_note and engagement.notes carry the VAT split and the P2/P4/P6
   assert.match(SERVICES.pricing_note, /25,5% for Finnish customers/, "D11: the same three-way VAT split as /services");
   assert.match(SERVICES.pricing_note, /reverse charge for business customers in another EU member state with a valid VAT ID/);
   assert.match(SERVICES.pricing_note, /no Finnish VAT for customers outside the EU, because the place of supply is outside Finland/);
-  assert.match(SERVICES.pricing_note, /An add-on can be bought together with that diagnosis, with its report, or after the report and before implementation starts/, "P4");
+  assert.match(SERVICES.pricing_note, /The add-on can be bought together with the audit, with its report, or after the report and before implementation starts/, "P4");
   const notes = JSON.stringify(SERVICES.engagement.notes);
   assert.match(notes, /how many fixes, questions or review pages the work covers/i, "P2");
   assert.match(notes, /Dates in the written scope move by the business days spent waiting/i, "P4");

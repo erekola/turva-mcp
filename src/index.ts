@@ -18,7 +18,7 @@ export const SERVICES = {
   // Corrected 2026-09-28 (P4, 3rd round): named when an implementation add-on is bought.
   // Corrected 2026-10-22 (outside review, A2): reverse charge is named for business customers in another
   // EU member state, and outside the EU no Finnish VAT applies because the place of supply is outside Finland.
-  pricing_note: "The external domain check, Shopify agent storefront check, audit, advisory and implementation have fixed list prices in EUR, VAT not included: 25,5% for Finnish customers, reverse charge for business customers in another EU member state with a valid VAT ID, no Finnish VAT for customers outside the EU, because the place of supply is outside Finland. Agent operations and MCP server design are scoped and quoted per engagement. Two implementation add-ons carry a fixed price and are sold only with the diagnosis they follow, listed under bundled_implementation. An add-on can be bought together with that diagnosis, with its report, or after the report and before implementation starts. Request a quote: turva.dev",
+  pricing_note: "The external domain check, audit, advisory and implementation have fixed list prices in EUR, VAT not included: 25,5% for Finnish customers, reverse charge for business customers in another EU member state with a valid VAT ID, no Finnish VAT for customers outside the EU, because the place of supply is outside Finland. Agent operations and MCP server design are scoped and quoted per engagement. One implementation add-on carries a fixed price and is sold only with the audit it follows, listed under bundled_implementation. The add-on can be bought together with the audit, with its report, or after the report and before implementation starts. Request a quote: turva.dev",
   currency: "EUR",
   vat_included: false,
   engagement: {
@@ -26,7 +26,7 @@ export const SERVICES = {
     notes: [
       "All communication is async. No calls and no calendar links.",
       "Read access is enough for the audit. Write access is scoped per task only if implementation is purchased separately.",
-      "Existing production passwords are not requested. Correction add-ons and implementation need delegated access agreed in writing in advance: Shopify collaborator access, deployment access, or DNS access when a fix requires it.",
+      "Existing production passwords are not requested. Correction add-ons and implementation need delegated access agreed in writing in advance: deployment access or DNS access when a fix requires it.",
       // Corrected 2026-09-28 (P2, 3rd round): the written scope, not an unstated cap,
       // bounds how many fixes, questions or review pages a service month covers.
       "The written scope agreed before kickoff sets how many fixes, questions or review pages the work covers, and work beyond it is quoted separately at the day rate.",
@@ -43,7 +43,7 @@ export const SERVICES = {
   // by hand in two repos. Astra measured the drift 2026-09-10: the audit deliverable did
   // not carry the re-scan within 30 days of the report that /services, /agent-readiness-
   // audit and the JSON-LD promise in seven places, the advisory deliverable dropped the
-  // monthly written summary, and the Shopify retest gave 14 days without the day it
+  // monthly written summary, and the retest of the since-retired Shopify check gave 14 days without the day it
   // counts from. verify.mts --live now reads these strings for the dated promises, so a
   // deliverable that loses one fails the gate rather than the reader.
   //
@@ -60,19 +60,7 @@ export const SERVICES = {
       duration: "2 business days",
       duration_from: "confirmed payment",
       summary: "Fixed scope. One domain read from outside with two public tools, isitagentready.com and internet.nl, and a short published list of requests. It covers the domain only.",
-      deliverable: "A written report within two business days of confirmed payment: the domain's agent-readiness reading, or the reason none could be taken, the website and email settings visible from outside, and up to three fixes in the order to make them. The check does not tell you how secure your company is. It is ordered by email. turva.dev verifies the domain and sends a one-time payment link for that order. The 99 euros are deducted from a Shopify agent storefront check or an audit for the same domain ordered within 60 days of delivery, once per company.",
-    },
-    {
-      id: "shopify",
-      name: "Shopify Agent Storefront Check",
-      url: "https://turva.dev/shopify-agent-storefront-check",
-      sample_url: "https://turva.dev/samples/shopify-agent-storefront-check",
-      price: 999,
-      unit: "fixed",
-      duration: "48 hours",
-      duration_from: "agreed written kickoff",
-      summary: "Fixed scope. One live Shopify store read across browser WebMCP, Shopify-hosted Storefront Catalog MCP, Cart MCP and the Policy and FAQs tool, and Shopify Agentic channels. No Shopify Admin credentials are requested and no order is placed.",
-      deliverable: "Four written deliverables as one package within 48 hours of the agreed written kickoff, and a fifth, the retest of up to two corrected items, within 14 days of that first package, or of the delivered corrections when the correction add-on is bought. A further retest is bought as a new check.",
+      deliverable: "A written report within two business days of confirmed payment: the domain's agent-readiness reading, or the reason none could be taken, the website and email settings visible from outside, and up to three fixes in the order to make them. The check does not tell you how secure your company is. It is ordered by email. turva.dev verifies the domain and sends a one-time payment link for that order. The 99 euros are deducted from an audit for the same domain ordered within 60 days of delivery, once per company.",
     },
     {
       id: "audit",
@@ -156,17 +144,6 @@ export const SERVICES = {
       // Corrected 2026-09-28 (V08-28/P14): named the access /services.md already names
       // for this add-on, instead of leaving "arranged in advance" unspecified here.
       summary: "Implementation of exactly the fixes the audit report lists. Sold only with the audit, bought together with it, with its report, or after the report and before implementation starts, and only when the required access is arranged in advance: an edge runtime in front of your origin, deployment access and any other access the listed fixes require, such as DNS. Work outside that list is scoped at the implementation day rate.",
-    },
-    {
-      id: "shopify-fixes",
-      name: "Shopify correction implementation",
-      price: 499,
-      unit: "fixed",
-      requires: "shopify",
-      sold_separately: false,
-      // Corrected 2026-09-28 (V08-28/P14): named the access /services.md already names
-      // for this add-on, instead of leaving "arranged in advance" unspecified here.
-      summary: "Implementation of exactly the corrections the Shopify agent storefront check lists. Sold only with that check, bought together with it, with its report, or after the report and before implementation starts, and only when the required access is arranged in advance: collaborator access to the Shopify store. Work outside the plan is scoped at the implementation day rate.",
     },
   ],
 } as const;
@@ -445,8 +422,8 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.6.26",
-  description: "Public read-only MCP server for turva.dev. Exposes the service catalog (external domain check, Shopify agent storefront check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
+  version: "1.7.0",
+  description: "Public read-only MCP server for turva.dev. Exposes the service catalog (external domain check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
     { src: "https://turva.dev/favicon.svg", mimeType: "image/svg+xml", sizes: ["any"] },
@@ -487,7 +464,7 @@ function createServer(): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog: the external domain check, the Shopify agent storefront check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing. Fixed list prices apply to the external domain check, Shopify agent storefront check, audit, advisory and implementation. Agent operations and MCP server design are on request. The catalog also lists two implementation add-ons that carry a fixed price and are sold only with the diagnosis they follow, bought with it, with its report, or after the report and before implementation starts. The Shopify agent storefront check and the audit each link a published sample report in sample_url, a fictional worked example of the deliverable. The external domain check links a sample report made from turva.dev's own domain, with real readings. Use this when a user asks what turva.dev offers, what it costs, how an engagement works, or what a delivered report looks like. For how to reach turva.dev use get_contact instead, and for the rules an engagement follows use get_principles. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns turva.dev's service catalog: the external domain check, agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing. Fixed list prices apply to the external domain check, audit, advisory and implementation. Agent operations and MCP server design are on request. The catalog also lists one implementation add-on that carries a fixed price and is sold only with the audit it follows, bought with it, with its report, or after the report and before implementation starts. The audit links a published sample report in sample_url, a fictional worked example of the deliverable. The external domain check links a sample report made from turva.dev's own domain, with real readings. Use this when a user asks what turva.dev offers, what it costs, how an engagement works, or what a delivered report looks like. For how to reach turva.dev use get_contact instead, and for the rules an engagement follows use get_principles. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: servicesOutput,
