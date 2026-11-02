@@ -60,7 +60,7 @@ export const SERVICES = {
       duration: "2 business days",
       duration_from: "confirmed payment",
       summary: "Fixed scope. One domain read from outside with two public tools, isitagentready.com and internet.nl, and a short published list of requests. It covers the domain only.",
-      deliverable: "A written report within two business days of confirmed payment: the domain's agent-readiness reading, or the reason none could be taken, the website and email settings visible from outside, and up to three fixes in the order to make them. The check does not tell you how secure your company is. It is ordered by email. turva.dev verifies the domain and sends a one-time payment link for that order. The 99 euros are deducted from an audit for the same domain ordered within 60 days of delivery, once per company.",
+      deliverable: "A written report within two business days of confirmed payment: the domain's agent-readiness reading, or the reason none could be taken, the website and email settings visible from outside, and up to three fixes in the order to make them. If a main part has to be rerun, notice of that comes within those two business days instead, and the rerun follows within two business days of the notice. The check does not tell you how secure your company is. It is ordered by email. turva.dev verifies the domain and sends a one-time payment link for that order. The 99 euros are deducted from an audit for the same domain ordered within 60 days of delivery, once per company.",
     },
     {
       id: "audit",
@@ -422,7 +422,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.7.0",
+  version: "1.7.1",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (external domain check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
