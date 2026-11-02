@@ -9,7 +9,7 @@
 
 ## Open advisories
 
-None in the runtime tree as of 2026-10-26, the date of the last
+None in the runtime tree as of 2026-11-02, the date of the last
 `npm audit --omit=dev` run against this repository. CI runs
 `npm audit --omit=dev --audit-level=moderate` on every push and pull request,
 so a moderate or higher advisory in a runtime dependency fails the build.
@@ -60,10 +60,10 @@ pulled in, pinned `sharp` at exactly 0.35.4.
 `agents` 0.24.0 declares the SDK at exactly 1.30.0 and the client at exactly
 2.0.0 as required peer dependencies, and so does 0.26.0, the newest `agents`
 on that day. The fix `npm audit` offered was a downgrade to `agents` 0.20.0,
-and it was not taken. `package.json` instead pins the SDK at 1.32.1 and the
+and it was not taken. `package.json` instead pinned the SDK at 1.32.1 and the
 client at 2.3.1, and two `overrides` entries, `"$@modelcontextprotocol/sdk"`
-and `"$@modelcontextprotocol/client"`, point at those direct dependencies,
-which replaces the exact peer pins. `@modelcontextprotocol/server` stayed at
+and `"$@modelcontextprotocol/client"`, pointed at those direct dependencies,
+which replaced the exact peer pins. `@modelcontextprotocol/server` stayed at
 2.0.0 on that day, since GHSA-6qxp-vccf-f47h does not list it.
 `npm audit fix` moved `proxy-addr` to 2.0.8 inside the range `express`
 declares. A third new
@@ -78,7 +78,7 @@ That version declares the SDK at exactly 1.32.1, the client at exactly 2.3.1
 and `@modelcontextprotocol/server` at exactly 2.3.1. The direct dependencies
 already sit at the SDK and client versions, so `npm install` without the two
 entries resolved every package to the same version as with them. Only the
-server moved, from 2.0.0 to 2.3.1, because `agents` now pins it.
+server moved, from 2.0.0 to 2.3.1, because `agents` pinned it.
 
 None of the three reached production. The source map of a build of this
 repository lists files from `@modelcontextprotocol/server` and its two core
@@ -87,6 +87,14 @@ lists none from the SDK, the client, `express`, `proxy-addr` or the Node
 adapter `@hono/node-server`, and the built `index.js` was byte-identical
 before and after the change. The Worker contains no MCP client, so the OAuth
 flow of the first advisory has nothing to run in.
+
+`agents` 0.32.0 declares the SDK at exactly 1.32.2 and both the client and the
+server at exactly 2.4.0 as peer dependencies, so all three direct dependencies
+moved with it on 2026-11-02. The same release adds `@opentelemetry/api` to the
+runtime tree and takes `esbuild` out of it, which leaves `esbuild` in the
+development tree only.
+The source map of a build still lists no file from the SDK, the client or
+`@opentelemetry/api`.
 
 An earlier run on 2026-10-01 cleared moderate advisories in two packages in
 the dependency tree of the SDK. `hono` 4.13.5 had GHSA-hxh3-vqpv-xpqv, where
@@ -99,13 +107,13 @@ ranges their parents declare.
 Before those, one advisory was a path traversal in the
 `serve-static` part of `@hono/node-server`, and it arrived transitively:
 `@modelcontextprotocol/sdk` depends on that Node HTTP adapter, and the SDK
-version this repository pins, 1.32.1, declares `^1.19.9 || ^2.0.5`, so the
+version this repository pins, 1.32.2, declares `^1.19.9 || ^2.0.5`, so the
 fixed 2.0.5 line is inside its range while the vulnerable 1.x line is still
 permitted by it. Within that SDK two modules import the adapter, the
 Node-side Streamable HTTP server transport and a Hono example, and this
 Worker loads neither. It runs on workerd through the Cloudflare Agents SDK:
 `agents/mcp/server` serves the endpoint with the web-standard server
-transport of `@modelcontextprotocol/server` 2.3.1, and the source map of a
+transport of `@modelcontextprotocol/server` 2.4.0, and the source map of a
 build of this repository contains neither `@modelcontextprotocol/sdk` nor
 the adapter. The advisory never reached production.
 
@@ -119,8 +127,8 @@ version back into the lockfile of a public repository people fork.
 
 *Corrected 2026-08-16 (round 12, batch E16, finding B3-5). The first paragraph
 placed the fixed 2.0.5 release beyond the range the SDK declares. That was true
-of SDK 1.29.0 and is not true of 1.30.0 or of 1.32.1, the release pinned since
-2026-10-06. The
+of SDK 1.29.0 and is not true of 1.30.0, of 1.32.1 or of 1.32.2, the release
+pinned since 2026-11-02. The
 closing sentence also read as if the override were already due to come out.*
 
 *Corrected 2026-09-23 (round 20, findings B-1 and TJ-1). The paragraph
