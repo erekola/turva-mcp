@@ -422,7 +422,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.7.1",
+  version: "1.7.2",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (external domain check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -707,6 +707,14 @@ const MAX_BODY_BYTES = 65_536;
 // data field of its own instead of the message text, and marks a longer name as cut.
 const MAX_ECHOED_TOOL_NAME_LENGTH = 64;
 
+// The SDK's schema check names every unrecognized argument key without a length limit, and a
+// client should hand that tool error to the model, so caller text in it is model context
+// (MCP 2026-07-28, Error Handling). A key of 2 000 characters came back whole in 2 085
+// characters of text, measured 2026-11-02 on 1.7.1. These two limits bound the echo: a key is
+// cut at the same length as a tool name, and at most this many keys are listed.
+const MAX_ECHOED_ARGUMENT_KEY_LENGTH = 64;
+const MAX_ECHOED_ARGUMENT_KEYS = 5;
+
 // T-02 (Astra audit 2026-09-26): the 2026-07-28 revision's JSONRPCErrorResponse allows id to
 // be a string, a number, or absent, and never null. id now defaults to absent, because most
 // callers of this function reject a request before any id can be read (an oversized body, a
@@ -771,17 +779,24 @@ function invalidParamsReason(method: string, params: unknown): string | undefine
 // property, so Object.keys on the parsed body still sees it: this reads that raw object,
 // before the SDK's spread can drop the key, and answers the same tool error (isError true)
 // a normal extra key already gets (Tek-458), never a JSON-RPC protocol error. It acts only
-// when "__proto__" is among the keys, the one key the spread loses: every other extra key
-// still reaches the SDK's own check and keeps its own message.
+// when "__proto__" is among the keys, the one key the spread loses, or when the keys exceed
+// the echo limits above. Every other extra key still reaches the SDK's own check and keeps its
+// own message, and every case stays the same refusal, so the accepted set does not move.
 // W16 F1 (ChatGPT review 2026-10-02): the 2026-07-28 revision requires resultType on every result, so
 // the modern lane gets "complete" here as the SDK adds it on every other result. The legacy lane
 // keeps its earlier bytes.
+function argumentKeysExceedEchoLimits(keys: string[]): boolean {
+  return keys.length > MAX_ECHOED_ARGUMENT_KEYS || keys.some((k) => k.length > MAX_ECHOED_ARGUMENT_KEY_LENGTH);
+}
+
 function toolArgumentError(id: string | number, toolName: string, keys: string[], modern: boolean): Response {
+  const listed = keys.slice(0, MAX_ECHOED_ARGUMENT_KEYS).map((k) => `'${k.slice(0, MAX_ECHOED_ARGUMENT_KEY_LENGTH)}'`).join(", ");
+  const more = keys.length > MAX_ECHOED_ARGUMENT_KEYS ? ` and ${keys.length - MAX_ECHOED_ARGUMENT_KEYS} more` : "";
   return withMcpCorsHeaders(Response.json({
     jsonrpc: "2.0",
     id,
     result: {
-      content: [{ type: "text", text: `Input validation error: Invalid arguments for tool ${toolName}: unrecognized key(s) in object: ${keys.map((k) => `'${k}'`).join(", ")}` }],
+      content: [{ type: "text", text: `Input validation error: Invalid arguments for tool ${toolName}: unrecognized key(s) in object: ${listed}${more}` }],
       isError: true,
       ...(modern ? { resultType: "complete" } : {}),
     },
@@ -897,7 +912,7 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
       if (body.method === "tools/call" && isPlainObject(body.params) && typeof body.params.name === "string"
         && NO_ARGUMENT_TOOLS.has(body.params.name) && isPlainObject(body.params.arguments)) {
         const keys = Object.keys(body.params.arguments);
-        if (keys.includes("__proto__")) return toolArgumentError(body.id, body.params.name, keys, request.headers.get("MCP-Protocol-Version") === "2026-07-28");
+        if (keys.includes("__proto__") || argumentKeysExceedEchoLimits(keys)) return toolArgumentError(body.id, body.params.name, keys, request.headers.get("MCP-Protocol-Version") === "2026-07-28");
       }
       if (body.method === "subscriptions/listen") listenSubscriptionId = body.id;
       if (!request.headers.has("MCP-Protocol-Version")) {

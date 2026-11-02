@@ -295,6 +295,35 @@ test("P12: malformed initialize and tools/list params are refused as Invalid par
   assert.equal(stillWorks.error, undefined, "a well-formed initialize is unaffected");
 });
 
+test("P5b: a tool error echoes a limited part of what the caller wrote as argument keys", async () => {
+  // A client should hand a tool execution error to the model (MCP 2026-07-28, Error Handling),
+  // so caller text in it is model context. The server cuts an unknown tool name at 64
+  // characters (P19), and the same limit holds for argument keys. Measured before this fix:
+  // a key of 2 000 characters came back whole in 2 085 characters of text.
+  const longKey = "k".repeat(2000);
+  const long = await call("tools/call", { name: "get_services", arguments: { [longKey]: 1 } });
+  assert.equal(long.isError, true);
+  assert.match(long.content[0].text, /Input validation error/);
+  assert.equal(long.content[0].text.includes(longKey), false);
+  assert.ok(long.content[0].text.includes("k".repeat(64)), "the cut key still names the key");
+  assert.equal(long.content[0].text.includes("k".repeat(65)), false);
+  // Many short keys cannot add up to the same echo: at most five are listed.
+  const manyKeys = Object.fromEntries(Array.from({ length: 500 }, (_, i) => [`key_${"x".repeat(50)}_${i}`, 1]));
+  const many = await call("tools/call", { name: "get_services", arguments: manyKeys });
+  assert.equal(many.isError, true);
+  assert.ok(many.content[0].text.length < 600, `the text was ${many.content[0].text.length} characters`);
+  assert.match(many.content[0].text, /and 495 more/);
+  // A long key after a short one is cut as well, whatever its position.
+  const mixed = await call("tools/call", { name: "get_services", arguments: { a: 1, [longKey]: 1 } });
+  assert.equal(mixed.isError, true);
+  assert.equal(mixed.content[0].text.includes("k".repeat(65)), false);
+  // Up to the limit nothing changes: the SDK's own check and its own message answer.
+  const atLimit = await call("tools/call", { name: "get_services", arguments: { ["k".repeat(64)]: 1 } });
+  assert.equal(atLimit.isError, true);
+  assert.doesNotMatch(atLimit.content[0].text, /unrecognized key\(s\) in object/);
+  assert.ok(atLimit.content[0].text.includes("k".repeat(64)));
+});
+
 test("P13: a raw __proto__ argument key is refused the same way any other extra key is", async () => {
   // Astra audit 2026-09-26, T-04: an object literal spread drops "__proto__" as an own key,
   // but JSON.parse keeps it as a real own property, so a raw JSON body can carry what an

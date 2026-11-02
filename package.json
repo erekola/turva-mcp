@@ -1,6 +1,6 @@
 {
   "name": "turva-mcp",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "private": true,
   "description": "MCP server for turva.dev. Exposes the service catalog, agent-readiness scores, security evidence and engagement principles to AI agents.",
   "type": "module",
@@ -20,7 +20,7 @@
     "@cloudflare/workers-types": "^4.20260523.1",
     "@types/node": "^22.20.5",
     "typescript": "^7.0.2",
-    "wrangler": "^4.156.1"
+    "wrangler": "^4.156.2"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.4.0",
@@ -38,6 +38,6 @@
     "esbuild@0.28.2": true,
     "fsevents@2.3.3": true,
     "sharp@0.35.5": true,
-    "workerd@1.20261101.1": true
+    "workerd@1.20261102.1": true
   }
 }
