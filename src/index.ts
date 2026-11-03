@@ -216,7 +216,7 @@ export const PRINCIPLES = {
     // /agent-readiness-audit.md does; this now matches that page's own wording
     // ("Technical fixes are checked with the relevant scanner or a direct test ... The
     // follow-up shows both readings and any changes in the method").
-    { id: "measured-result", title: "The result shows up in scanner numbers", rationale: "Once the fixes the audit report names are implemented, the follow-up checks each one with the relevant scanner or a direct test and records both readings and any change in the method, even when no score moves." },
+    { id: "measured-result", title: "Each fix is checked and recorded", rationale: "Once the fixes the audit report names are implemented, the follow-up checks each one with the relevant scanner or a direct test and records both readings and any change in the method, even when no score moves." },
     { id: "transparency", title: "Open and verifiable", rationale: "Backed by a registered business, Business ID 3600281-7, Finland. Our own domain's scores are publicly verifiable." },
   ],
 } as const;
@@ -422,7 +422,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.7.2",
+  version: "1.7.3",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (external domain check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -500,7 +500,7 @@ function createServer(): McpServer {
     "get_principles",
     {
       title: "Engagement principles",
-      description: "Returns turva.dev's engagement principles: async-only, least access, the result shows up in scanner numbers, and open and verifiable. Use this when a user asks how turva.dev works with clients or what rules an engagement follows. For what is sold and what it costs use get_services instead, and for how to start use get_contact. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns turva.dev's engagement principles: async-only, least access, each fix checked with a scanner or a direct test, and open and verifiable. Use this when a user asks how turva.dev works with clients or what rules an engagement follows. For what is sold and what it costs use get_services instead, and for how to start use get_contact. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: principlesOutput,
