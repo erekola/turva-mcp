@@ -325,8 +325,8 @@ test("P5b: a tool error echoes a limited part of what the caller wrote as argume
 });
 
 test("P13: a raw __proto__ argument key is refused the same way any other extra key is", async () => {
-  // Astra audit 2026-09-26, T-04: an object literal spread drops "__proto__" as an own key,
-  // but JSON.parse keeps it as a real own property, so a raw JSON body can carry what an
+  // Astra audit 2026-09-26, T-04: a "{ __proto__: x }" literal sets a prototype and makes no own
+  // key, but JSON.parse keeps it as a real own property, so a raw JSON body can carry what an
   // object literal in this test file cannot: the body below is built as a literal string,
   // not an object literal, so the key survives into the request the same way it did in the
   // audit's own reproduction.

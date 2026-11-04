@@ -770,16 +770,16 @@ function invalidParamsReason(method: string, params: unknown): string | undefine
 }
 
 // T-04 (Astra audit 2026-09-26): every tool above takes noArguments, z.strictObject({}), but
-// the SDK's wire codec validates a spread of the raw params, "{ ...request.params }", and a
-// JavaScript object literal spread on a key named "__proto__" sets the new object's own
-// prototype instead of copying "__proto__" as an ordinary property. A JSON body whose
-// arguments object has "__proto__" as its only key therefore reaches the strict schema check
-// as {} and the call succeeds, although README and every other extra key promise a tool
-// error. JSON.parse, unlike an object literal, always creates "__proto__" as a real own data
+// a JSON body whose arguments object has "__proto__" as its only key got past that check,
+// although README and every other extra key promise a tool error. Test P13 still fails without
+// this branch (measured 2026-11-04). The SDK's spread of the raw params, "{ ...request.params }",
+// is not the mechanism: an object spread copies "__proto__" as an ordinary own property, and only
+// a "{ __proto__: x }" literal and Object.assign set a prototype from that key. Where the SDK path
+// loses the key has not been traced. JSON.parse always creates "__proto__" as a real own data
 // property, so Object.keys on the parsed body still sees it: this reads that raw object,
-// before the SDK's spread can drop the key, and answers the same tool error (isError true)
+// before the SDK handles it, and answers the same tool error (isError true)
 // a normal extra key already gets (Tek-458), never a JSON-RPC protocol error. It acts only
-// when "__proto__" is among the keys, the one key the spread loses, or when the keys exceed
+// when "__proto__" is among the keys, the one key the SDK path lets through, or when the keys exceed
 // the echo limits above. Every other extra key still reaches the SDK's own check and keeps its
 // own message, and every case stays the same refusal, so the accepted set does not move.
 // W16 F1 (ChatGPT review 2026-10-02): the 2026-07-28 revision requires resultType on every result, so
