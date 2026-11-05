@@ -127,7 +127,7 @@ The discovery documents and tool data are compiled into the Worker. This Worker 
 
 ## Dependencies
 
-The code imports `@modelcontextprotocol/server`, `agents` and `zod`. `package.json` also lists `@modelcontextprotocol/client` and `@modelcontextprotocol/sdk`, which the code does not import. The `agents` version pinned in `package.json` declares all three MCP packages as required peer dependencies at exact versions, so npm has to install them, but neither `@modelcontextprotocol/client` nor `@modelcontextprotocol/sdk` is in the built Worker.
+The code imports `@modelcontextprotocol/server`, `agents` and `zod`. `package.json` also lists `@modelcontextprotocol/client` and `@modelcontextprotocol/sdk`, which the code does not import. The `agents` version pinned in `package.json` declares all three MCP packages as peer dependencies at exact versions. Only `@modelcontextprotocol/client` is a required peer. `@modelcontextprotocol/sdk` and `@modelcontextprotocol/server` are marked optional in the `peerDependenciesMeta` of `agents` 0.32.0. They are listed directly because the Worker imports the server package and the lockfile pins the sdk package on purpose. Neither `@modelcontextprotocol/client` nor `@modelcontextprotocol/sdk` is in the built Worker.
 
 ## Security and operating limits
 

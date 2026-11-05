@@ -422,7 +422,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.7.3",
+  version: "1.7.4",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (external domain check, audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -630,7 +630,24 @@ function withSecurityHeaders(res: Response): Response {
 // so "no request outlives its response" (the comment above createServer) holds for this
 // method too, as measured on 2026-09-26. Skipped when the response is not the SSE stream this
 // method returns on success, such as the JSON-RPC error a subscription-limit or params
-// rejection sends instead.
+// rejection sends instead. The 2025-era lane (no MCP-Protocol-Version header) answers the
+// unknown method as an SSE error frame; that case is relayed unchanged, because appending a
+// result after an error would answer one request twice (G-48).
+// True only when the chunk is one complete SSE frame whose JSON data is the acknowledgement
+// notification. The method is read from the parsed data, never searched for as text, because a
+// caller's own request id is echoed in an error frame and may contain the method name. A
+// malformed or incomplete first frame is "not the acknowledgement".
+function isAcknowledgementFrame(chunk: string): boolean {
+  if (!chunk.endsWith("\n\n") || chunk.indexOf("\n\n") !== chunk.length - 2) return false;
+  const data = chunk.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).replace(/^ /, "")).join("\n");
+  try {
+    const parsed: unknown = JSON.parse(data);
+    return typeof parsed === "object" && parsed !== null && (parsed as { method?: unknown }).method === "notifications/subscriptions/acknowledged";
+  } catch {
+    return false;
+  }
+}
+
 function closeListenStreamAfterAck(res: Response, subscriptionId: string | number): Response {
   if (!(res.headers.get("content-type") ?? "").includes("text/event-stream") || res.body === null) return res;
   const upstream = res.body.getReader();
@@ -645,9 +662,20 @@ function closeListenStreamAfterAck(res: Response, subscriptionId: string | numbe
   })}\n\n`);
   const body = new ReadableStream({
     async start(controller) {
+      const { value } = await upstream.read();
+      if (value === undefined || !isAcknowledgementFrame(new TextDecoder().decode(value))) {
+        // Not the acknowledgement: relay what the SDK sent, to its end, and add nothing.
+        if (value !== undefined) controller.enqueue(value);
+        for (;;) {
+          const next = await upstream.read();
+          if (next.done) break;
+          controller.enqueue(next.value);
+        }
+        controller.close();
+        return;
+      }
       try {
-        const { value } = await upstream.read();
-        if (value) controller.enqueue(value);
+        controller.enqueue(value);
       } finally {
         await upstream.cancel();
       }

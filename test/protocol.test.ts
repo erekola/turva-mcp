@@ -202,6 +202,19 @@ test("P8: a body over 64 KiB is refused before the handler reads it", async () =
   const under = await post(padded(60_000));
   assert.equal(under.status, 200, "a body under the limit is served");
   await under.text();
+  // G-248: the boundary itself. The pad is sized so the whole JSON text is exactly the
+  // wanted number of bytes (the text is ASCII, so characters are bytes).
+  const exact = (bytes: number) => {
+    const body = padded(bytes - padded(0).length);
+    assert.equal(new TextEncoder().encode(body).length, bytes, "the test body has the exact size");
+    return body;
+  };
+  const atLimit = await post(exact(65_536));
+  assert.equal(atLimit.status, 200, "a body of exactly 65 536 bytes is served");
+  await atLimit.text();
+  const overByOne = await post(exact(65_537));
+  assert.equal(overByOne.status, 413, "a body of 65 537 bytes is refused");
+  assert.equal(((await overByOne.json()) as Rpc).error!.code, -32000);
 });
 
 test("P9: a request on the 2026-07-28 lane without MCP-Protocol-Version is refused", async () => {
@@ -370,6 +383,36 @@ test("P14: subscriptions/listen closes itself right after the acknowledgement", 
   assert.equal(messages[1].id, 5);
   assert.equal(messages[1].result.resultType, "complete");
   assert.equal(messages[1].result._meta[SUBSCRIPTION_ID_META_KEY], 5);
+});
+
+test("P14b: subscriptions/listen on the 2025-era lane is answered exactly once", async () => {
+  // G-48: with no MCP-Protocol-Version header the SDK does not know the method and answers
+  // -32601 as an SSE frame. closeListenStreamAfterAck used to append its Graceful Closure
+  // result after that error, so one request got two frames with the same id.
+  const r = await post({ jsonrpc: "2.0", id: 5, method: "subscriptions/listen", params: { notifications: { toolsListChanged: true } } });
+  assert.equal(r.status, 200);
+  const frames = (await r.text()).split("\n\n")
+    .filter((frame) => frame.startsWith("event: message"))
+    .map((frame) => JSON.parse(frame.slice(frame.indexOf("data: ") + "data: ".length)) as Rpc);
+  assert.equal(frames.length, 1, "one request, one response");
+  assert.equal(frames[0].id, 5);
+  assert.equal(frames[0].error!.code, -32601);
+  assert.equal(frames[0].result, undefined, "no completion result follows the error");
+});
+
+test("P14c: a request id that holds the acknowledgement method name on the 2025-era lane is still answered once", async () => {
+  // Round 2026-11-05: the check used to look for the method name anywhere in the first chunk, so
+  // an error frame that echoed a caller's id holding that string read as the acknowledgement and
+  // got a completion frame after it. The method is now read from the parsed frame data.
+  const id = "notifications/subscriptions/acknowledged";
+  const r = await post({ jsonrpc: "2.0", id, method: "subscriptions/listen", params: { notifications: { toolsListChanged: true } } });
+  assert.equal(r.status, 200);
+  const frames = (await r.text()).split("\n\n")
+    .filter((frame) => frame.startsWith("event: message"))
+    .map((frame) => JSON.parse(frame.slice(frame.indexOf("data: ") + "data: ".length)) as Rpc);
+  assert.equal(frames.length, 1, "one request, one response");
+  assert.equal(frames[0].error!.code, -32601);
+  assert.equal(frames[0].result, undefined, "no completion result follows the error");
 });
 
 test("P15: a disallowed Origin is refused before the malformed-params and __proto__ checks", async () => {

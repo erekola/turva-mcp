@@ -127,9 +127,9 @@ version back into the lockfile of a public repository people fork.
 
 *Corrected 2026-08-16 (round 12, batch E16, finding B3-5). The first paragraph
 placed the fixed 2.0.5 release beyond the range the SDK declares. That was true
-of SDK 1.29.0 and is not true of 1.30.0, of 1.32.1 or of 1.32.2, the release
-pinned since 2026-11-02. The
-closing sentence also read as if the override were already due to come out.*
+of SDK 1.29.0 and is not true of 1.30.0, of 1.32.1 or of 1.32.2. The
+closing sentence also read as if the override were already due to come out. Update 2026-11-05: 1.32.2 has been the
+pinned release since 2026-11-02.*
 
 *Corrected 2026-09-23 (round 20, findings B-1 and TJ-1). The paragraph
 miscounted the SDK modules that import the adapter, and it named the wrong
