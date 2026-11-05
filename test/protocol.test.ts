@@ -50,6 +50,8 @@ const TOOLS = {
   get_contact: CONTACT,
 };
 const plain = (data: unknown) => JSON.parse(JSON.stringify(data));
+// The 2026-07-28 lane is exactly this version header. Any other request is the legacy lane.
+const MODERN_LIST_HEADERS = { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" };
 
 function post(body: unknown, headers: Record<string, string> = {}, env: Env = {}) {
   return worker.fetch(new Request("https://mcp.turva.dev/mcp", {
@@ -164,20 +166,26 @@ test("P6: the 2025-era lane declares the same capabilities and serves the same t
   assert.deepEqual(res.result!.structuredContent, plain(CONTACT));
 });
 
-test("P7: a JSON-RPC batch is refused on both lanes", async () => {
+test("P7: a JSON-RPC batch is refused on both lanes, and the error id follows the lane", async () => {
   // Round 20, I-1: the 2025-era lane answered a batch of 100 tools/call requests sent in one
   // POST, and the rate limiter in front of it counted one request.
   const legacyBatch = [1, 2, 3].map((id) => ({ jsonrpc: "2.0", id, method: "tools/call", params: { name: "get_services", arguments: {} } }));
   const modernBatch = [{ jsonrpc: "2.0", id: 1, method: "tools/list", params: { _meta: META } }];
   for (const [batch, label] of [[legacyBatch, "2025-era batch"], [modernBatch, "2026-07-28 batch"], [[], "empty batch"]] as [unknown, string][]) {
+    // Legacy lane (no version header): JSON-RPC 2.0 section 5 asks for id null when the id
+    // could not be read, and a batch has no single id to answer.
     const r = await post(batch);
     assert.equal(r.status, 400, label);
     const body = await r.json() as Rpc;
     assert.equal(body.error!.code, -32600, label);
-    // T-02 (Astra audit 2026-09-26): the 2026-07-28 revision's JSONRPCErrorResponse allows
-    // id to be a string, a number, or absent, never null; this rejection cannot know the
-    // id of a batch's individual messages, so it now omits the field instead of sending null.
-    assert.equal(body.id, undefined, label);
+    assert.equal(body.id, null, label + ": legacy lane, id null");
+    // 2026-07-28 lane: T-02 (Astra audit 2026-09-26), the revision's JSONRPCErrorResponse allows
+    // id to be a string, a number or absent, so the field is omitted there.
+    const modern = await post(batch, MODERN_LIST_HEADERS);
+    assert.equal(modern.status, 400, label + ": 2026-07-28 lane");
+    const modernBody = await modern.json() as Rpc;
+    assert.equal(modernBody.error!.code, -32600, label + ": 2026-07-28 lane");
+    assert.equal("id" in modernBody, false, label + ": 2026-07-28 lane, no id field");
   }
   // The guard runs before the SDK's Origin check, so a page on another site that sends a
   // batch learns only that batches are refused, which the endpoint tells every caller.
@@ -187,6 +195,29 @@ test("P7: a JSON-RPC batch is refused on both lanes", async () => {
   const plainFromOtherSite = await post({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { Origin: "https://evil.example" });
   assert.equal(plainFromOtherSite.status, 403, "and the Origin check still refuses everything else from that page");
   await plainFromOtherSite.text();
+});
+
+test("P7b: a batch is refused on a negotiated 2025-03-26 session too, and a single request there is served", async () => {
+  // MCP-01 (S5 triage 2026-11-05): the 2025-03-26 revision requires a server to accept batches.
+  // This endpoint negotiates that revision and refuses every batch on every lane on purpose
+  // (Tek-458 P1(a)), because one POST must not carry many tools/call requests past the rate limit.
+  const init = await readJson(await post({
+    jsonrpc: "2.0", id: 1, method: "initialize",
+    params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "protocol.test", version: "0" } },
+  }));
+  assert.equal(init.result!.protocolVersion, "2025-03-26", "the revision is negotiated");
+  const old = { "MCP-Protocol-Version": "2025-03-26" };
+  const batch = await post([
+    { jsonrpc: "2.0", id: 2, method: "tools/list" },
+    { jsonrpc: "2.0", id: 3, method: "tools/list" },
+  ], old);
+  assert.equal(batch.status, 400);
+  const batchBody = await batch.json() as Rpc;
+  assert.equal(batchBody.error!.code, -32600);
+  assert.equal(batchBody.id, null, "legacy lane: id null");
+  // Control: a single request with the same header is served.
+  const single = await readJson(await post({ jsonrpc: "2.0", id: 2, method: "tools/list" }, old));
+  assert.deepEqual(single.result!.tools.map((t: Tool) => t.name), Object.keys(TOOLS));
 });
 
 test("P8: a body over 64 KiB is refused before the handler reads it", async () => {
@@ -352,7 +383,8 @@ test("P13: a raw __proto__ argument key is refused the same way any other extra 
   // W16 F1: the 2026-07-28 lane carries resultType on this hand-built result too.
   assert.equal(body.result!.resultType, "complete");
   // The legacy lane keeps its earlier bytes: no resultType.
-  const legacy = await readJson(await post(raw));
+  const legacyRaw = '{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_contact","arguments":{"__proto__":{"audit":true}}}}';
+  const legacy = await readJson(await post(legacyRaw));
   assert.equal(legacy.result!.isError, true);
   assert.equal(legacy.result!.resultType, undefined);
   // The set this check applies to is exactly the five argumentless tools, not every tool name.
@@ -431,12 +463,12 @@ test("P15: a disallowed Origin is refused before the malformed-params and __prot
   assert.equal(badCursor.status, 403, "malformed params from a disallowed Origin");
   const badCursorBody = await badCursor.json() as Rpc;
   assert.equal(badCursorBody.error!.code, -32000);
-  assert.equal(badCursorBody.id, undefined, "B2: no id field, never null");
+  assert.equal("id" in badCursorBody, false, "B2: the 2026-07-28 lane has no id field");
   const raw = '{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_contact","arguments":{"__proto__":{"audit":true}},"_meta":' + JSON.stringify(META) + '}}';
   const protoFromEvil = await post(raw, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_contact", ...evilOrigin });
   assert.equal(protoFromEvil.status, 403, "a raw __proto__ key from a disallowed Origin");
-  assert.equal(((await protoFromEvil.json()) as Rpc).id, undefined, "B2: no id field, never null");
-  // do-not-fix line 225 (Tek-458 P7): a batch and an oversized body still answer 400
+  assert.equal("id" in ((await protoFromEvil.json()) as Rpc), false, "B2: the 2026-07-28 lane has no id field");
+  // The do-not-fix entry on the guard before the Origin check (Tek-458 P7): a batch and an oversized body still answer 400
   // and 413 before Origin is even considered, unchanged by B1.
   const batchFromEvil = await post([{ jsonrpc: "2.0", id: 1, method: "tools/list" }], evilOrigin);
   assert.equal(batchFromEvil.status, 400, "a batch from a disallowed Origin still reads 400, not 403");
@@ -448,7 +480,7 @@ test("P15: a disallowed Origin is refused before the malformed-params and __prot
   // A well-formed request from the same Origin still reads the plain 403, unaffected.
   const plain = await post({ jsonrpc: "2.0", id: 1, method: "tools/list" }, evilOrigin);
   assert.equal(plain.status, 403, "a well-formed request from the same Origin");
-  await plain.text();
+  assert.equal(((await plain.json()) as Rpc).id, null, "legacy lane (no version header): id null");
   // A missing Origin, the case a non-browser client sends, is unaffected.
   const noOrigin = await post({ jsonrpc: "2.0", id: 1, method: "tools/list" });
   assert.equal(noOrigin.status, 200, "no Origin header at all is not a browser request and passes");
@@ -481,11 +513,11 @@ test("P16: an unknown tool name is refused with a capped, separate data field", 
   assert.notEqual(known.isError, true);
 });
 
-test("P17: a disallowed Origin is refused with the same no-id shape when Content-Type is not JSON", async () => {
+test("P17: a disallowed Origin is refused with the lane's id shape when Content-Type is not JSON", async () => {
   // V02-2 (Astra audit 2026-09-28, 3rd round): the JSON-Content-Type path already answers a
-  // disallowed Origin without an id field (P15 above), but a POST whose Content-Type is not
-  // JSON used to skip guardMcpPost's own Origin check entirely and reach the SDK's own check,
-  // which still answers with a literal "id":null. This checks the non-JSON path now matches.
+  // disallowed Origin with the lane's id shape (P15 above), but a POST whose Content-Type is not
+  // JSON used to skip guardMcpPost's own Origin check entirely and reach the SDK's own check.
+  // This checks the non-JSON path matches: id null on the legacy lane, no id on the modern one.
   const r = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
     method: "POST",
     headers: { "Content-Type": "text/plain", Origin: "https://evil.example" },
@@ -495,7 +527,14 @@ test("P17: a disallowed Origin is refused with the same no-id shape when Content
   const body = await r.json() as Rpc;
   assert.equal(body.error!.code, -32000);
   assert.match(body.error!.message, /Invalid Origin/);
-  assert.equal(body.id, undefined, "no id field, never null");
+  assert.equal(body.id, null, "legacy lane (no version header): id null");
+  const modernEvil = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
+    method: "POST",
+    headers: { "Content-Type": "text/plain", Origin: "https://evil.example", ...MODERN_LIST_HEADERS },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/list", params: {} }),
+  }), {}, ctx);
+  assert.equal(modernEvil.status, 403);
+  assert.equal("id" in (await modernEvil.json() as Rpc), false, "2026-07-28 lane: no id field");
   // An allowed Origin with a non-JSON Content-Type is unaffected: the Origin check passes and
   // the SDK answers its own way for the wrong Content-Type, not refused as a 403 here.
   const allowed = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
@@ -515,9 +554,10 @@ test("P17: a disallowed Origin is refused with the same no-id shape when Content
   await noOrigin.text();
 });
 
-test("P17c: a body not declared as JSON is answered 415 by the Worker with no id field, on both lanes", async () => {
+test("P17c: a body not declared as JSON is answered 415 by the Worker with the lane's id shape", async () => {
   // The SDK answers 415 with "id":null, which the 2026-07-28 revision does not allow, so the
-  // Worker answers it itself after the Origin check. Same code and message as the SDK.
+  // Worker answers it itself after the Origin check. Same code and message as the SDK, with no id
+  // field on the 2026-07-28 lane and id null on the legacy lane.
   const body = JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/list", params: {} });
   const modern = { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" };
   for (const [lane, extra] of [["current", modern], ["legacy", {}]] as const) {
@@ -530,7 +570,8 @@ test("P17c: a body not declared as JSON is answered 415 by the Worker with no id
     const wrongTypeBody = await wrongType.json() as Rpc;
     assert.equal(wrongTypeBody.error!.code, -32000, lane);
     assert.equal(wrongTypeBody.error!.message, "Unsupported Media Type: Content-Type must be application/json", lane);
-    assert.equal("id" in wrongTypeBody, false, `${lane}: no id key, never null`);
+    if (lane === "current") assert.equal("id" in wrongTypeBody, false, `${lane}: no id key`);
+    else assert.equal(wrongTypeBody.id, null, `${lane}: id null`);
     // A request with no Content-Type header at all is refused the same way.
     const noType = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
       method: "POST",
@@ -538,7 +579,9 @@ test("P17c: a body not declared as JSON is answered 415 by the Worker with no id
       body: new Uint8Array(new TextEncoder().encode(body)),
     }), {}, ctx);
     assert.equal(noType.status, 415, `${lane}: no Content-Type`);
-    assert.equal("id" in (await noType.json() as Rpc), false, `${lane}: no Content-Type, no id key`);
+    const noTypeBody = await noType.json() as Rpc;
+    if (lane === "current") assert.equal("id" in noTypeBody, false, `${lane}: no Content-Type, no id key`);
+    else assert.equal(noTypeBody.id, null, `${lane}: no Content-Type, id null`);
   }
   // A disallowed Origin keeps its 403 ahead of the 415.
   const evil = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
@@ -555,18 +598,19 @@ test("P17c: a body not declared as JSON is answered 415 by the Worker with no id
   await charset.text();
 });
 
-test("P17b: a JSON body that does not parse is answered by the Worker with 400 and no id field", async () => {
+test("P17b: a JSON body that does not parse is answered by the Worker with 400 and the lane's id shape", async () => {
   // W16 U1 (ChatGPT review 2026-10-02): the SDK answers a parse error with "id":null, which the
-  // 2026-07-28 revision does not allow, so the Worker answers it itself, with and without the
-  // modern headers, and the id field is absent rather than null.
+  // 2026-07-28 revision does not allow, so the Worker answers it itself: the id field is absent
+  // on the 2026-07-28 lane and null on the legacy lane, which sends no such header.
   const cut = '{"jsonrpc":"2.0","id":"x","method":"tools/ca';
-  for (const headers of [{}, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call" }] as Record<string, string>[]) {
+  for (const [headers, lane] of [[{}, "legacy"], [{ "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call" }, "current"]] as [Record<string, string>, string][]) {
     const r = await post(cut, headers);
     assert.equal(r.status, 400);
     const body = await r.json() as Rpc;
     assert.equal(body.error!.code, -32700);
     assert.equal(body.error!.message, "Parse error: Invalid JSON");
-    assert.equal("id" in body, false, "no id field, never null");
+    if (lane === "current") assert.equal("id" in body, false, "no id field");
+    else assert.equal(body.id, null, "id null");
   }
   // A disallowed Origin on an unparseable body keeps its 403.
   const evil = await post(cut, { Origin: "https://evil.example" });
@@ -605,4 +649,260 @@ test("P18: a malformed clientInfo in initialize is refused as Invalid params, no
     params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "protocol.test", version: "0" } },
   }));
   assert.equal(stillWorks.error, undefined, "a well-formed initialize is unaffected");
+});
+
+// S5 round (triage of 2026-11-05, decided by the foreman under Tek-546). The error id follows the
+// lane. The 2026-07-28 lane is a request that carries exactly MCP-Protocol-Version: 2026-07-28,
+// and its errors never carry a null id. Every other request is the legacy lane: no header, a
+// legacy revision and an unknown version too. There JSON-RPC 2.0 section 5 asks for id null when
+// the id could not be read.
+
+test("P19: a request with a wrong or missing jsonrpc member, or an unsafe id, is an invalid request", async () => {
+  // MCP-03: the Worker's own guards used to dispatch on method and id alone, so these answered
+  // 200 with -32602, or ran the __proto__ branch, where the SDK answers 400 with -32600.
+  const unknown = { name: "missing", arguments: {} };
+  const cases: [string, unknown][] = [
+    ["jsonrpc 1.0 and an unknown tool", { jsonrpc: "1.0", id: 12, method: "tools/call", params: unknown }],
+    ["jsonrpc absent and an unknown tool", { id: 12, method: "tools/call", params: unknown }],
+    ["a fractional id and an unknown tool", { jsonrpc: "2.0", id: 1.5, method: "tools/call", params: unknown }],
+    ["an id beyond the safe integers and an unknown tool", '{"jsonrpc":"2.0","id":1e30,"method":"tools/call","params":{"name":"missing","arguments":{}}}'],
+    ["jsonrpc 1.0 and a numeric cursor", { jsonrpc: "1.0", id: 12, method: "tools/list", params: { cursor: 0 } }],
+    ["jsonrpc 1.0 and a raw __proto__ argument", '{"jsonrpc":"1.0","id":12,"method":"tools/call","params":{"name":"get_contact","arguments":{"__proto__":{"audit":true}}}}'],
+  ];
+  for (const [label, body] of cases) {
+    const r = await post(body);
+    assert.equal(r.status, 400, label);
+    const parsed = await readJson(r);
+    assert.equal(parsed.error!.code, -32600, label);
+  }
+});
+
+test("P19c: control: well-formed requests keep their earlier answers", async () => {
+  const unknownInt = await readJson(await post({ jsonrpc: "2.0", id: 12, method: "tools/call", params: { name: "missing", arguments: {} } }));
+  assert.equal(unknownInt.error!.code, -32602);
+  assert.equal(unknownInt.id, 12);
+  const unknownStr = await readJson(await post({ jsonrpc: "2.0", id: "abc", method: "tools/call", params: { name: "missing", arguments: {} } }));
+  assert.equal(unknownStr.error!.code, -32602);
+  assert.equal(unknownStr.id, "abc");
+  const badCursor = await readJson(await post({ jsonrpc: "2.0", id: 13, method: "tools/list", params: { cursor: 123 } }));
+  assert.equal(badCursor.error!.code, -32602);
+  assert.equal(badCursor.id, 13);
+  // The SDK refuses a valid request of the wrong envelope on its own, so this was already right.
+  const wrongVersion = await post({ jsonrpc: "1.0", id: 12, method: "tools/list" });
+  assert.equal(wrongVersion.status, 400);
+  assert.equal((await readJson(wrongVersion)).error!.code, -32600);
+});
+
+test("P20: nested and optional initialize parameters of the wrong type are Invalid params, not Internal error", async () => {
+  // MCP-04: invalidParamsReason checked the top level and clientInfo.name and version, so a
+  // nested field of the wrong type reached the SDK's own schema and read -32603 with the schema
+  // library's issue list as the message. The SDK's own schema now decides, and the message names
+  // the path alone.
+  const clientInfo = (extra: Record<string, unknown>) => ({ clientInfo: { name: "x", version: "1", ...extra } });
+  const cases: [string, Record<string, unknown>][] = [
+    ["params.capabilities.roots", { capabilities: { roots: 42 } }],
+    ["params.capabilities.roots.listChanged", { capabilities: { roots: { listChanged: 42 } } }],
+    ["params.capabilities.sampling", { capabilities: { sampling: 42 } }],
+    ["params.capabilities.elicitation", { capabilities: { elicitation: 42 } }],
+    ["params.capabilities.tasks", { capabilities: { tasks: 42 } }],
+    ["params.clientInfo.title", clientInfo({ title: 42 })],
+    ["params.clientInfo.description", clientInfo({ description: 42 })],
+    ["params.clientInfo.websiteUrl", clientInfo({ websiteUrl: 42 })],
+    ["params.clientInfo.icons", clientInfo({ icons: 42 })],
+    ["params.clientInfo.icons.0.src", clientInfo({ icons: [{ src: 42 }] })],
+  ];
+  for (const [path, patch] of cases) {
+    const r = await readJson(await post({
+      jsonrpc: "2.0", id: 84, method: "initialize",
+      params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "x", version: "1" }, ...patch },
+    }));
+    assert.equal(r.error?.code, -32602, path);
+    assert.equal(r.id, 84, path);
+    assert.ok(r.error!.message.startsWith("Invalid params: " + path), path + ": the message names the path, got " + r.error!.message);
+    // No schema-library JSON in the message: only words, dots, digits, brackets of a code name.
+    assert.match(r.error!.message, /^[A-Za-z0-9 .:()_-]+$/, path + ": plain text");
+    assert.doesNotMatch(r.error!.message, /expected|received/, path);
+  }
+});
+
+test("P20c: control: every initialize that the SDK accepted is still accepted", async () => {
+  // The accepted set must not move: each of these answered 200 with a result before the change.
+  const accepted: [string, Record<string, unknown>][] = [
+    ["empty capabilities", { capabilities: {}, clientInfo: { name: "x", version: "1" } }],
+    ["roots, sampling and elicitation as objects", { capabilities: { roots: { listChanged: true }, sampling: {}, elicitation: {} }, clientInfo: { name: "x", version: "1" } }],
+    ["a full clientInfo with the right types", { capabilities: {}, clientInfo: { name: "x", version: "1", title: "X", description: "d", websiteUrl: "https://example.com/", icons: [{ src: "https://example.com/i.png" }] } }],
+    ["an unknown capability key", { capabilities: { experimental: { feature: {} } }, clientInfo: { name: "x", version: "1" } }],
+    ["an unknown extra params key", { capabilities: {}, clientInfo: { name: "x", version: "1" }, extra: 1 }],
+    ["an unknown protocol version string", { protocolVersion: "1999-01-01", capabilities: {}, clientInfo: { name: "x", version: "1" } }],
+  ];
+  for (const [label, patch] of accepted) {
+    const r = await readJson(await post({
+      jsonrpc: "2.0", id: 85, method: "initialize",
+      params: { protocolVersion: "2025-11-25", ...patch },
+    }));
+    assert.equal(r.error, undefined, label);
+    assert.equal(r.id, 85, label);
+    assert.equal(typeof r.result!.protocolVersion, "string", label);
+  }
+});
+
+test("P21: errors the SDK answers on the 2026-07-28 lane carry no id field", async () => {
+  // MCP-05: the SDK answers these with "id":null, which the 2026-07-28 revision does not allow.
+  const bodies: [string, string][] = [
+    ["an empty object", "{}"],
+    ["null", "null"],
+    ["a number", "42"],
+    ["a null id", '{"jsonrpc":"2.0","id":null,"method":"tools/list"}'],
+    ["an array id", '{"jsonrpc":"2.0","id":[],"method":"tools/list"}'],
+    ["a numeric method", '{"jsonrpc":"2.0","id":1,"method":5}'],
+  ];
+  for (const [label, raw] of bodies) {
+    const r = await post(raw, MODERN_LIST_HEADERS);
+    assert.equal(r.status, 400, label);
+    const text = await r.text();
+    const length = r.headers.get("content-length");
+    if (length !== null) assert.equal(Number(length), new TextEncoder().encode(text).length, label + ": Content-Length matches the rebuilt body");
+    const body = JSON.parse(text) as Rpc;
+    assert.equal(body.error!.code, -32600, label);
+    assert.equal("id" in body, false, label + ": no id field");
+  }
+  for (const method of ["GET", "DELETE", "PUT"]) {
+    const r = await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method, headers: { "MCP-Protocol-Version": "2026-07-28" } }), {}, ctx);
+    assert.equal(r.status, 405, method);
+    const body = await r.json() as Rpc;
+    assert.equal(body.error!.code, -32000, method);
+    assert.equal("id" in body, false, method + ": no id field");
+  }
+  const evil = await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method: "GET", headers: { "MCP-Protocol-Version": "2026-07-28", Origin: "https://evil.example" } }), {}, ctx);
+  assert.equal(evil.status, 403);
+  const evilBody = await evil.json() as Rpc;
+  assert.equal(evilBody.error!.code, -32000);
+  assert.match(evilBody.error!.message, /Invalid Origin/);
+  assert.equal("id" in evilBody, false, "a disallowed Origin on the modern lane: no id field");
+});
+
+test("P21b: errors the Worker answers on the legacy lane carry id null, whatever the header", async () => {
+  // MCP-06: the shared error helper left the id out on every lane. JSON-RPC 2.0 section 5 asks for
+  // id null on a request whose id could not be read. No header, a legacy revision and an unknown
+  // version are all the legacy lane.
+  const legacyHeaders: Record<string, string>[] = [{}, { "MCP-Protocol-Version": "2025-06-18" }, { "MCP-Protocol-Version": "2099-01-01" }];
+  const padded = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(70_000) } });
+  const valid = { jsonrpc: "2.0", id: 1, method: "tools/list" };
+  for (const h of legacyHeaders) {
+    const where = JSON.stringify(h);
+    const cases: [string, Response, number, number][] = [
+      ["parse error", await post('{"jsonrpc":"2.0","id":"x","method":"tools/ca', h), 400, -32700],
+      ["batch", await post([valid], h), 400, -32600],
+      ["oversized body", await post(padded, h), 413, -32000],
+      ["wrong media type", await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method: "POST", headers: { "Content-Type": "text/plain", ...h }, body: JSON.stringify(valid) }), {}, ctx), 415, -32000],
+      ["disallowed Origin", await post(valid, { ...h, Origin: "https://evil.example" }), 403, -32000],
+    ];
+    for (const [label, r, status, code] of cases) {
+      assert.equal(r.status, status, label + " " + where);
+      const body = await r.json() as Rpc;
+      assert.equal(body.error!.code, code, label + " " + where);
+      assert.equal(body.id, null, label + " " + where + ": id null");
+    }
+  }
+});
+
+test("P21c: control: the other lane and the SDK's legacy answers keep their id shape", async () => {
+  // The 2026-07-28 lane has no id on the Worker's own errors, the legacy SDK answers keep id null,
+  // and the status and error code of every one stay as they were.
+  const valid = { jsonrpc: "2.0", id: 1, method: "tools/list" };
+  const padded = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(70_000) } });
+  const modernCases: [string, Response, number, number][] = [
+    ["parse error", await post("{", MODERN_LIST_HEADERS), 400, -32700],
+    ["batch", await post([valid], MODERN_LIST_HEADERS), 400, -32600],
+    ["oversized body", await post(padded, MODERN_LIST_HEADERS), 413, -32000],
+    ["disallowed Origin", await post(valid, { ...MODERN_LIST_HEADERS, Origin: "https://evil.example" }), 403, -32000],
+  ];
+  for (const [label, r, status, code] of modernCases) {
+    assert.equal(r.status, status, label);
+    const body = await r.json() as Rpc;
+    assert.equal(body.error!.code, code, label);
+    assert.equal("id" in body, false, label + ": no id field on the 2026-07-28 lane");
+  }
+  const sdkLegacy = await post("{}");
+  assert.equal(sdkLegacy.status, 400);
+  assert.equal(((await sdkLegacy.json()) as Rpc).id, null, "the SDK's legacy invalid request keeps id null");
+  const get = await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method: "GET" }), {}, ctx);
+  assert.equal(get.status, 405);
+  assert.equal(((await get.json()) as Rpc).id, null, "a GET without the header is legacy: id null");
+  // A preflight carries no MCP-Protocol-Version header and is not a JSON-RPC request, so a
+  // refused one is a legacy answer and reads id null.
+  const preflight = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
+    method: "OPTIONS",
+    headers: { Origin: "https://evil.example", "Access-Control-Request-Method": "POST" },
+  }), {}, ctx);
+  assert.equal(preflight.status, 403);
+  const preflightBody = await preflight.json() as Rpc;
+  assert.equal(preflightBody.error!.code, -32000);
+  assert.equal(preflightBody.id, null, "a refused preflight reads id null");
+});
+
+test("P22: an Origin that is present but not a serialized origin is refused on every method", async () => {
+  // MCP-09: the SDK parses the Origin as a URL and compares its hostname only, so a path, userinfo,
+  // a fragment, a trailing slash or an empty value passed. A present Origin must equal the
+  // serialized origin of its own parse. An empty value counts as present and malformed, the same
+  // as the literal null; an absent header stays allowed.
+  const valid = { jsonrpc: "2.0", id: 1, method: "tools/list" };
+  const bad = ["https://turva.dev/path", "https://user@turva.dev", "https://turva.dev#fragment", "https://turva.dev/", "https://TURVA.DEV", ""];
+  for (const origin of bad) {
+    const label = JSON.stringify(origin);
+    const postRequest = new Request("https://mcp.turva.dev/mcp", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify(valid) });
+    assert.equal(postRequest.headers.get("Origin"), origin, label + ": the header is present on the request");
+    const r = await post(valid, { Origin: origin });
+    assert.equal(r.status, 403, "POST " + label);
+    const body = await r.json() as Rpc;
+    assert.equal(body.error!.code, -32000, "POST " + label);
+    assert.match(body.error!.message, /Invalid Origin/, "POST " + label);
+    for (const method of ["OPTIONS", "GET", "DELETE"]) {
+      const other = await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method, headers: { Origin: origin } }), {}, ctx);
+      assert.equal(other.status, 403, method + " " + label);
+      await other.text();
+    }
+  }
+});
+
+test("P22c: control: the Origins that passed still pass, and the guard order is unchanged", async () => {
+  // http://turva.dev and https://turva.dev:8443 are accepted on purpose (the comment on
+  // MCP_ALLOWED_ORIGIN_HOSTNAMES). A missing header is a non-browser client.
+  const valid = { jsonrpc: "2.0", id: 1, method: "tools/list" };
+  for (const origin of ["https://turva.dev", "http://turva.dev", "https://turva.dev:8443"]) {
+    const r = await post(valid, { Origin: origin });
+    assert.equal(r.status, 200, "POST " + origin);
+    await r.text();
+    const pre = await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "POST" } }), {}, ctx);
+    assert.equal(pre.status, 200, "OPTIONS " + origin);
+    await pre.text();
+  }
+  const none = await post(valid);
+  assert.equal(none.status, 200, "no Origin header");
+  await none.text();
+  for (const origin of ["https://evil.example", "null", "not-a-url"]) {
+    const r = await post(valid, { Origin: origin });
+    assert.equal(r.status, 403, origin);
+    await r.text();
+  }
+  // A batch and an oversized body keep their 400 and 413 ahead of the Origin check (Tek-458 P7).
+  const batch = await post([valid], { Origin: "https://turva.dev/path" });
+  assert.equal(batch.status, 400, "a batch from a malformed Origin reads 400");
+  await batch.text();
+  const padded = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(70_000) } });
+  const big = await post(padded, { Origin: "" });
+  assert.equal(big.status, 413, "an oversized body from a malformed Origin reads 413");
+  await big.text();
+});
+
+test("P23: an accepted Origin on another scheme or port still gets Access-Control-Allow-Origin: https://turva.dev", async () => {
+  // MCP-08: the hostname check accepts http://turva.dev and https://turva.dev:8443, but the
+  // response always names https://turva.dev, so a browser page on either passes this endpoint's
+  // check and is then refused by the browser's own CORS check. README says so.
+  for (const origin of ["http://turva.dev", "https://turva.dev:8443", "https://turva.dev"]) {
+    const pre = await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "POST" } }), {}, ctx);
+    assert.equal(pre.status, 200, origin);
+    assert.equal(pre.headers.get("access-control-allow-origin"), "https://turva.dev", origin);
+    await pre.text();
+  }
 });
