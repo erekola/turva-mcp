@@ -20,7 +20,7 @@
     "@cloudflare/workers-types": "^4.20260523.1",
     "@types/node": "^22.20.5",
     "typescript": "^7.0.2",
-    "wrangler": "^4.157.0"
+    "wrangler": "^4.158.0"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.4.0",
@@ -38,6 +38,6 @@
     "esbuild@0.28.2": true,
     "fsevents@2.3.3": true,
     "sharp@0.35.5": true,
-    "workerd@1.20261103.1": true
+    "workerd@1.20261104.1": true
   }
 }

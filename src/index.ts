@@ -638,7 +638,7 @@ function withSecurityHeaders(res: Response): Response {
 // caller's own request id is echoed in an error frame and may contain the method name. A
 // malformed or incomplete first frame is "not the acknowledgement".
 function isAcknowledgementFrame(chunk: string): boolean {
-  if (!chunk.endsWith("\n\n") || chunk.indexOf("\n\n") !== chunk.length - 2) return false;
+  if (!chunk.endsWith("\n\n") || chunk.slice(0, -1).includes("\n\n")) return false;
   const data = chunk.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).replace(/^ /, "")).join("\n");
   try {
     const parsed: unknown = JSON.parse(data);
