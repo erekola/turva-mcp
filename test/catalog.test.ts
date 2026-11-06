@@ -118,7 +118,7 @@ test("M5: a limiter that throws fails open rather than taking the endpoint down"
 
 test("M6: every service the catalogue sells has a price and a deliverable", async () => {
   const ids = SERVICES.services.map((s) => s.id);
-  assert.deepEqual(ids, ["domain-check", "audit", "advisory", "implementation", "agent-operations", "mcp-server-design"]);
+  assert.deepEqual(ids, ["audit", "advisory", "implementation", "agent-operations", "mcp-server-design"]);
   for (const s of SERVICES.services) {
     assert.ok(s.name && s.summary && s.deliverable, s.id + " is fully described");
     assert.ok(typeof s.price === "number" || s.price === "on request", s.id + " carries a price or says on request");
