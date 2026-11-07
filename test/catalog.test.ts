@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import worker, { SERVICES, PRINCIPLES, AGENT_READINESS } from "../src/index.ts";
+import worker, { SERVICES, PRINCIPLES, AGENT_READINESS, SECURITY_EVIDENCE, CONTACT } from "../src/index.ts";
 
 // turva-mcp had no test suite until 2026-09-10 (Tek-384). typecheck alone says nothing
 // about runtime behaviour, and the two things this server can get wrong in production,
@@ -202,10 +202,31 @@ test("M9: pricing_note and engagement.notes carry the VAT split and the P2/P4/P6
   const notes = JSON.stringify(SERVICES.engagement.notes);
   assert.match(notes, /how many fixes, questions or review pages the work covers/i, "P2");
   assert.match(notes, /Dates in the written scope move by the business days spent waiting/i, "P4");
-  assert.match(notes, /access counts as arranged when the named account works/i, "P4");
-  assert.match(notes, /A fix that fails the re-check is redone at no charge/i, "P4");
+  assert.match(notes, /access counts as arranged when the account named in writing for that access works/i, "P4");
+  assert.match(notes, /A fix that fails its re-check is redone at no charge/i, "P4");
   assert.match(notes, /The work is done when the checks named in the written plan pass/i, "P6");
   assert.match(notes, /payment does not depend on an outside scanner.s result/i, "P6");
+});
+
+test("M9b: the payment sentence is an entry of its own and the completion note names MCP server design", async () => {
+  const notes: readonly string[] = SERVICES.engagement.notes;
+  assert.ok(notes.includes("Payment does not depend on an outside scanner's result."), "V3: payment sentence stands alone");
+  const completion = notes.filter((n) => /the work is done when the checks named in the written plan pass/i.test(n));
+  assert.equal(completion.length, 1, "V3: one completion note");
+  assert.match(completion[0]!, /MCP server design/, "V3: completion is scoped to MCP server design");
+  assert.doesNotMatch(completion[0]!, /Payment does not depend/, "V3: the two sentences are separate entries");
+});
+
+test("M9c: the operator carries the postal address, every scan a date, the add-on its if_access_missing", async () => {
+  assert.equal(CONTACT.operator.postal_address, "c/o turva.dev, P.O. Box 999, 42011 YRITYSLOKERO, Finland", "V2");
+  for (const scan of SECURITY_EVIDENCE.scans) {
+    assert.match((scan as { measured_at?: string }).measured_at ?? "", /^\d{4}-\d{2}-\d{2}$/, "V4: " + scan.provider);
+  }
+  for (const scan of SECURITY_EVIDENCE.scans.filter((s) => s.provider.startsWith("Internet.nl"))) {
+    assert.equal((scan as { measured_at?: string }).measured_at, SECURITY_EVIDENCE.measured_at, "V4: " + scan.provider);
+  }
+  const addon = SERVICES.bundled_implementation[0] as { if_access_missing?: string };
+  assert.equal(addon.if_access_missing, "The add-on is not sold and the report still carries the correction instructions.", "V5");
 });
 
 test("M10: advisory keeps the first-month opt-out and implementation the direct-test alternative", async () => {

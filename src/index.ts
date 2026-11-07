@@ -32,11 +32,14 @@ export const SERVICES = {
       "The written scope agreed before kickoff sets how many fixes, questions or review pages the work covers, and work beyond it is quoted separately at the day rate.",
       // Corrected 2026-09-28 (P4, 3rd round): named how a written-scope date moves and
       // when access counts as arranged, and that a failed re-check is redone free.
-      "Dates in the written scope move by the business days spent waiting for your approval or access, and access counts as arranged when the named account works.",
-      "A fix that fails the re-check is redone at no charge in the same follow-up round.",
+      "Dates in the written scope move by the business days spent waiting for your approval or access, and access counts as arranged when the account named in writing for that access works.",
+      "A fix that fails its re-check is redone at no charge in the follow-up round of that re-check.",
       // Corrected 2026-09-28 (P6, 3rd round): completion is measured against the written
       // plan, not an outside scanner.
-      "The work is done when the checks named in the written plan pass. Payment does not depend on an outside scanner's result.",
+      // Corrected 2026-11-06 (agent experiment 3, V3): the payment sentence holds for every engagement
+      // and the completion sentence for MCP server design, as /legal and /services state.
+      "Payment does not depend on an outside scanner's result.",
+      "For MCP server design, the work is done when the checks named in the written plan pass.",
     ],
   },
   // Every deliverable here is a promise the site makes in prose, and the two are written
@@ -132,6 +135,8 @@ export const SERVICES = {
       // Corrected 2026-09-28 (V08-28/P14): named the access /services.md already names
       // for this add-on, instead of leaving "arranged in advance" unspecified here.
       summary: "Implementation of exactly the fixes the audit report lists. Sold only with the audit, bought together with it, with its report, or after the report and before implementation starts, and only when the required access is arranged in advance: an edge runtime in front of your origin, deployment access and any other access the listed fixes require, such as DNS. Work outside that list is scoped at the implementation day rate.",
+      // V5: the same consequence the server card and /services state when the access is missing.
+      if_access_missing: "The add-on is not sold and the report still carries the correction instructions.",
     },
   ],
 } as const;
@@ -177,6 +182,8 @@ export const SECURITY_EVIDENCE = {
       score: 98,
       scale: "0-100",
       note: "IPv6, DNSSEC and RPKI pass in full. The single deduction is one HTTPS sub-test, the hash function for key exchange.",
+      // V4: the tool description promises each scan its date; both Internet.nl tests were read on the top-level date.
+      measured_at: "2026-10-29",
       url: "https://internet.nl/site/turva.dev/",
     },
     {
@@ -184,6 +191,7 @@ export const SECURITY_EVIDENCE = {
       score: 90,
       scale: "0-100",
       note: "DNSSEC, DMARC with DKIM and SPF, STARTTLS with DANE, and RPKI pass in full. The deduction is IPv6: the receiving mail servers, which the mail provider operates, publish no IPv6 address.",
+      measured_at: "2026-10-29",
       url: "https://internet.nl/mail/turva.dev/",
     },
   ],
@@ -253,6 +261,8 @@ export const CONTACT = {
     business_id: "3600281-7",
     vat_id: "FI36002817",
     location: "Tampere, Pirkanmaa, Finland",
+    // V2: the same postal address /company, /contact and /legal state.
+    postal_address: "c/o turva.dev, P.O. Box 999, 42011 YRITYSLOKERO, Finland",
     team: "One person. Clients work directly with Erik Rekola, from agreeing the scope to reading the findings.",
     background: "Erik Rekola is an independent consultant in Tampere. Before turva.dev, Erik Rekola worked hands-on with industrial and laboratory equipment from 2015 to 2021: paper machinery at UPM, medical washer-disinfectors at Franke, a clinical LC-MS/MS analyser at Thermo Fisher Scientific and semiconductor production equipment at ASM International.",
     company_page: "https://turva.dev/company",
@@ -299,6 +309,7 @@ const servicesOutput = z.strictObject({
     requires: z.string().describe("The id of the service this add-on is sold with."),
     sold_separately: z.boolean().describe("Whether the add-on can be bought without its service. False means it cannot."),
     summary: z.string().describe("What the add-on covers and when it is bought."),
+    if_access_missing: z.string().describe("What happens when the required access cannot be arranged."),
   })).describe("Implementation add-ons that are sold only with another service."),
 });
 
@@ -324,7 +335,7 @@ const securityOutput = z.strictObject({
     score: z.number().optional().describe("The numeric score, on the range given in scale. Absent when the provider reports a text result."),
     scale: z.string().optional().describe("The range of the score, written as low-high. Absent when there is no numeric score."),
     note: z.string().optional().describe("What passed in full and where the points were lost. Absent when the provider adds no note."),
-    measured_at: z.string().optional().describe("Date of this reading, YYYY-MM-DD, on a reading that carries its own date. It can equal the top-level date."),
+    measured_at: z.string().describe("Date of this reading, YYYY-MM-DD. It can equal the top-level date."),
     url: z.string().describe("The provider's public report page for the domain."),
   })).describe("Web-security scan results, one per provider and test."),
   note: z.string().describe("Why turva.dev publishes the scan results of its own domain."),
@@ -357,6 +368,7 @@ const contactOutput = z.strictObject({
     business_id: z.string().describe("The Finnish business ID of the business."),
     vat_id: z.string().describe("The VAT identification number of the business."),
     location: z.string().describe("Where the business is based: city, region and country."),
+    postal_address: z.string().describe("The postal address of the business."),
     team: z.string().describe("Who works at the business and how clients work with them."),
     background: z.string().describe("The professional background of the person who runs the business."),
     company_page: z.string().describe("The turva.dev page that states the business details."),
@@ -410,7 +422,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.9.0",
+  version: "1.9.1",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
