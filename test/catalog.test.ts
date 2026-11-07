@@ -52,7 +52,7 @@ test("M1: the discovery routes answer with the endpoint the card points at", asy
   assert.equal(glama.status, 200);
   assert.equal(glama.headers.get("cache-control"), "public, max-age=3600");
   assert.equal(JSON.parse(await glama.text()).maintainers[0].email, "info@turva.dev");
-  const missing = await call("/ei-ole");
+  const missing = await call("/no-such-path");
   assert.equal(missing.status, 404);
   assert.equal(missing.headers.get("content-type"), "text/plain; charset=utf-8", "the 404 names its type");
 });
@@ -61,9 +61,9 @@ test("M2: the discovery routes serve GET, HEAD and OPTIONS and refuse the rest",
   // Cloudflare's edge strips a HEAD body in production, so only this test sees whether the
   // Worker itself sends one. Round 20 found this as A1-2: the message promised an empty body
   // and the assertion read only the status.
-  for (const path of ["/", "/.well-known/mcp", "/.well-known/glama.json", "/ei-ole"]) {
+  for (const path of ["/", "/.well-known/mcp", "/.well-known/glama.json", "/no-such-path"]) {
     const head = await call(path, { method: "HEAD" });
-    assert.equal(head.status, path === "/ei-ole" ? 404 : 200, path);
+    assert.equal(head.status, path === "/no-such-path" ? 404 : 200, path);
     assert.equal((await head.arrayBuffer()).byteLength, 0, path + ": HEAD is a GET without the body");
   }
   const pre = await call("/", { method: "OPTIONS" });
@@ -78,8 +78,8 @@ test("M2: the discovery routes serve GET, HEAD and OPTIONS and refuse the rest",
   }
 });
 
-test("M3: every answer carries the security headers", async () => {
-  for (const path of ["/", "/.well-known/glama.json", "/ei-ole"]) {
+test("M3: the discovery routes and the 404 carry the security headers", async () => {
+  for (const path of ["/", "/.well-known/glama.json", "/no-such-path"]) {
     const h = (await call(path)).headers;
     assert.equal(h.get("x-content-type-options"), "nosniff", path);
     assert.ok(h.get("content-security-policy"), path + " carries a CSP");

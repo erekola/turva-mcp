@@ -9,7 +9,7 @@ jobs:
     # The repo had neither a test suite nor a workflow until 2026-09-10 (Tek-384), and
     # typecheck alone says nothing about runtime behaviour. npm ci is measured to resolve
     # here only because of the two overrides in package.json; without them it fails with
-    # ERESOLVE (mds/gotchas.md 2026-07-26 (jatko 11), do-not-fix). Do not remove them.
+    # ERESOLVE (measured 2026-07-26). Do not remove them.
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

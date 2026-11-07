@@ -174,7 +174,7 @@ export const SECURITY_EVIDENCE = {
     {
       provider: "Hardenize",
       result: "24/24 categories passed",
-      measured_at: "2026-10-30",
+      measured_at: "2026-11-07",
       url: "https://www.hardenize.com/report/turva.dev",
     },
     {
@@ -264,7 +264,7 @@ export const CONTACT = {
     // V2: the same postal address /company, /contact and /legal state.
     postal_address: "c/o turva.dev, P.O. Box 999, 42011 YRITYSLOKERO, Finland",
     team: "One person. Clients work directly with Erik Rekola, from agreeing the scope to reading the findings.",
-    background: "Erik Rekola is an independent consultant in Tampere. Before turva.dev, Erik Rekola worked hands-on with industrial and laboratory equipment from 2015 to 2021: paper machinery at UPM, medical washer-disinfectors at Franke, a clinical LC-MS/MS analyser at Thermo Fisher Scientific and semiconductor production equipment at ASM International.",
+    background: "Erik Rekola is an independent consultant in Tampere. Before turva.dev, Erik Rekola worked hands-on with industrial and laboratory equipment from 2015 to 2021: paper machinery at UPM, medical washer-disinfectors at Franke, a clinical LC-MS/MS analyzer at Thermo Fisher Scientific and semiconductor production equipment at ASM International.",
     company_page: "https://turva.dev/company",
   },
 } as const;
@@ -328,7 +328,7 @@ const readinessOutput = z.strictObject({
 
 const securityOutput = z.strictObject({
   domain: z.string().describe("The domain the scans are about."),
-  measured_at: z.string().describe("Date of the scans, YYYY-MM-DD."),
+  measured_at: z.string().describe("Date of the Internet.nl readings, YYYY-MM-DD. Every entry in scans carries its own measured_at, which is the date of that reading."),
   scans: z.array(z.strictObject({
     provider: z.string().describe("The name of the scan provider."),
     result: z.string().optional().describe("The overall result as text, for a provider that reports passed categories instead of a number. Absent when a numeric score is given."),
@@ -422,7 +422,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.9.1",
+  version: "1.9.2",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -434,7 +434,7 @@ const SERVER_INFO = {
 // Each tool description repeats the routing to its neighbours, and this says it once for a
 // client that reads server/discover, or initialize on the 2025-era lane, before it lists the
 // tools.
-const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. Use get_services for the services, their prices, how an engagement runs and the published sample reports. Use get_contact for who runs turva.dev, how to reach it and what access an audit needs, and get_principles for the rules an engagement follows. get_agent_readiness returns turva.dev's own score from the independent scanner isitagentready.com. get_security_evidence returns its own web-security scan results, which are a separate measurement. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
+const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. Use get_services for the services, their prices, how an engagement runs and the published sample report. Use get_contact for who runs turva.dev, how to reach it and what access an audit needs, and get_principles for the rules an engagement follows. get_agent_readiness returns turva.dev's own score from the independent scanner isitagentready.com. get_security_evidence returns its own web-security scan results, which are a separate measurement. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
 
 function createServer(): McpServer {
   const server = new McpServer(
@@ -442,10 +442,11 @@ function createServer(): McpServer {
     {
       // listChanged is false because this server never sends notifications/tools/list_changed:
       // the five tools are compiled in and change only on deploy, and no request outlives its
-      // response. @modelcontextprotocol/server 2.0.0 sets the flag to true at the first
-      // registerTool unless the code that creates the server passes a value. Without this line
-      // the endpoint advertises a notification it never sends, and subscriptions/listen
-      // acknowledges a tools filter that can never fire, as measured on 2026-09-23.
+      // response. @modelcontextprotocol/server set the flag to true at the first
+      // registerTool unless the code that creates the server passes a value (measured on
+      // 2.0.0 on 2026-09-23; protocol.test.ts P1 and P6 hold the outcome on the pinned
+      // release). Without this line the endpoint advertises a notification it never sends,
+      // and subscriptions/listen acknowledges a tools filter that can never fire.
       capabilities: { tools: { listChanged: false } },
       instructions: INSTRUCTIONS,
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
@@ -542,8 +543,9 @@ const MCP_CORS = {
 };
 
 // Browser Origins allowed to reach the endpoint. The list is explicit because relying
-// on the handler's default would make this a derived surface: agents 0.20.1 builds that
-// default at request time from the localhost class, the workers.dev hostname when that
+// on the handler's default would make this a derived surface: agents builds that
+// default at request time (read on 0.20.1; protocol.test.ts holds the outcome on the pinned
+// release) from the localhost class, the workers.dev hostname when that
 // endpoint is enabled, and the hostname of corsOptions.origin, which here is turva.dev.
 // Editing MCP_CORS.origin would then silently change who may reach the endpoint, and a
 // wrong Origin list fails only for browsers: non-browser clients send no Origin at all,
@@ -557,7 +559,7 @@ const MCP_CORS = {
 // zone on, every value this endpoint returns is public, and the list exists to keep other
 // sites' pages out.
 //
-// Corrected 2026-08-16 (round 12, batch E16, finding B3-7). This comment described the
+// Corrected 2026-08-16. This comment described the
 // handler's default as covering nothing but the localhost class and the workers.dev
 // hostname, and concluded that it would therefore reject every browser request.
 // Measured against the pinned dependency, the default also adds the corsOptions.origin
@@ -968,9 +970,8 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
   // which adds the serialized-origin rule, and answers with the same code and message text.
   // None has been read yet, so the id member follows the lane (B2; see mcpError): absent on
   // the 2026-07-28 lane, null on the legacy lane. It runs after the batch check above and the
-  // oversized-body check at the top of this function, which is the order the do-not-fix entry
-  // on the guard before the Origin check (Tek-458 P7)
-  // approves: a disallowed Origin still reads 400 for a batch and 413 for an oversized
+  // oversized-body check at the top of this function, which is the order decided for the guard
+  // before the Origin check (Tek-458 P7): a disallowed Origin still reads 400 for a batch and 413 for an oversized
   // body, never 403, because the memory limit and the batch refusal are answered before
   // Origin is even considered.
   //

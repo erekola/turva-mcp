@@ -468,7 +468,7 @@ test("P15: a disallowed Origin is refused before the malformed-params and __prot
   const protoFromEvil = await post(raw, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_contact", ...evilOrigin });
   assert.equal(protoFromEvil.status, 403, "a raw __proto__ key from a disallowed Origin");
   assert.equal("id" in ((await protoFromEvil.json()) as Rpc), false, "B2: the 2026-07-28 lane has no id field");
-  // The do-not-fix entry on the guard before the Origin check (Tek-458 P7): a batch and an oversized body still answer 400
+  // The decided order of the guard before the Origin check (Tek-458 P7): a batch and an oversized body still answer 400
   // and 413 before Origin is even considered, unchanged by B1.
   const batchFromEvil = await post([{ jsonrpc: "2.0", id: 1, method: "tools/list" }], evilOrigin);
   assert.equal(batchFromEvil.status, 400, "a batch from a disallowed Origin still reads 400, not 403");
@@ -492,13 +492,13 @@ test("P16: an unknown tool name is refused with a capped, separate data field", 
   // echoed the caller's name into the message text verbatim and without a length
   // limit. This is answered by guardMcpPost before the SDK ever sees the request.
   const short = await readJson(await post(
-    { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "turva varmennus proba lause", arguments: {}, _meta: META } },
-    { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "turva varmennus proba lause" },
+    { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "probe tool name with spaces", arguments: {}, _meta: META } },
+    { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "probe tool name with spaces" },
   ));
   assert.equal(short.error!.code, -32602);
   assert.equal(short.id, 3);
-  assert.doesNotMatch(short.error!.message, /turva varmennus proba lause/, "the name is not spliced into the message text");
-  assert.equal(short.error!.data!.tool.name, "turva varmennus proba lause");
+  assert.doesNotMatch(short.error!.message, /probe tool name with spaces/, "the name is not spliced into the message text");
+  assert.equal(short.error!.data!.tool.name, "probe tool name with spaces");
   assert.equal(short.error!.data!.tool.truncated, false);
   const longName = "x".repeat(200);
   const long = await readJson(await post(
@@ -677,7 +677,7 @@ test("P19: a request with a wrong or missing jsonrpc member, or an unsafe id, is
   }
 });
 
-test("P19c: control: well-formed requests keep their earlier answers", async () => {
+test("P19c: control: well-formed requests keep their earlier answers, and a wrong jsonrpc version is refused", async () => {
   const unknownInt = await readJson(await post({ jsonrpc: "2.0", id: 12, method: "tools/call", params: { name: "missing", arguments: {} } }));
   assert.equal(unknownInt.error!.code, -32602);
   assert.equal(unknownInt.id, 12);

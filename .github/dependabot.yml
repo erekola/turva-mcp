@@ -15,8 +15,8 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: deps
-    # @cloudflare/workers-types is held on the ^4 line ON PURPOSE (mds/decisions.md
-    # Tek-73). wrangler declares ^5 as an optional peer while partyserver pins ^4, and
+    # @cloudflare/workers-types is held on the ^4 line ON PURPOSE (Tek-73).
+    # wrangler declares ^5 as an optional peer while partyserver pins ^4, and
     # measured 2026-07-26: without the ^4 hold both `npm install` and `npm ci` fail with
     # ERESOLVE, so a clean clone of this public repo does not build. The package is BOTH
     # a direct devDependency and an `overrides` entry, so without this line Dependabot
@@ -29,8 +29,7 @@ updates:
       # @types/node is held on major 22 because the types' major tracks the Node major
       # and engines declares a lower bound of ^22.18.0 (the CI matrix runs Node 22, 24
       # and 26), so a major jump would type the tests against APIs the oldest supported
-      # Node lacks. It moves by hand when the engines floor moves (mds/decisions.md
-      # Tek-663).
+      # Node lacks. It moves by hand when the engines floor moves (Tek-663).
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
       # agents declares @modelcontextprotocol/client, /server and /sdk as peer

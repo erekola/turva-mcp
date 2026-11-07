@@ -1,6 +1,6 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+## Supported versions
 
 | Version | Supported          |
 | ------- | ------------------ |
@@ -9,8 +9,7 @@
 
 ## Open advisories
 
-None in the runtime tree as of 2026-11-02, the date of the last
-`npm audit --omit=dev` run against this repository. CI runs
+None in the runtime tree. Checked 2026-11-05 with `npm audit --omit=dev`. CI runs
 `npm audit --omit=dev --audit-level=moderate` on every push and pull request,
 so a moderate or higher advisory in a runtime dependency fails the build.
 
@@ -125,19 +124,19 @@ it stays until the SDK REQUIRES the 2.x adapter: as long as the SDK's own
 range still permits 1.x, removing the override lets a known-vulnerable
 version back into the lockfile of a public repository people fork.
 
-*Corrected 2026-08-16 (round 12, batch E16, finding B3-5). The first paragraph
+*Corrected 2026-08-16. The first paragraph
 placed the fixed 2.0.5 release beyond the range the SDK declares. That was true
 of SDK 1.29.0 and is not true of 1.30.0, of 1.32.1 or of 1.32.2. The
 closing sentence also read as if the override were already due to come out. Update 2026-11-05: 1.32.2 has been the
 pinned release since 2026-11-02.*
 
-*Corrected 2026-09-23 (round 20, findings B-1 and TJ-1). The paragraph
+*Corrected 2026-09-23. The paragraph
 miscounted the SDK modules that import the adapter, and it named the wrong
 transport for the entry point of the Agents SDK. Its conclusion, that the
 adapter never reached the deployed bundle, was right, and the reasons given
 for it were not.*
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
 If you discover a security vulnerability, please report it privately
 by emailing **info@turva.dev**.
