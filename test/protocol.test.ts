@@ -142,6 +142,21 @@ test("P4: every tool returns its data as structuredContent and as the same JSON 
   }
 });
 
+// Tek-784: the quoted add-on travels over the wire, not only in the compiled constant. P4 compares the whole
+// object with SERVICES; this one names the fields a client reads, so a dropped list fails by name.
+test("P4b: get_services returns active security testing as a quoted add-on that needs the audit", async () => {
+  const res = await call("tools/call", { name: "get_services", arguments: {} });
+  assert.notEqual(res.isError, true);
+  const sc = res.structuredContent as { quoted_add_ons?: Array<Record<string, unknown>> };
+  assert.equal(sc.quoted_add_ons?.length, 1);
+  const a = sc.quoted_add_ons![0]!;
+  assert.equal(a.name, "Active security testing");
+  assert.equal(a.price, "on request");
+  assert.equal(a.requires, "audit");
+  assert.equal(a.sold_separately, false);
+  assert.equal(a.url, "https://turva.dev/services#active-security-testing");
+});
+
 test("P5: an argument no tool reads is refused as a tool error", async () => {
   const res = await call("tools/call", { name: "get_contact", arguments: { domain: "example.com" } });
   assert.equal(res.isError, true);

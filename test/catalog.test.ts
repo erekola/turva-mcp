@@ -240,6 +240,23 @@ test("M10: advisory keeps the first-month opt-out and implementation the direct-
   assert.match(implementation.deliverable, /verifiable against the audit baseline in the next scan, or a direct test/, "V08-N02/V08-4");
 });
 
+// Tek-784: active security testing is a quoted add-on, so it is in neither the priced services nor the fixed-price
+// bundled list, it carries no number, and it names the audit as the service it needs.
+test("M10b: active security testing is a quoted add-on to the audit and not a service or a fixed-price add-on", async () => {
+  assert.equal(SERVICES.quoted_add_ons.length, 1);
+  const a = SERVICES.quoted_add_ons[0]!;
+  assert.equal(a.id, "active-security-testing");
+  assert.equal(a.price, "on request", "a quoted add-on never carries a number");
+  assert.equal(a.requires, "audit");
+  assert.equal(a.sold_separately, false);
+  const serviceIds: string[] = SERVICES.services.map((s) => s.id);
+  const bundledIds: string[] = SERVICES.bundled_implementation.map((b) => b.id);
+  assert.ok(serviceIds.includes(a.requires), "the service it requires exists");
+  assert.ok(!serviceIds.includes(a.id), "it is not a service an agent buys on its own");
+  assert.ok(!bundledIds.includes(a.id), "it is not a fixed-price add-on");
+  assert.match(SERVICES.pricing_note, /quoted_add_ons/, "the pricing note points at the list");
+});
+
 test("M11: the agent-readiness note describes the url as the scanner start page, not the reading", async () => {
   // V08-N01: the note used to say the live link "carries the current reading", which
   // implies the link itself shows the score. It opens the scanner's start page instead,

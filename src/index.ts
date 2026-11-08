@@ -18,7 +18,7 @@ export const SERVICES = {
   // Corrected 2026-09-28 (P4, 3rd round): named when an implementation add-on is bought.
   // Corrected 2026-10-22 (outside review, A2): reverse charge is named for business customers in another
   // EU member state, and outside the EU no Finnish VAT applies because the place of supply is outside Finland.
-  pricing_note: "The audit, advisory and implementation have fixed list prices in EUR, VAT not included: 25,5% for Finnish customers, reverse charge for business customers in another EU member state with a valid VAT ID, no Finnish VAT for customers outside the EU, because the place of supply is outside Finland. Agent operations and MCP server design are scoped and quoted per engagement. One implementation add-on carries a fixed price and is sold only with the audit it follows, listed under bundled_implementation. The add-on can be bought together with the audit, with its report, or after the report and before implementation starts. Request a quote: turva.dev",
+  pricing_note: "The audit, advisory and implementation have fixed list prices in EUR, VAT not included: 25,5% for Finnish customers, reverse charge for business customers in another EU member state with a valid VAT ID, no Finnish VAT for customers outside the EU, because the place of supply is outside Finland. Agent operations and MCP server design are scoped and quoted per engagement. One implementation add-on carries a fixed price and is sold only with the audit it follows, listed under bundled_implementation. The add-on can be bought together with the audit, with its report, or after the report and before implementation starts. Active security testing is an add-on to the audit, priced by quote for each written scope, listed under quoted_add_ons. Request a quote: turva.dev",
   currency: "EUR",
   vat_included: false,
   engagement: {
@@ -137,6 +137,20 @@ export const SERVICES = {
       summary: "Implementation of exactly the fixes the audit report lists. Sold only with the audit, bought together with it, with its report, or after the report and before implementation starts, and only when the required access is arranged in advance: an edge runtime in front of your origin, deployment access and any other access the listed fixes require, such as DNS. Work outside that list is scoped at the implementation day rate.",
       // V5: the same consequence the server card and /services state when the access is missing.
       if_access_missing: "The add-on is not sold and the report still carries the correction instructions.",
+    },
+  ],
+  // Added 2026-11-08 (Tek-784). A quoted add-on is priced by quote, so its price is the string on request and
+  // never a number, and like the bundled add-on it cannot be bought without the audit. It is a separate list
+  // because bundled_implementation holds fixed prices; the wording is the /services wording for active security testing.
+  quoted_add_ons: [
+    {
+      id: "active-security-testing",
+      name: "Active security testing",
+      url: "https://turva.dev/services#active-security-testing",
+      price: "on request",
+      requires: "audit",
+      sold_separately: false,
+      summary: "An add-on to the audit, priced by quote for each written scope. Tests the agent surfaces the audit reads, or your own AI agent or web application where the written scope says so, and starts only after you sign a written authorization.",
     },
   ],
 } as const;
@@ -311,6 +325,15 @@ const servicesOutput = z.strictObject({
     summary: z.string().describe("What the add-on covers and when it is bought."),
     if_access_missing: z.string().describe("What happens when the required access cannot be arranged."),
   })).describe("Implementation add-ons that are sold only with another service."),
+  quoted_add_ons: z.array(z.strictObject({
+    id: z.string().describe("Stable identifier of the add-on."),
+    name: z.string().describe("The name of the add-on."),
+    url: z.string().describe("The page section that describes the add-on."),
+    price: z.literal("on request").describe("The price is quoted for each written scope."),
+    requires: z.string().describe("The id of the service this add-on is sold with."),
+    sold_separately: z.boolean().describe("Whether the add-on can be bought without its service. False means it cannot."),
+    summary: z.string().describe("What the add-on covers and when it starts."),
+  })).describe("Add-ons to a service, priced by quote for each written scope."),
 });
 
 const readinessOutput = z.strictObject({
@@ -422,8 +445,8 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.9.2",
-  description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, agent operations, MCP server design) with prices, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
+  version: "1.10.0",
+  description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
     { src: "https://turva.dev/favicon.svg", mimeType: "image/svg+xml", sizes: ["any"] },
@@ -465,7 +488,7 @@ function createServer(): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog: the agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing. Fixed list prices apply to the audit, advisory and implementation. Agent operations and MCP server design are on request. The catalog also lists one implementation add-on that carries a fixed price and is sold only with the audit it follows, bought with it, with its report, or after the report and before implementation starts. The audit links a published sample report in sample_url, a fictional worked example of the deliverable. Use this when a user asks what turva.dev offers, what it costs, how an engagement works, or what a delivered report looks like. For how to reach turva.dev use get_contact instead, and for the rules an engagement follows use get_principles. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns turva.dev's service catalog: the agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing. Fixed list prices apply to the audit, advisory and implementation. Agent operations and MCP server design are on request. The catalog also lists one implementation add-on that carries a fixed price and is sold only with the audit it follows, bought with it, with its report, or after the report and before implementation starts. It also lists active security testing, an add-on to the audit that is priced by quote for each written scope, under quoted_add_ons. The audit links a published sample report in sample_url, a fictional worked example of the deliverable. Use this when a user asks what turva.dev offers, what it costs, how an engagement works, or what a delivered report looks like. For how to reach turva.dev use get_contact instead, and for the rules an engagement follows use get_principles. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: servicesOutput,
