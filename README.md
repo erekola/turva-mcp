@@ -131,7 +131,7 @@ The discovery documents and tool data are compiled into the Worker. This Worker 
 
 ## Dependencies
 
-The code imports `@modelcontextprotocol/server`, `agents` and `zod`. `package.json` also lists `@modelcontextprotocol/client` and `@modelcontextprotocol/sdk`, which the code does not import. The `agents` version pinned in `package.json` declares all three MCP packages as peer dependencies at exact versions. Only `@modelcontextprotocol/client` is a required peer. `@modelcontextprotocol/sdk` and `@modelcontextprotocol/server` are marked optional in the `peerDependenciesMeta` of `agents` 0.32.0. They are listed directly because the Worker imports the server package and the lockfile pins the sdk package on purpose. Neither `@modelcontextprotocol/client` nor `@modelcontextprotocol/sdk` is in the built Worker.
+The code imports `@modelcontextprotocol/server`, `agents` and `zod`. `package.json` also lists `@modelcontextprotocol/client` and `@modelcontextprotocol/sdk`, which the code does not import. The `agents` version pinned in `package.json` declares all three MCP packages as peer dependencies at exact versions. Only `@modelcontextprotocol/client` is a required peer. `@modelcontextprotocol/sdk` and `@modelcontextprotocol/server` are marked optional in the `peerDependenciesMeta` of `agents` 0.33.0. They are listed directly because the Worker imports the server package and the lockfile pins the sdk package on purpose. Neither `@modelcontextprotocol/client` nor `@modelcontextprotocol/sdk` is in the built Worker.
 
 ## Security and operating limits
 
@@ -168,7 +168,7 @@ npm run typecheck
 ```
 
 - `npm run dev` starts `wrangler dev` for a local copy of the Worker.
-- `npm test` runs `node --experimental-strip-types --test` over `test/catalog.test.ts` and `test/protocol.test.ts`.
+- `npm test` runs `node --experimental-strip-types --test` over `test/catalog.test.ts`, `test/claims.test.ts` and `test/protocol.test.ts`.
 - `npm run typecheck` runs `tsc --noEmit` twice, once for `src` with `tsconfig.json` and once for `test` with `tsconfig.test.json`.
 - The two `overrides` in `package.json` are deliberate. One keeps `@hono/node-server` on a patched release, as [SECURITY.md](SECURITY.md) explains, and the other points every copy of the Workers types at the direct dependency. Run `npm ci` and `npm audit` again before removing either.
 

@@ -182,7 +182,7 @@ test("M8: the deliverables mirror the approved delivery content for the four sco
     assert.ok(s, id + " is in the catalogue");
     assert.match(s.deliverable, re, id + " deliverable keeps " + re.source);
   }
-  // M4/M8 (00-vastaus.md): the registry step is a submission with a recorded status,
+  // M4/M8: the registry step is a submission with a recorded status,
   // never a promise that a registry accepts the listing.
   assert.doesNotMatch(JSON.stringify(SERVICES), /publication in MCP registries/i);
   const notes = JSON.stringify(SERVICES.engagement.notes);
@@ -192,7 +192,7 @@ test("M8: the deliverables mirror the approved delivery content for the four sco
 
 // Astra audit 2026-09-28, 3rd round: S00-00 D11 (VAT), V08-N01 (agent-readiness note),
 // S00-4.1/P1 (advisory first-month opt-out), V08-N02/V08-4 (implementation "or a direct
-// test") and the P2/P4/P6 engagement notes. This file already reads the catalogue live,
+// test") and the P2/P4/P6 engagement notes. This file imports the catalogue from source, before any deploy,
 // so the wording each decision adds is caught here instead of only by a live read.
 test("M9: pricing_note and engagement.notes carry the VAT split and the P2/P4/P6 wording", async () => {
   assert.match(SERVICES.pricing_note, /25,5% for Finnish customers/, "D11: the same three-way VAT split as /services");

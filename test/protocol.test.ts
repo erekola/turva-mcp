@@ -108,7 +108,7 @@ test("P2: subscriptions/listen acknowledges no tools filter, because none can fi
     { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "subscriptions/listen" },
   );
   assert.equal(r.status, 200);
-  // The stream stays open for notifications, so only its first event is read.
+  // The stream closes itself right after the acknowledgement (see P14), so that first event is the whole answer.
   const reader = r.body!.getReader();
   const { value } = await reader.read();
   await reader.cancel();
@@ -463,7 +463,7 @@ test("P14c: a request id that holds the acknowledgement method name on the 2025-
 });
 
 test("P15: a disallowed Origin is refused before the malformed-params and __proto__ checks", async () => {
-  // B1 (Astra audit 2026-09-28, V02-REGRESSIO / V02-T02): T-01 and T-04 (P12, P13
+  // B1 (Astra audit 2026-09-28): T-01 and T-04 (P12, P13
   // above) used to answer before guardMcpPost reached the SDK's Origin check, so a
   // disallowed Origin combined with a malformed params shape or a raw "__proto__" key
   // read -32602 or a tool error instead of the 403 every other request from that
@@ -529,7 +529,7 @@ test("P16: an unknown tool name is refused with a capped, separate data field", 
 });
 
 test("P17: a disallowed Origin is refused with the lane's id shape when Content-Type is not JSON", async () => {
-  // V02-2 (Astra audit 2026-09-28, 3rd round): the JSON-Content-Type path already answers a
+  // Astra audit 2026-09-28, 3rd round: the JSON-Content-Type path already answers a
   // disallowed Origin with the lane's id shape (P15 above), but a POST whose Content-Type is not
   // JSON used to skip guardMcpPost's own Origin check entirely and reach the SDK's own check.
   // This checks the non-JSON path matches: id null on the legacy lane, no id on the modern one.
@@ -551,7 +551,7 @@ test("P17: a disallowed Origin is refused with the lane's id shape when Content-
   assert.equal(modernEvil.status, 403);
   assert.equal("id" in (await modernEvil.json() as Rpc), false, "2026-07-28 lane: no id field");
   // An allowed Origin with a non-JSON Content-Type is unaffected: the Origin check passes and
-  // the SDK answers its own way for the wrong Content-Type, not refused as a 403 here.
+  // the Worker answers 415 for the wrong Content-Type (see P17c), not a 403.
   const allowed = await worker.fetch(new Request("https://mcp.turva.dev/mcp", {
     method: "POST",
     headers: { "Content-Type": "text/plain", Origin: "https://turva.dev" },
@@ -633,7 +633,7 @@ test("P17b: a JSON body that does not parse is answered by the Worker with 400 a
   await evil.text();
 });
 test("P18: a malformed clientInfo in initialize is refused as Invalid params, not Internal error", async () => {
-  // V02-UUSI-1 (Astra audit 2026-09-28, 3rd round): invalidParamsReason checked
+  // Astra audit 2026-09-28, 3rd round: invalidParamsReason checked
   // protocolVersion and capabilities but not clientInfo, so a clientInfo of the wrong type
   // reached the SDK's own schema validation unguarded and read -32603 Internal error, the
   // same class of bug P12 above already fixed for protocolVersion and capabilities.

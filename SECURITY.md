@@ -9,7 +9,7 @@
 
 ## Open advisories
 
-None in the runtime tree. Checked 2026-11-05 with `npm audit --omit=dev`. CI runs
+None in the runtime tree. Checked 2026-11-10 with `npm audit --omit=dev`. CI runs
 `npm audit --omit=dev --audit-level=moderate` on every push and pull request,
 so a moderate or higher advisory in a runtime dependency fails the build.
 

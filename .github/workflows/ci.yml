@@ -8,8 +8,10 @@ jobs:
   test:
     # The repo had neither a test suite nor a workflow until 2026-09-10 (Tek-384), and
     # typecheck alone says nothing about runtime behaviour. npm ci is measured to resolve
-    # here only because of the two overrides in package.json; without them it fails with
-    # ERESOLVE (measured 2026-07-26). Do not remove them.
+    # here only because of the @cloudflare/workers-types override in package.json; without
+    # it npm ci fails with ERESOLVE (measured 2026-07-26). The other override keeps
+    # @hono/node-server on a patched release for the lockfile (see SECURITY.md). Do not
+    # remove either.
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

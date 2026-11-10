@@ -845,7 +845,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 export const NO_ARGUMENT_TOOL_NAMES = ["get_services", "get_agent_readiness", "get_security_evidence", "get_principles", "get_contact"] as const;
 const NO_ARGUMENT_TOOLS = new Set<string>(NO_ARGUMENT_TOOL_NAMES);
 
-// T-01 (Astra audit 2026-09-26, F-01 in 02-turva-mcp.md and 10-mcp-palvelin.md): the SDK's
+// T-01 (Astra audit 2026-09-26): the SDK's
 // own request-schema validation throws a plain Error, not a ProtocolError, when a known
 // method's params fail its wire schema, and setRequestHandler's function-overload catch maps
 // any thrown value without a numeric .code to ProtocolErrorCode.InternalError (-32603). A
@@ -862,7 +862,7 @@ const NO_ARGUMENT_TOOLS = new Set<string>(NO_ARGUMENT_TOOL_NAMES);
 // fields of the wrong type used to pass the hand-written checks and read -32603 with the schema
 // library's issue list as the message. The answer names the path of the first issue only.
 //
-// V02-UUSI-1 (Astra audit 2026-09-28, 3rd round): the checks above covered protocolVersion
+// Astra audit 2026-09-28, 3rd round: the checks above covered protocolVersion
 // and capabilities but not clientInfo, so a malformed clientInfo (for example a string in
 // place of the object) reached the SDK's own schema check unguarded and read -32603 Internal
 // error, the same class of bug T-01 fixed for the other two fields.
@@ -982,7 +982,7 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
       return mcpError(modern, 400, -32600, "Bad Request: JSON-RPC batches are not supported by this endpoint");
     }
   }
-  // B1 (Astra audit 2026-09-28, V02-REGRESSIO / V02-T02): T-01 and T-04 below used to
+  // B1 (Astra audit 2026-09-28): T-01 and T-04 below used to
   // answer a malformed request before guardMcpPost reached the SDK's own Origin check
   // (createMcpHandler, allowedOriginHostnames), so a disallowed Origin combined with a
   // malformed params shape or a raw "__proto__" key got -32602 or a tool error instead
@@ -998,7 +998,7 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
   // body, never 403, because the memory limit and the batch refusal are answered before
   // Origin is even considered.
   //
-  // V02-2 (Astra audit 2026-09-28, 3rd round): B1/B2 above used to run only inside the
+  // Astra audit 2026-09-28, 3rd round: B1/B2 above used to run only inside the
   // JSON-Content-Type branch, so a POST whose Content-Type is not JSON skipped this check
   // entirely and fell through unchanged to the SDK's own Origin check, which still answers
   // a disallowed Origin with "id":null. Checking the Origin here, before any
