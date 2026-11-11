@@ -1,6 +1,6 @@
 {
   "name": "turva-mcp",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "private": true,
   "description": "MCP server for turva.dev. Exposes the service catalog, agent-readiness scores, security evidence, engagement principles and contact details to AI agents.",
   "type": "module",

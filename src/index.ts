@@ -150,7 +150,7 @@ export const SERVICES = {
       price: "on request",
       requires: "audit",
       sold_separately: false,
-      summary: "An add-on to the audit, priced by quote for each written scope. Tests the agent surfaces the audit reads, or your own AI agent or web application where the written scope says so, and starts only after you sign a written authorization.",
+      summary: "An add-on to the audit, priced by quote for each written scope. Tests the agent surfaces the audit reads, or your own AI agent or web application where the written scope says so, with GLM 5.3 and Burp Suite Professional for web traffic, and starts only after you sign a written authorization.",
     },
   ],
 } as const;
@@ -445,7 +445,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.10.0",
+  version: "1.10.1",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
