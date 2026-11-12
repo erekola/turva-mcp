@@ -9,9 +9,19 @@
 
 ## Open advisories
 
-None in the runtime tree. Checked 2026-11-10 with `npm audit --omit=dev`. CI runs
+None in the runtime tree. Checked 2026-11-12 with `npm audit --omit=dev`. CI runs
 `npm audit --omit=dev --audit-level=moderate` on every push and pull request,
 so a moderate or higher advisory in a runtime dependency fails the build.
+
+A moderate advisory source in one transitive package stopped the dependency
+audit before a push on 2026-11-12. `@hono/node-server` 2.1.5, which
+`@modelcontextprotocol/sdk` 1.32.2 pulls in, carried GHSA-qv5m-9pm6-hqp3 and
+GHSA-jpvv-r467-5p4w. In the first, a connection reset during an asynchronous
+WebSocket upgrade crashes the process. In the second, a backslash in the
+request path is read as a path separator. `npm update @hono/node-server
+--package-lock-only` moved the adapter to 2.1.8, inside the range that the
+`overrides` entry in `package.json` declares. The built `index.js` was
+byte-identical before and after the change.
 
 The development tree held one open advisory source on 2026-10-24. `undici`
 7.29.1, which `miniflare` 5.20261019.2-beta pins exactly and wrangler 4.152.0

@@ -61,7 +61,14 @@ Here `client` is your connected MCP client. The same JSON is also in `result.con
 
 The full response also includes the other contact channels, the steps for starting an engagement and an `operator` object that says who runs turva.dev.
 
-Without an SDK, a request on the current protocol lane needs four things beside the JSON-RPC body: the `MCP-Protocol-Version` header, the `Mcp-Method` header, the `Mcp-Name` header on `tools/call`, and a `_meta` object in `params` that names the protocol version and the client's capabilities. The same call with `curl`:
+Without an SDK, a request on the current protocol lane needs four things beside the JSON-RPC body:
+
+- The `MCP-Protocol-Version` header.
+- The `Mcp-Method` header.
+- The `Mcp-Name` header on `tools/call`.
+- A `_meta` object in `params` that names the protocol version and the client's capabilities.
+
+The same call with `curl`:
 
 ```sh
 curl https://mcp.turva.dev/mcp \
@@ -119,13 +126,19 @@ The current protocol lane uses revision `2026-07-28`. A legacy lane at the same 
 
 The server also negotiates revision `2025-03-26`, which requires a server to accept JSON-RPC batches. This endpoint refuses every batch with `400` and error `-32600` on both lanes. One POST must not carry many `tools/call` requests past the rate limit.
 
-A request is on the current lane only when `MCP-Protocol-Version` is exactly `2026-07-28`. A request without that header, with an older revision or with an unknown version is on the legacy lane for this purpose: the lane decides only the shape of the `id` in an error, and an unknown version is still refused. An error that the server answers before it has read a request id leaves out the `id` member on the current lane. On the legacy lane it sends `"id": null`, as JSON-RPC 2.0 requires. An `OPTIONS` preflight carries no version header and is answered as the legacy lane.
+A request is on the current lane only when `MCP-Protocol-Version` is exactly `2026-07-28`. A request without that header, with an older revision or with an unknown version is on the legacy lane for this purpose. The lane decides only the shape of the `id` in an error, and an unknown version is still refused.
 
-On the current lane every request must carry `MCP-Protocol-Version` and `Mcp-Method`, plus `Mcp-Name` for `tools/call`, and a request without one of them receives `400` with error `-32020`. Validation of the request body is answered first, with `-32602` or a tool error. Malformed `params` and an unknown tool name fall under it, and so does an argument named `__proto__` or an argument list of more than five keys or with a key longer than 64 characters. The same order holds for a request that is also malformed: an unknown protocol version or a wrong `Mcp-Method` on a request with malformed `params` or an unknown tool name receives that `-32602` or tool error, not the header error. A request without `"jsonrpc": "2.0"`, or with an id that is not a string or a safe integer, skips these checks, and the SDK answers it with `400` and error `-32600`. Any other unexpected argument is checked after the headers, and the SDK answers it with a tool error. A JSON-RPC notification is passed to the SDK without this header check. `@modelcontextprotocol/server` checks `Mcp-Method` and `Mcp-Name`, and the Worker checks `MCP-Protocol-Version` before the handler runs, because that package reads the version from the request body and would otherwise answer a request that lacks the header.
+An error that the server answers before it has read a request id leaves out the `id` member on the current lane. On the legacy lane it sends `"id": null`, as JSON-RPC 2.0 requires. An `OPTIONS` preflight carries no version header and is answered as the legacy lane.
+
+On the current lane every request must carry `MCP-Protocol-Version` and `Mcp-Method`, plus `Mcp-Name` for `tools/call`, and a request without one of them receives `400` with error `-32020`. Validation of the request body is answered first, with `-32602` or a tool error. Malformed `params` and an unknown tool name fall under it. An argument named `__proto__` also falls under it, and so does an argument list of more than five keys or with a key longer than 64 characters.
+
+The same order holds for a request that is also malformed. A request with malformed `params` or an unknown tool name receives that `-32602` or tool error, not the header error. This holds with an unknown protocol version or a wrong `Mcp-Method` too. A request without `"jsonrpc": "2.0"`, or with an id that is not a string or a safe integer, skips these checks. The SDK answers it with `400` and error `-32600`. Any other unexpected argument is checked after the headers, and the SDK answers it with a tool error.
+
+A JSON-RPC notification is passed to the SDK without this header check. `@modelcontextprotocol/server` checks `Mcp-Method` and `Mcp-Name`. The Worker checks `MCP-Protocol-Version` before the handler runs, because that package reads the version from the request body and would otherwise answer a request that lacks the header.
 
 On the current lane nothing checks `Accept`, while the legacy lane answers `406` unless `Accept` lists both `application/json` and `text/event-stream`. Standard MCP clients handle these details.
 
-`server/discover` is supplied by `@modelcontextprotocol/server`. It declares the `tools` capability with `listChanged: false`, because the tool set changes only on deploy and the server sends no change notifications, and it returns short instructions that say which tool answers which question.
+`server/discover` is supplied by `@modelcontextprotocol/server`. It declares the `tools` capability with `listChanged: false`, because the tool set changes only on deploy and the server sends no change notifications. It also returns short instructions that say which tool answers which question.
 
 The discovery documents and tool data are compiled into the Worker. This Worker is separate from the main turva.dev Worker, so changes here do not change the website.
 
@@ -135,13 +148,13 @@ The code imports `@modelcontextprotocol/server`, `agents` and `zod`. `package.js
 
 ## Security and operating limits
 
-This server has no write path and returns only public data, so what it has to withstand is abuse of the endpoint itself: load from one address, requests built to be expensive, and a page on another site that calls it from a visitor's browser.
+This server has no write path and returns only public data. What it has to withstand is abuse of the endpoint itself. That means load from one address, requests built to be expensive and a page on another site that calls it from a visitor's browser.
 
 - Public and unauthenticated by design. Every exposed value is already public.
 - Read-only MCP annotations on every tool. No destructive or open-world operation is declared, and no tool takes arguments.
 - Rate limit: about 100 requests per 60 seconds per client IP, with `429` and `Retry-After: 60` after it. Cloudflare's rate-limiting binding keeps a separate, approximate count in each location, so a burst can pass more requests before the first `429`. The endpoint fails open if the rate-limiter binding is missing or errors.
-- Request size: a body over 64 KiB receives `413` before the handler reads it, and a JSON-RPC batch receives `400` on both lanes, so one request cannot carry many tool calls past the rate limit.
-- Browser CORS on `/mcp` accepts an `Origin` whose hostname is `turva.dev`, whatever the scheme or port, and refuses every other origin with `403`. A present `Origin` must also be a serialized origin, so a value with a path, user information, a fragment or a trailing slash is refused with `403`, and so is an empty value. The response always carries `Access-Control-Allow-Origin: https://turva.dev`. A browser page on another scheme or port of `turva.dev` therefore passes this check, and the browser's own CORS check then refuses it. Non-browser MCP clients normally send no `Origin` header and can connect directly. Discovery documents use open CORS so directories can read them.
+- Request size: a body over 64 KiB receives `413` before the handler reads it. A JSON-RPC batch receives `400` on both lanes, so one request cannot carry many tool calls past the rate limit.
+- Browser CORS on `/mcp` accepts an `Origin` whose hostname is `turva.dev`, whatever the scheme or port, and refuses every other origin with `403`. A present `Origin` must also be a serialized origin. A value with a path, user information, a fragment or a trailing slash is refused with `403`, and so is an empty value. The response always carries `Access-Control-Allow-Origin: https://turva.dev`. A browser page on another scheme or port of `turva.dev` therefore passes this check, and the browser's own CORS check then refuses it. Non-browser MCP clients normally send no `Origin` header and can connect directly. Discovery documents use open CORS so directories can read them.
 - The code does not store request bodies, client identities or tool inputs. Cloudflare Workers observability is disabled. A rate-limiter failure writes a diagnostic error without request data.
 - Security headers are applied to MCP and discovery responses.
 
