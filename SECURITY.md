@@ -9,9 +9,20 @@
 
 ## Open advisories
 
-None in the runtime tree. Checked 2026-11-12 with `npm audit --omit=dev`. CI runs
+None in the runtime tree. Checked 2026-11-13 with `npm audit --omit=dev`. CI runs
 `npm audit --omit=dev --audit-level=moderate` on every push and pull request,
 so a moderate or higher advisory in a runtime dependency fails the build.
+
+A moderate advisory source in one transitive package stopped the dependency
+audit before a push on 2026-11-13. `hono` 4.13.12, which
+`@modelcontextprotocol/sdk` 1.32.2 pulls in, carried GHSA-4m76-xfj5-7975,
+GHSA-h7mg-cq63-vhpq, GHSA-46wx-v44x-9hh2 and GHSA-4h7h-rv7c-7m2v, rated
+moderate, and GHSA-3gg2-335m-rxc6, rated low, all fixed in 4.13.16. They are
+in `mount()`, the RegExpRouter, `csrf()`, `validator('form')` and the `css`
+helper. `npm update hono --package-lock-only` moved it to 4.13.18, inside
+the range that the SDK declares. The source map of the Worker bundle lists no
+file from `hono`, and the built `index.js` was byte-identical before and
+after the change.
 
 A moderate advisory source in one transitive package stopped the dependency
 audit before a push on 2026-11-12. `@hono/node-server` 2.1.5, which
