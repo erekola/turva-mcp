@@ -219,6 +219,8 @@ test("M9b: the payment sentence is an entry of its own and the completion note n
 
 test("M9c: the operator carries the postal address, every scan a date, the add-on its if_access_missing", async () => {
   assert.equal(CONTACT.operator.postal_address, "c/o turva.dev, P.O. Box 999, 42011 YRITYSLOKERO, Finland", "V2");
+  // Tek-827: get_contact points an agent that asks for the imprint to the legal page.
+  assert.equal(CONTACT.operator.legal_page, "https://turva.dev/legal", "Tek-827");
   for (const scan of SECURITY_EVIDENCE.scans) {
     assert.match((scan as { measured_at?: string }).measured_at ?? "", /^\d{4}-\d{2}-\d{2}$/, "V4: " + scan.provider);
   }

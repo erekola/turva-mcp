@@ -280,6 +280,7 @@ export const CONTACT = {
     team: "One person. Clients work directly with Erik Rekola, from agreeing the scope to reading the findings.",
     background: "Erik Rekola is an independent consultant in Tampere. Before turva.dev, Erik Rekola worked hands-on with industrial and laboratory equipment from 2015 to 2021: paper machinery at UPM, medical washer-disinfectors at Franke, a clinical LC-MS/MS analyzer at Thermo Fisher Scientific and semiconductor production equipment at ASM International.",
     company_page: "https://turva.dev/company",
+    legal_page: "https://turva.dev/legal",
   },
 } as const;
 
@@ -395,6 +396,7 @@ const contactOutput = z.strictObject({
     team: z.string().describe("Who works at the business and how clients work with them."),
     background: z.string().describe("The professional background of the person who runs the business."),
     company_page: z.string().describe("The turva.dev page that states the business details."),
+    legal_page: z.string().describe("The turva.dev page that states the terms, the privacy notice and how data is handled."),
   }).describe("Who runs turva.dev and the registered business behind it."),
 });
 
@@ -445,7 +447,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.10.3",
+  version: "1.11.0",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -457,7 +459,7 @@ const SERVER_INFO = {
 // Each tool description repeats the routing to its neighbours, and this says it once for a
 // client that reads server/discover, or initialize on the 2025-era lane, before it lists the
 // tools.
-const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. Use get_services for the services, their prices, how an engagement runs and the published sample report. Use get_contact for who runs turva.dev, how to reach it and what access an audit needs, and get_principles for the rules an engagement follows. get_agent_readiness returns turva.dev's own score from the independent scanner isitagentready.com. get_security_evidence returns its own web-security scan results, which are a separate measurement. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
+const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the terms of an engagement and the published sample report. For the standing rules behind every engagement and the reason for each, call get_principles. For who runs turva.dev, its business and legal details, how to reach it and what access an audit needs, call get_contact. get_agent_readiness returns turva.dev's own score from the independent scanner isitagentready.com. get_security_evidence returns its own web-security scan results, which are a separate measurement. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
 
 function createServer(): McpServer {
   const server = new McpServer(
@@ -488,7 +490,7 @@ function createServer(): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog: the agent-readiness audit, advisory, implementation, agent operations, and MCP server design, plus the engagement model and pricing. Fixed list prices apply to the audit, advisory and implementation. Agent operations and MCP server design are on request. The catalog also lists one implementation add-on that carries a fixed price and is sold only with the audit it follows, bought with it, with its report, or after the report and before implementation starts. It also lists active security testing, an add-on to the audit that is priced by quote for each written scope, under quoted_add_ons. The audit links a published sample report in sample_url, a fictional worked example of the deliverable. Use this when a user asks what turva.dev offers, what it costs, how an engagement works, or what a delivered report looks like. For how to reach turva.dev use get_contact instead, and for the rules an engagement follows use get_principles. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns turva.dev's service catalog: the agent-readiness audit, advisory, implementation, agent operations, and MCP server design, with pricing and the terms of an engagement: scope, access, dates and payment. Fixed list prices apply to the audit, advisory and implementation. Agent operations and MCP server design are on request. The catalog also lists one implementation add-on that carries a fixed price and is sold only with the audit it follows, bought with it, with its report, or after the report and before implementation starts. It also lists active security testing, an add-on to the audit that is priced by quote for each written scope, under quoted_add_ons. The audit links a published sample report in sample_url, a fictional worked example of the deliverable. Use this when a user asks what turva.dev offers, what it costs, what the terms of an engagement are, or what a delivered report looks like. For the standing rules turva.dev keeps in every engagement use get_principles instead, and for how to reach turva.dev or start an audit use get_contact. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: servicesOutput,
@@ -524,7 +526,7 @@ function createServer(): McpServer {
     "get_principles",
     {
       title: "Engagement principles",
-      description: "Returns turva.dev's engagement principles: async-only, least access, each fix checked with a scanner or a direct test, and open and verifiable. Use this when a user asks how turva.dev works with clients or what rules an engagement follows. For what is sold and what it costs use get_services instead, and for how to start use get_contact. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns turva.dev's four engagement principles, each with its reason: async-only, least access, each fix checked with a scanner or a direct test, and open and verifiable. Use this when a user asks what turva.dev stands by or why it works the way it does, for example why there are no calls. For the terms of an engagement, its scope, access, dates, payment and prices, use get_services instead, and for how to start use get_contact. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: principlesOutput,
@@ -536,7 +538,7 @@ function createServer(): McpServer {
     "get_contact",
     {
       title: "Contact and operator details",
-      description: "Returns who runs turva.dev and the official ways to reach it: the operator and business details, the email address, the Signal link, the LinkedIn profile, the correspondence languages, the first-reply time and the access an audit needs. Use this when a user asks who is behind turva.dev, how to contact it, how to start an audit or what access has to be granted. For what is sold and what it costs use get_services instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns who runs turva.dev and the official ways to reach it. The operator details give the legal form, Business ID, VAT ID and postal address. The rest gives the email address, the Signal link, the LinkedIn profile, the correspondence languages, the first-reply time, the access an audit needs, and links to the company page and to the legal page that states the terms, the privacy notice and how data is handled. Use this when a user asks who is behind turva.dev, for its legal or imprint details, how to contact it, how to start an audit or what access has to be granted. For what is sold and what it costs use get_services instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: contactOutput,
