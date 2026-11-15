@@ -188,7 +188,10 @@ function evidenceProblem(text: string): string | null {
   if (!para.includes(`${mailScan.score}/100 on its [email test]`)) return "the Internet.nl email score differs";
   const categories = (hardenize as { result: string }).result.match(/^(\d+)\/(\d+) categories passed/);
   if (!categories || categories[1] !== categories[2] || !para.includes(`all ${categories[2]} categories passed`)) return "the Hardenize result differs";
-  const dates = para.match(/Hardenize reading is dated (\d{4}-\d{2}-\d{2}) and the others (\d{4}-\d{2}-\d{2})/);
+  // When every reading shares one day the README names that day once (2026-11-15); both forms are read
+  // as a Hardenize date and a date of the others, so each is still compared with the data.
+  const oneDay = para.match(/All of these readings are dated (\d{4}-\d{2}-\d{2})\./);
+  const dates = oneDay ? [oneDay[0], oneDay[1], oneDay[1]] : para.match(/Hardenize reading is dated (\d{4}-\d{2}-\d{2}) and the others (\d{4}-\d{2}-\d{2})/);
   if (!dates) return "the date sentence is missing";
   if (dates[1] !== hardenize.measured_at) return `Hardenize date ${dates[1]} differs from ${hardenize.measured_at}`;
   const others = [AGENT_READINESS.measured_at, siteScan.measured_at, mailScan.measured_at];
@@ -204,7 +207,12 @@ test("K6: the README Evidence paragraph carries the scores and dates the tools r
   assert.notEqual(evidenceProblem(README.replace("all 24 categories passed", "all 23 categories passed")), null, "a changed Hardenize result fails");
   const hardenizeDate = SECURITY_EVIDENCE.scans[0].measured_at;
   assert.notEqual(evidenceProblem(README.replace(`dated ${hardenizeDate}`, "dated 2026-10-30")), null, "a stale Hardenize date fails");
-  assert.notEqual(evidenceProblem(README.replace("the others 2026-10-29", "the others 2026-10-28")), null, "a stale date of the others fails");
+  // 2026-11-15: the README may name one day for all readings, so the two-date form is built from it here and both
+  // forms are mutated; the dates are read from the data, so the mutations follow each measurement day.
+  const twoDates = README.replace(`All of these readings are dated ${AGENT_READINESS.measured_at}.`, `The Hardenize reading is dated ${hardenizeDate} and the others ${AGENT_READINESS.measured_at}.`);
+  assert.equal(evidenceProblem(twoDates), null, "the two-date form passes while its dates hold");
+  assert.notEqual(evidenceProblem(twoDates.replace(`the others ${AGENT_READINESS.measured_at}`, "the others 2026-10-28")), null, "a stale date of the others fails");
+  assert.notEqual(evidenceProblem(twoDates.replace(`dated ${hardenizeDate}`, "dated 2026-10-30")), null, "a stale Hardenize date fails in the two-date form");
 });
 
 // ---- README and wrangler.jsonc: observability ---------------------------------------

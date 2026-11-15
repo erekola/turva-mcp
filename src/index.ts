@@ -157,7 +157,7 @@ export const SERVICES = {
 
 export const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-10-29",
+  measured_at: "2026-11-15",
   // Corrected 2026-09-28 (32/T1-01): "Always verify against the live links below" was an
   // imperative addressed to the caller; this states the fact instead.
   // Corrected 2026-09-28 (V08-N01, 3rd round): "the live links below carry the current
@@ -183,12 +183,12 @@ export const AGENT_READINESS = {
 
 export const SECURITY_EVIDENCE = {
   domain: "turva.dev",
-  measured_at: "2026-10-29",
+  measured_at: "2026-11-15",
   scans: [
     {
       provider: "Hardenize",
       result: "24/24 categories passed",
-      measured_at: "2026-11-07",
+      measured_at: "2026-11-15",
       url: "https://www.hardenize.com/report/turva.dev",
     },
     {
@@ -197,7 +197,7 @@ export const SECURITY_EVIDENCE = {
       scale: "0-100",
       note: "IPv6, DNSSEC and RPKI pass in full. The single deduction is one HTTPS sub-test, the hash function for key exchange.",
       // V4: the tool description promises each scan its date; both Internet.nl tests were read on the top-level date.
-      measured_at: "2026-10-29",
+      measured_at: "2026-11-15",
       url: "https://internet.nl/site/turva.dev/",
     },
     {
@@ -205,7 +205,7 @@ export const SECURITY_EVIDENCE = {
       score: 90,
       scale: "0-100",
       note: "DNSSEC, DMARC with DKIM and SPF, STARTTLS with DANE, and RPKI pass in full. The deduction is IPv6: the receiving mail servers, which the mail provider operates, publish no IPv6 address.",
-      measured_at: "2026-10-29",
+      measured_at: "2026-11-15",
       url: "https://internet.nl/mail/turva.dev/",
     },
   ],
@@ -445,7 +445,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.10.2",
+  version: "1.10.3",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
