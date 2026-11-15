@@ -196,9 +196,9 @@ This repository is MIT licensed and can be adapted for another site. Before depl
 1. Replace the static service and evidence objects in `src/index.ts` with your own published data.
 2. Replace the hard-coded `turva.dev` domain, MCP endpoint, browser origin and verification links with values you control.
 3. Give the Worker a unique `name` and a rate-limit `namespace_id` that is not shared with another Worker in your Cloudflare account.
-4. Attach your own custom domain. `workers_dev` is disabled in `wrangler.jsonc`.
+4. Attach your own custom domain. `workers_dev` and `preview_urls` are disabled in `wrangler.jsonc`.
 
-Run the checks from Develop and test, then deploy with your Cloudflare account:
+Run the checks from Develop and test, starting with `npm ci`, on the commit you deploy, because Wrangler builds the bundle from your own working tree and `node_modules`, not from a CI run. Then deploy with your Cloudflare account:
 
 ```sh
 npm run deploy

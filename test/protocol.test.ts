@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import worker, { SERVICES, AGENT_READINESS, SECURITY_EVIDENCE, PRINCIPLES, CONTACT, NO_ARGUMENT_TOOL_NAMES } from "../src/index.ts";
+import worker, { SERVICES, AGENT_READINESS, SECURITY_EVIDENCE, PRINCIPLES, CONTACT, NO_ARGUMENT_TOOL_NAMES, closeListenStreamAfterAck } from "../src/index.ts";
 import { SUBSCRIPTION_ID_META_KEY } from "@modelcontextprotocol/server";
 
 // The MCP endpoint itself, called the way a client calls it. catalog.test.ts holds the
@@ -920,4 +920,194 @@ test("P23: an accepted Origin on another scheme or port still gets Access-Contro
     assert.equal(pre.headers.get("access-control-allow-origin"), "https://turva.dev", origin);
     await pre.text();
   }
+});
+
+// A roughly 5 000 level deep
+// capabilities.experimental, 30 kB and so under the 64 KiB cap, used to pass the guard and make
+// the SDK's schema library overflow the stack: a 400 whose data field named RangeError, plus an
+// unhandled promise rejection. The guard now refuses params nested more than 64 levels, counting
+// params itself as level 1, before any schema runs. 64 is far above what a client sends
+// (capabilities, _meta and clientInfo nest 3 to 5 levels) and far below the 1 000 levels where
+// the overflow starts, so the refusal never meets a real client.
+function nestedObjects(depth: number): string {
+  return '{"a":'.repeat(depth) + "1" + "}".repeat(depth);
+}
+const initializeWithExperimental = (depth: number) => `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"experimental":${nestedObjects(depth)}},"clientInfo":{"name":"x","version":"1"}}}`;
+
+test("P24: a deeply nested initialize is refused as Invalid params, with no internal error name and no unhandled rejection", async () => {
+  const rejections: unknown[] = [];
+  const onRejection = (reason: unknown) => { rejections.push(reason); };
+  process.on("unhandledRejection", onRejection);
+  try {
+    const deep = await post(initializeWithExperimental(5000));
+    const text = await deep.text();
+    assert.equal(deep.status, 200, "answered like every other Invalid params");
+    const body = JSON.parse(text) as Rpc;
+    assert.equal(body.error?.code, -32602);
+    assert.equal(body.id, 1);
+    assert.match(body.error!.message, /^Invalid params: /);
+    assert.doesNotMatch(text, /RangeError|call stack|Parse error/, "nothing internal in the body");
+    assert.equal((body.error as { data?: unknown }).data, undefined, "no data field");
+    // The overflow, when it happens, surfaces on a later turn of the event loop.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  } finally {
+    process.off("unhandledRejection", onRejection);
+  }
+  assert.equal(rejections.length, 0, "no unhandled promise rejection is left behind: " + String(rejections[0]));
+});
+
+test("P24b: control: nesting up to the limit is accepted exactly as before, one level more is not", async () => {
+  // params is level 1, capabilities 2, experimental 3, so 62 nested objects below it reach 64.
+  // A depth of 1 is {"a":1}, which the SDK schema itself refuses (experimental holds objects),
+  // so the accepted range starts at 2.
+  for (const depth of [2, 5, 30, 62]) {
+    const ok = await readJson(await post(initializeWithExperimental(depth)));
+    assert.equal(ok.error, undefined, "depth " + depth + " is accepted");
+    assert.equal(typeof ok.result!.protocolVersion, "string", "depth " + depth);
+  }
+  const over = await readJson(await post(initializeWithExperimental(63)));
+  assert.equal(over.error?.code, -32602, "level 65 is refused");
+  // Deep nesting in another capability that the SDK schema ignores is refused the same way.
+  const roots = await readJson(await post(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"roots":${nestedObjects(500)}},"clientInfo":{"name":"x","version":"1"}}}`));
+  assert.equal(roots.error?.code, -32602, "deep roots is refused too");
+  // Arrays count as levels as well.
+  const arrays = await readJson(await post(`{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"cursor":"c","x":${"[".repeat(200)}${"]".repeat(200)}}}`));
+  assert.equal(arrays.error?.code, -32602, "deep arrays are refused too");
+  // A deep value that is not nested params (a long flat array) is not a depth problem.
+  const flat = await readJson(await post({ jsonrpc: "2.0", id: 3, method: "tools/list", params: { x: Array.from({ length: 5000 }, () => 1) } }));
+  assert.equal(flat.error, undefined, "a flat array of 5 000 numbers is accepted");
+});
+
+test("P24c: the same depth limit covers a body without an id: a clean 400, no internal error name, no unhandled rejection", async () => {
+  const rejections: unknown[] = [];
+  const onRejection = (reason: unknown) => { rejections.push(reason); };
+  process.on("unhandledRejection", onRejection);
+  try {
+    const deepInit = `{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"experimental":${nestedObjects(5000)}},"clientInfo":{"name":"x","version":"1"}}}`;
+    const deepCall = `{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_contact","arguments":{"x":${nestedObjects(5000)}}}}`;
+    const deepNotice = `{"jsonrpc":"2.0","method":"notifications/initialized","params":{"x":${nestedObjects(5000)}}}`;
+    for (const [label, raw] of [["initialize", deepInit], ["tools/call", deepCall], ["notifications/initialized", deepNotice]]) {
+      const res = await post(raw);
+      const text = await res.text();
+      assert.equal(res.status, 400, label);
+      const body = JSON.parse(text) as Rpc;
+      assert.equal(body.error?.code, -32600, label);
+      assert.equal(body.id, null, label);
+      assert.equal(body.error!.message, "Invalid Request: params are nested more than 64 levels deep", label);
+      assert.equal((body.error as { data?: unknown }).data, undefined, label + ": no data field");
+      assert.doesNotMatch(text, /RangeError|call stack|Parse error/, label);
+    }
+    // On the 2026-07-28 lane the refusal leaves the id member out, as every other error there does.
+    const modern = await post(deepNotice, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "notifications/initialized" });
+    const modernText = await modern.text();
+    assert.equal(modern.status, 400, "2026-07-28 lane");
+    assert.equal(Object.hasOwn(JSON.parse(modernText) as object, "id"), false, "2026-07-28 lane: no id member");
+    assert.equal((JSON.parse(modernText) as Rpc).error?.code, -32600, "2026-07-28 lane");
+    assert.doesNotMatch(modernText, /RangeError|call stack|Parse error/, "2026-07-28 lane");
+    // Exactly 64 levels deep without an id behaves as before: a notification is accepted.
+    const ok = await post(`{"jsonrpc":"2.0","method":"notifications/initialized","params":{"x":${nestedObjects(62)}}}`);
+    assert.equal(ok.status, 202, "64 levels deep, no id: accepted as before");
+    await ok.text();
+    const plain = await post({ jsonrpc: "2.0", method: "notifications/initialized" });
+    assert.equal(plain.status, 202, "an ordinary notification keeps its answer");
+    await plain.text();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  } finally {
+    process.off("unhandledRejection", onRejection);
+  }
+  assert.equal(rejections.length, 0, "no unhandled promise rejection is left behind: " + String(rejections[0]));
+});
+
+// The relay branch of closeListenStreamAfterAck had no
+// cancel hook, so a downstream cancel never reached the SDK's stream. The pinned SDK 2.4.0 never
+// takes this branch with a stream that stays open (its first chunk is always the
+// acknowledgement and the 2025-era lane ends by itself), so this is insurance for an SDK update.
+// What this test proves: in isolation, with an upstream of its own that never ends and whose
+// first chunk is not the acknowledgement, cancelling the downstream reader cancels the upstream.
+// What it does not prove: that the SDK can reach this branch, or how workerd treats a cancel.
+test("P25: a downstream cancel on the relay branch reaches the upstream stream", async () => {
+  let upstreamCancelled = false;
+  let upstreamReason: unknown;
+  const upstream = new ReadableStream<Uint8Array>({
+    start(controller) { controller.enqueue(new TextEncoder().encode(": keepalive\n\n")); },
+    cancel(reason) { upstreamCancelled = true; upstreamReason = reason; },
+  });
+  const res = new Response(upstream, { headers: { "Content-Type": "text/event-stream" } });
+  const relayed = closeListenStreamAfterAck(res, 7);
+  const reader = relayed.body!.getReader();
+  const first = await reader.read();
+  assert.equal(new TextDecoder().decode(first.value), ": keepalive\n\n", "the first chunk is relayed unchanged");
+  await reader.cancel("client went away");
+  for (let i = 0; i < 20 && !upstreamCancelled; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(upstreamCancelled, true, "the upstream was cancelled");
+  assert.equal(upstreamReason, "client went away", "with the downstream's reason");
+});
+
+// The echo limits of the tool name and the argument keys (64 characters) now also cover the
+// Origin refusal text (the whole message is at most 96 characters) and the path of an
+// initialize issue. Not capped, and not covered here: the SDK's own protocol-version messages
+// and a string request id, which are echoed as sent.
+test("P26: the Origin and the initialize issue path are echoed only up to a limit", async () => {
+  const valid = { jsonrpc: "2.0", id: 1, method: "tools/list" };
+  const long = "https://turva.dev/" + "p".repeat(5000);
+  for (const origin of [long, "x".repeat(5000), "https://" + "h".repeat(200) + ".example"]) {
+    const r = await post(valid, { Origin: origin });
+    assert.equal(r.status, 403, "still refused");
+    const text = await r.text();
+    const message = (JSON.parse(text) as Rpc).error!.message;
+    assert.match(message, /^Invalid Origin/);
+    assert.equal(message.length, 99, "the message is cut at 96 characters plus the ellipsis, got " + message.length);
+    assert.ok(message.endsWith("..."), "and ends in the ellipsis");
+    assert.ok(text.length < 400, "and so is the whole body, got " + text.length);
+  }
+  // Short Origins keep the exact message they had.
+  const short = await post(valid, { Origin: "https://evil.example" });
+  assert.equal(((await short.json()) as Rpc).error!.message, "Invalid Origin: evil.example");
+  const shortBad = await post(valid, { Origin: "https://turva.dev/path" });
+  assert.equal(((await shortBad.json()) as Rpc).error!.message, "Invalid Origin header: https://turva.dev/path");
+  // The issue path of an initialize: a 2 000 character key under capabilities.experimental.
+  const key = "K".repeat(2000);
+  const r = await readJson(await post({
+    jsonrpc: "2.0", id: 9, method: "initialize",
+    params: { protocolVersion: "2025-06-18", capabilities: { experimental: { [key]: 1 } }, clientInfo: { name: "x", version: "1" } },
+  }));
+  assert.equal(r.error?.code, -32602);
+  assert.ok(r.error!.message.length < 200, "the message is short, got " + r.error!.message.length);
+  assert.ok(r.error!.message.startsWith("Invalid params: params.capabilities.experimental."), r.error!.message);
+  assert.doesNotMatch(r.error!.message, /K{65}/, "no key longer than 64 characters comes back");
+  // A key within the limit still comes back whole, as P20 expects of the path.
+  const ok64 = await readJson(await post({
+    jsonrpc: "2.0", id: 10, method: "initialize",
+    params: { protocolVersion: "2025-06-18", capabilities: { experimental: { ["k".repeat(64)]: 1 } }, clientInfo: { name: "x", version: "1" } },
+  }));
+  assert.ok(ok64.error!.message.includes("k".repeat(64)), "a 64 character key is echoed whole");
+});
+
+// Deployment and repository hygiene: these read files and assert what they must keep saying.
+test("P27: deployment and repository hygiene: no preview URLs, a named rate-limit binding, a bounded CI job, no credential files committed", () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
+  const conf = read("../wrangler.jsonc");
+  assert.match(conf, /^\s*"workers_dev":\s*false,/m, "workers_dev stays off");
+  assert.match(conf, /^\s*"preview_urls":\s*false,/m, "preview URLs are off, so no <version>-turva-mcp.<subdomain>.workers.dev");
+  // The limiter is optional in code and fails open on purpose (see the README), so a
+  // renamed binding would switch it off without any failing test. The name in the Env interface
+  // must be the name wrangler.jsonc declares.
+  const bindingName = /interface Env \{\s*(\w+)\?:/.exec(read("../src/index.ts"))?.[1];
+  assert.equal(bindingName, "RATE_LIMITER");
+  const declares = (config: string, name: string) => new RegExp(`"name":\\s*"${name}"`).test(config);
+  assert.ok(declares(conf, bindingName), "wrangler.jsonc declares the binding the code reads");
+  assert.ok(!declares(conf.replace('"RATE_LIMITER"', '"RATE_LIMITER_RENAMED"'), bindingName), "the check does fail on a rename");
+  // The CI job neither keeps the checkout token nor runs without a time limit.
+  const ci = read("../.github/workflows/ci.yml");
+  assert.match(ci, /^\s+persist-credentials:\s*false\s*$/m, "checkout does not leave the token in .git/config");
+  assert.match(ci, /^\s+timeout-minutes:\s*\d+\s*$/m, "the job has a time limit");
+  // Registry tokens and key material stay out of the repository.
+  const ignored = read("../.gitignore").split(/\r?\n/).map((line) => line.trim());
+  for (const pattern of [".npmrc", "*.pem", "*.key", "credentials.json"]) {
+    assert.ok(ignored.includes(pattern), ".gitignore lists " + pattern);
+  }
+  // The deploy steps tell the reader to install from the lockfile.
+  const readme = read("../README.md");
+  const deploy = readme.slice(readme.indexOf("## Deploy your own copy"), readme.indexOf("## Maintainer"));
+  assert.ok(deploy.includes("npm ci"), "the deploy-your-own-copy steps say to run npm ci");
 });

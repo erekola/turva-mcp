@@ -7,6 +7,12 @@
   // Off on purpose, same reason as turva-worker: the MCP endpoint is reachable at
   // mcp.turva.dev only, not additionally on a *.workers.dev hostname.
   "workers_dev": false,
+  // Also off on purpose: per-version Preview URLs
+  // would serve each uploaded version at <version>-turva-mcp.<subdomain>.workers.dev, a
+  // second hostname outside the turva.dev zone, which is the exposure workers_dev: false closes
+  // above. Wrangler's schema (config-schema.json) documents the key and defaults it to false;
+  // it is written out so the invariant does not rest on a default.
+  "preview_urls": false,
   // The endpoint declares a RateLimit-Policy of 100 requests per 60 seconds on every
   // response, and this binding is what applies it. The binding counts per Cloudflare
   // location and approximately, so the header states the configured quota and not an exact

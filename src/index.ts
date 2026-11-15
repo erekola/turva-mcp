@@ -445,7 +445,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.10.1",
+  version: "1.10.2",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -673,9 +673,14 @@ function isAcknowledgementFrame(chunk: string): boolean {
   }
 }
 
-function closeListenStreamAfterAck(res: Response, subscriptionId: string | number): Response {
+// Exported only so a test can drive the relay branch with a stream of its own; the Worker's
+// default export is the one entry point.
+export function closeListenStreamAfterAck(res: Response, subscriptionId: string | number): Response {
   if (!(res.headers.get("content-type") ?? "").includes("text/event-stream") || res.body === null) return res;
   const upstream = res.body.getReader();
+  // Set by the cancel hook below, so the relay loop stops instead of enqueueing into a stream
+  // its consumer has already cancelled.
+  let cancelled = false;
   const encoder = new TextEncoder();
   const completeFrame = encoder.encode(`event: message\ndata: ${JSON.stringify({
     jsonrpc: "2.0",
@@ -693,10 +698,10 @@ function closeListenStreamAfterAck(res: Response, subscriptionId: string | numbe
         if (value !== undefined) controller.enqueue(value);
         for (;;) {
           const next = await upstream.read();
-          if (next.done) break;
+          if (next.done || cancelled) break;
           controller.enqueue(next.value);
         }
-        controller.close();
+        if (!cancelled) controller.close();
         return;
       }
       try {
@@ -706,6 +711,15 @@ function closeListenStreamAfterAck(res: Response, subscriptionId: string | numbe
       }
       controller.enqueue(completeFrame);
       controller.close();
+    },
+    // A downstream cancel used to stop at this
+    // wrapper and never reach the SDK's stream, so on the relay branch above its keepalive timer
+    // and bus subscription would have outlived the caller. The pinned SDK (2.4.0) does not take
+    // that branch with a stream that stays open: its first chunk is always the acknowledgement
+    // and the 2025-era lane ends its own stream. This is insurance for an SDK update.
+    cancel(reason) {
+      cancelled = true;
+      return upstream.cancel(reason);
     },
   });
   return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
@@ -821,18 +835,28 @@ async function withoutNullId(res: Response): Promise<Response> {
 // malformed, the same as the literal null; an absent header is a non-browser client and passes.
 // http://turva.dev and https://turva.dev:8443 are serialized origins and stay accepted (see the
 // comment on MCP_ALLOWED_ORIGIN_HOSTNAMES). The message text is the SDK's own.
+// The refusal text echoes the caller's Origin, which the platform allows to be several
+// kilobytes. The whole message is therefore capped at 96 characters: a longer one is cut at 96
+// and ends in "...". With the 23 character prefix "Invalid Origin header: " that lets 73 of
+// the caller's characters through whole. The status and code are unchanged, and so is the
+// message of every Origin short enough to fit.
+const MAX_ORIGIN_ERROR_MESSAGE_LENGTH = 96;
+function cappedOriginMessage(message: string): string {
+  return message.length > MAX_ORIGIN_ERROR_MESSAGE_LENGTH ? message.slice(0, MAX_ORIGIN_ERROR_MESSAGE_LENGTH) + "..." : message;
+}
+
 function checkedOrigin(raw: string | null): { ok: true } | { ok: false; message: string } {
   if (raw === null) return { ok: true };
   if (raw === "") return { ok: false, message: "Invalid Origin header: " };
   const sdk = validateOriginHeader(raw, MCP_ALLOWED_ORIGIN_HOSTNAMES);
-  if (!sdk.ok) return { ok: false, message: sdk.message };
+  if (!sdk.ok) return { ok: false, message: cappedOriginMessage(sdk.message) };
   let serialized: string | undefined;
   try {
     serialized = new URL(raw).origin;
   } catch {
     serialized = undefined;
   }
-  return serialized === raw ? { ok: true } : { ok: false, message: `Invalid Origin header: ${raw}` };
+  return serialized === raw ? { ok: true } : { ok: false, message: cappedOriginMessage(`Invalid Origin header: ${raw}`) };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -866,12 +890,35 @@ const NO_ARGUMENT_TOOLS = new Set<string>(NO_ARGUMENT_TOOL_NAMES);
 // and capabilities but not clientInfo, so a malformed clientInfo (for example a string in
 // place of the object) reached the SDK's own schema check unguarded and read -32603 Internal
 // error, the same class of bug T-01 fixed for the other two fields.
+// A capabilities.experimental about 5 000 levels
+// deep (30 kB, under the body cap) passed the check below and then overflowed the stack inside
+// the SDK's schema library, which answered 400 with "RangeError: Maximum call stack size
+// exceeded" in the data field and left an unhandled promise rejection. Params nested deeper than
+// this are refused before any schema runs, counting params itself as level 1, so
+// capabilities.experimental.a is level 4. 64 is far above what a client sends (capabilities,
+// clientInfo and _meta nest 3 to 5 levels) and far below the roughly 1 000 levels where the
+// overflow starts. The count is iterative, so it cannot overflow the stack itself.
+const MAX_PARAMS_DEPTH = 64;
+
+function nestsDeeperThan(value: unknown, limit: number): boolean {
+  const pending: [unknown, number][] = [[value, 1]];
+  for (let item = pending.pop(); item !== undefined; item = pending.pop()) {
+    const [current, level] = item;
+    if (typeof current !== "object" || current === null) continue;
+    if (level > limit) return true;
+    for (const child of Array.isArray(current) ? current : Object.values(current)) pending.push([child, level + 1]);
+  }
+  return false;
+}
+
 function invalidParamsReason(method: string, params: unknown): string | undefined {
+  if (nestsDeeperThan(params, MAX_PARAMS_DEPTH)) return `params are nested more than ${MAX_PARAMS_DEPTH} levels deep`;
   if (method === "initialize") {
     if (!isPlainObject(params)) return "params must be an object";
     const parsed = specTypeSchemas.InitializeRequestParams["~standard"].validate(params);
     if (parsed.issues !== undefined) {
-      const path = (parsed.issues[0].path ?? []).map((part) => String(typeof part === "object" ? part.key : part));
+      // A caller-chosen key in the path is cut like the argument keys (MAX_ECHOED_ARGUMENT_KEY_LENGTH).
+      const path = (parsed.issues[0].path ?? []).map((part) => String(typeof part === "object" ? part.key : part).slice(0, MAX_ECHOED_ARGUMENT_KEY_LENGTH));
       return `${["params", ...path].join(".")} is invalid`;
     }
   }
@@ -1014,6 +1061,16 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
     return mcpError(modern, 415, -32000, "Unsupported Media Type: Content-Type must be application/json");
   }
   if (contentTypeIsJson) {
+    // A single-object body with a string method and no usable id (a notification) has no result
+    // to return, so a params tree nested deeper than the limit is refused here with a plain 400
+    // and a fixed message, no data field and the id member of its lane (mcpError: null on the
+    // legacy lane, absent on the 2026-07-28 lane), before the SDK's schema library can overflow
+    // the stack on it. Notifications nested within the limit pass to the SDK unchanged.
+    if (isPlainObject(body) && typeof body.method === "string"
+      && !(typeof body.id === "string" || Number.isSafeInteger(body.id))
+      && nestsDeeperThan(body.params, MAX_PARAMS_DEPTH)) {
+      return mcpError(modern, 400, -32600, `Invalid Request: params are nested more than ${MAX_PARAMS_DEPTH} levels deep`);
+    }
     // MCP-03 (S5 triage 2026-11-05): the guards below act only on a well-formed request
     // envelope: jsonrpc "2.0", a string method, and a string or safe-integer id, the same as
     // the SDK's own check. Anything else is left to the SDK, which answers 400 with -32600 and

@@ -84,6 +84,12 @@ web_modules/
 .dev.vars
 .dev.vars.*
 
+# Registry tokens and key material, never commit
+.npmrc
+*.pem
+*.key
+credentials.json
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
