@@ -157,6 +157,30 @@ test("P4b: get_services returns active security testing as a quoted add-on that 
   assert.equal(a.url, "https://turva.dev/services#active-security-testing");
 });
 
+// Tek-886: the contract terms, the sample report and the privacy notice travel over the wire, and the tool descriptions
+// name the fields that carry them, so a client that reads only tools/list learns where the answer is.
+test("P4c: get_services returns contract_terms and sample_report, get_contact returns privacy, and the descriptions name them", async () => {
+  const s = await call("tools/call", { name: "get_services", arguments: {} });
+  assert.notEqual(s.isError, true);
+  const sc = s.structuredContent as { contract_terms?: Record<string, unknown>; sample_report?: Record<string, unknown> };
+  assert.equal(sc.contract_terms?.url, "https://turva.dev/legal");
+  assert.equal(sc.sample_report?.url, "https://turva.dev/samples/audit-report");
+  assert.equal(sc.sample_report?.fictional, true);
+  assert.equal((sc.sample_report?.example_findings as string[]).length, 9);
+  const c = await call("tools/call", { name: "get_contact", arguments: {} });
+  assert.notEqual(c.isError, true);
+  const privacy = (c.structuredContent as { privacy?: Record<string, unknown> }).privacy;
+  assert.equal(privacy?.url, "https://turva.dev/legal");
+  assert.ok(Array.isArray(privacy?.cookies) && privacy.cookies.length > 0);
+  const { tools } = await call("tools/list") as { tools: Array<Tool & { description?: string }> };
+  const text = (n: string) => tools.find((t) => t.name === n)!.description!;
+  assert.match(text("get_services"), /contract_terms/);
+  assert.match(text("get_services"), /sample_report/);
+  assert.match(text("get_contact"), /privacy/);
+  assert.match(text("get_agent_readiness"), /get_security_evidence/, "the two proof tools point at each other");
+  assert.match(text("get_security_evidence"), /get_agent_readiness/, "the two proof tools point at each other");
+});
+
 test("P5: an argument no tool reads is refused as a tool error", async () => {
   const res = await call("tools/call", { name: "get_contact", arguments: { domain: "example.com" } });
   assert.equal(res.isError, true);

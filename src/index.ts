@@ -162,6 +162,92 @@ export const SERVICES = {
       summary: "An add-on to the audit, priced by quote for each written scope. Tests the agent surfaces the audit reads, or your own AI agent or web application where the written scope says so, with GLM 5.3 and Burp Suite Professional for web traffic, and starts only after you sign a written authorization.",
     },
   ],
+  // Added 2026-11-21 (Tek-886, Glama TDQS completeness): the contract terms and the sample report were only linked, so a
+  // question about a clause or about what a report holds ended in a dead end. contract_terms mirrors every paragraph of the
+  // ### subsections under ## Engagement terms of the /legal twin in worker.ts, byte for byte, and sample_report names the
+  // sections and the example findings of the /samples/audit-report twin. tools/verify.mjs reads both pages and fails the run
+  // when a string here no longer occurs in them or a subsection has no key, so a change to either page fails the gate.
+  contract_terms: {
+    url: "https://turva.dev/legal",
+    applies_to: [
+      "These terms apply to audits, advisory, implementation, the MCP server security test, agent operations and MCP server design, including the active security testing add-on, unless a written agreement replaces them. The services are sold only to businesses and other organizations acting in their trade or profession, not to consumers.",
+    ],
+    scope: [
+      "We agree the scope in writing before work starts. Your email reply that confirms the written scope is the order. Changes need a new written agreement and may affect the price and schedule.",
+    ],
+    business_days: [
+      "A business day means Finland's business days, Monday to Friday, excluding Finnish public holidays, in Europe/Helsinki time.",
+    ],
+    deliverables: [
+      "An audit produces a written report. An MCP server security test produces a written report. Its section on the services page lists the parts of the report and the other deliverables. Advisory includes written reviews and a monthly summary. Implementation is delivered as the agreed changes. Code the work produces is committed to the agreed repository. A settings change, for example in a CMS, a DNS zone or a media library, is delivered as a record of what was changed and the check that confirms it. A fix that fails its re-check is redone at no charge in the follow-up round of that re-check.",
+    ],
+    payment: [
+      "Payment is due within fourteen days of the invoice date unless agreed otherwise in writing. Late-payment interest follows Finnish law. Payment does not depend on an outside scanner's result.",
+    ],
+    cancellation_and_refunds: [
+      "An engagement canceled before its agreed written kickoff is not charged, and anything already paid for it is refunded in full. Cancellation after its agreed written kickoff is charged for the work already delivered: the agreed share of delivered parts for a fixed-price service, the hours worked for work billed by the day and, for advisory, the months the next paragraph sets out.",
+      "For advisory, if you are not satisfied with the first month, you can end the retainer by email sent at any time during the first month, up to the day before the second month starts. The retainer then ends when the first month ends, and the second and third months are not charged. Notice given in the second or third month ends the retainer at the end of the three-month minimum, and the months up to that end are charged. After the minimum, notice ends it at the end of the current month.",
+      "Cancellation of a fixed-price service or the correction add-on is charged by the share of listed parts or fixes delivered. Cancellation of the active security testing add-on or of an MCP server security test is charged by the share of its agreed written scope delivered. A remedy under Delay or Continuity takes precedence over this share. Work billed by the day is charged by the hours worked, in half-hour steps, and for MCP server design and agent operations the written scope states the share of each phase.",
+      "A refund is paid within fourteen days of the cancellation or of the missed deadline that triggers it.",
+      "A deliverable that does not match its service page is corrected at no charge. Report the deviation in writing within 14 calendar days of delivery, and the correction is made within 10 business days of the report. You can report a deviation in an earlier deliverable within 14 calendar days of delivery of the written result of the included re-scan or retest in which it first shows. If the correction does not succeed, the share of the listed parts that still does not match is treated as not delivered, and you may cancel that share under the rules above.",
+    ],
+    delay: [
+      "Dates in the written scope move by the business days spent waiting for your approval or access, and access counts as arranged when the account named in writing for that access works. If a date in the written scope slips because of turva.dev, you can cancel the part not yet delivered. That part is not charged, and anything already paid for it is refunded in full. A late advisory review is still delivered in full, and the delay is stated with it.",
+    ],
+    continuity: [
+      "turva.dev is run by one person. If Erik Rekola falls ill or is otherwise unable to work, delivery moves. You can then cancel the part not yet delivered, and anything already paid for that part is refunded in full.",
+    ],
+    confidentiality: [
+      "Information shared during the work is confidential. Your own non-disclosure agreement is signed as it stands, at no charge, before material is shared.",
+      "If the work gives turva.dev access to personal data you control, turva.dev acts as your processor, and your data processing agreement is signed before that data is shared. As your processor, turva.dev notifies you without undue delay after becoming aware of a personal data breach affecting that data, as Article 33(2) of the GDPR requires. Sub-processor changes follow the terms of that agreement.",
+      "The audit does not require production credentials. Access for purchased implementation is agreed separately and limited to the work. Test accounts for active security testing and the MCP server security test are provided by the client and named in the signed authorization.",
+    ],
+    liability: [
+      "Liability is limited to the fee for the engagement excluding VAT, including any add-on bought with it, as one aggregate limit for the whole engagement. For monthly advisory, that fee is the fees paid in the twelve months before the claim, excluding VAT. turva.dev is not liable for indirect or consequential damages. Neither limit applies when turva.dev causes damage intentionally or through gross negligence. Where a signed non-disclosure agreement sets its own remedies for a breach of confidentiality, those remedies apply to that breach. For data protection claims, the liability clause of a signed data processing agreement prevails where it differs from this paragraph.",
+    ],
+    intellectual_property: [
+      "You own the deliverables produced for you. turva.dev retains its generic methods, templates and reusable code. You get a perpetual right to use the delivered code, including any of turva.dev's own parts built into it.",
+    ],
+    governing_law: [
+      "Finnish law applies. Disputes are resolved in the District Court of Pirkanmaa, Finland.",
+    ],
+  },
+  sample_report: {
+    url: "https://turva.dev/samples/audit-report",
+    title: "A sample website and API audit",
+    fictional: true,
+    sections: [
+      "What to fix first",
+      "The main findings",
+      "Contents",
+      "The agreed work",
+      "Decisions for the company",
+      "Fixes, owners and estimated effort",
+      "What each party delivers",
+      "What was checked",
+      "Technical scan results",
+      "Findings from the manual review",
+      "What the assistants answered",
+      "Public security checks",
+      "The findings in detail",
+      "After the report",
+      "Scope limits",
+      "Appendix A. From evidence to a checked fix",
+      "Appendix B. Questions and test conditions",
+      "About this sample",
+    ],
+    example_findings: [
+      "F1. Product prices and availability disagree across the page, structured data and API",
+      "F2. Offer Markdown alongside HTML",
+      "F3. Publish llms.txt and link to it in response headers",
+      "F4. Add the product catalog to the sitemap",
+      "F5. State the company's AI crawler preferences in robots.txt",
+      "F6. Make the existing REST API discoverable",
+      "F7. Enable DNSSEC now and hold the DNS discovery record",
+      "F8. Keep agent checkout undeclared until it is supported",
+      "F9. Correct the published address",
+    ],
+  },
 } as const;
 
 export const AGENT_READINESS = {
@@ -291,6 +377,84 @@ export const CONTACT = {
     company_page: "https://turva.dev/company",
     legal_page: "https://turva.dev/legal",
   },
+  // Added 2026-11-21 (Tek-886): the privacy sections of the /legal twin in worker.ts, byte for byte except that a markdown
+  // link [text](url) is reduced to text. The two sections AI tools in security work and Where the work runs are left out
+  // on purpose and not_included says so. tools/verify.mjs fails the run when a string here no longer occurs in the page.
+  privacy: {
+    url: "https://turva.dev/legal",
+    overview: [
+      "The site does not use analytics cookies, tracking pixels or third-party scripts. Cookies are described under Cookies below.",
+    ],
+    roles: [
+      "turva.dev is the controller of the personal data it collects for its own business: correspondence, invoicing and the outreach records described below. The lawful basis is the contract for engagement data and a legal obligation for accounting records.",
+      "Outreach, the server logs that keep the site running and secure, the analysis of a traffic spike, the site's rate limit and processing a client's own contact persons rest on legitimate interest. So does operating the llms.txt validator, which means fetching and checking the documents the user names. Vulnerability reports and agent registration requests arrive by email and rest on legitimate interest as well, in keeping the site secure and in answering the sender. They are kept for 24 months from the latest message and removed sooner on request.",
+      "For personal data that reaches a report from public sources, Article 14 applies: the report masks names and personal contact details found in public results and shows only the role.",
+      "Contact and invoicing details are needed to agree and invoice an engagement, and without them the work cannot be agreed.",
+      "When an engagement gives turva.dev access to personal data a client controls, turva.dev is the client's processor and handles that data only on the client's written instructions.",
+    ],
+    server_logs: [
+      "Cloudflare, the hosting provider, records standard request logs, including IP address, user agent and requested path. The site's own Worker logs are kept for at most seven days, the longest retention Cloudflare offers for them.",
+      "When turva.dev analyzes a traffic spike, it reads the addresses behind it from Cloudflare's analytics. On the Pro plan this site uses, Cloudflare's security analytics documentation gives up to 31 days of both security analytics and security events. The site's rate limits count requests per IP address inside Cloudflare, and turva.dev does not store those counts. The analysis it saves keeps the network operator and the request counts without the addresses.",
+      "Analyses saved before 25 September 2026 also held addresses. Those addresses were removed on 25 September 2026. A private version-history copy of those earlier versions lasts as long as the backups: it is removed when the backup rotation described below replaces the corresponding backup, within 16 weeks at most.",
+      "Cloudflare's own processing follows its privacy policy.",
+      "The llms.txt validator fetches two documents from the site you name, with new requests that do not pass on the headers of your request. Cloudflare's HTTP headers documentation says that when that site is not hosted on Cloudflare, the Worker controls the CF-Connecting-IP and X-Real-IP headers, and the validator sets both to the fixed address 2a06:98c0:3600::103, which that documentation names for a Worker's requests to another Cloudflare zone. On 22 October 2026 turva.dev measured the two requests the validator made to one test site outside Cloudflare, one for /llms.txt and one for the home page, as the test site recorded them. Both carried the fixed address in CF-Connecting-IP. Neither carried X-Real-IP or X-Forwarded-For, although the validator sets X-Real-IP, and no header held the IP address of the person who ran the test. The connection came from a Cloudflare address.",
+    ],
+    international_transfers: [
+      "Cloudflare, Inc. in the United States is certified under the EU-U.S. Data Privacy Framework, and its data processing addendum also includes the EU standard contractual clauses.",
+      "For a customer in the EEA, Anthropic's commercial terms name Anthropic Ireland, Limited as the contracting party. Anthropic's data processing addendum for the Anthropic API incorporates the EU Standard Contractual Clauses, Module Two or Module Three, where data protection law requires them, with the Anthropic entity that signed the agreement as data importer. Anthropic says that data is stored in the US. Anthropic's data residency documentation adds that by default inference can run in any available geography.",
+      "For a business in Finland, the Stripe contracting party is Stripe Payments Europe, Limited in Ireland, and Stripe relies on the EU-U.S. Data Privacy Framework for transfers to Stripe, LLC in the United States.",
+      "Proton AG is in Switzerland, which the European Commission recognizes as providing adequate protection.",
+      "Synology Inc. is in Taiwan, and the encrypted cloud backup is stored in its Frankfurt region in Germany. Synology's terms say that once a region is chosen it does not transfer the data unless the customer requests its C2 Express Box service, and its data processing agreement includes the EU standard contractual clauses for transfers to countries without adequate protection.",
+      "Signal Messenger LLC in the United States carries a message only when the sender chooses Signal, and Signal's own terms say the data goes to the United States and other countries without naming a transfer mechanism. Email to info@turva.dev stays available for anyone who prefers to avoid that transfer.",
+      "When a user of the llms.txt validator names a site outside the EEA, the validator builds its requests to send the fixed address in place of the visitor's IP address, and the measurement described in the Server logs section above found no visitor address in the two requests it covered.",
+    ],
+    email: [
+      "Email related to an engagement, with its attachments, is deleted under the closing rule in the Client material section below. Only bookkeeping material is kept longer: accounting vouchers such as invoices and receipts, with their attachments, are kept for six years from the end of the year in which the financial year ended, the retention the Finnish Accounting Act sets for accounting material.",
+      "A question sent by email, Signal or LinkedIn that does not lead to an engagement is deleted 24 months after the latest message. The Mastodon link in the site footer points to a public profile and is not an offered way to contact turva.dev.",
+    ],
+    client_material: [
+      "Client material, including findings, evidence and test credentials, is stored only on systems needed for the work. It is deleted from them within thirty days of the engagement closing, which is the day the last deliverable, any retest included, is delivered, or, when no retest is requested or a requested retest lapses or is not carried out, 90 days after the last deliverable was delivered, unless the law requires retention. For example, when the last deliverable arrives on 1 March and no retest is requested, the engagement closes on 30 May. The material is then deleted from the working systems by 29 June, about 120 days after delivery, and has left every backup by 19 October.",
+      "An engagement canceled before its agreed written kickoff, or after kickoff and before any delivery, closes 90 days after the cancellation. An engagement canceled after a partial delivery closes 90 days after the last deliverable was delivered, or on the day of the cancellation if that is later.",
+      "Four kinds of copy follow their own rules. Bookkeeping material follows the six-year rule in the Email section above. The AI model providers keep what they processed under their own terms, linked under AI tools. Backups made during the engagement keep a copy until their rotation replaces them. The fourth kind, earlier versions of client files, is described below.",
+      "The file backups on turva.dev's own network storage keep earlier versions of a file for up to 30 days and snapshots for up to 11 weeks, and the encrypted cloud backup of that storage keeps its versions for up to 11 weeks. Disk images of the workstation, which include the virtual machine's disk file, are kept for up to 14 weeks, plus up to 14 days in the snapshots of the storage that holds them. One encrypted disk kept off site holds only turva.dev's own keys and passwords, never client material, and is not part of this rotation. Every other backup, version history included, is removed within 16 weeks. A backup is never restored for any other purpose. Deleted client material has left every backup within 16 weeks of its deletion at most.",
+      "Client material is not committed to the private GitHub repository that keeps the version history of turva.dev's own notes. Earlier versions of client files, the fourth kind of copy, exist only inside the backups and leave with them when the rotation replaces them.",
+      "Credentials are held in an encrypted vault rather than in files, apart from the client test credentials described under AI tools. The cloud backup is encrypted on turva.dev's own network storage before it is uploaded.",
+    ],
+    public_site_briefs: [
+      "When turva.dev measures a company's public website and sends a brief, the brief is published at an unlisted address on turva.dev. It contains public-site observations and the method used, not privately shared material. The address is not indexed or linked elsewhere. A brief is removed on request and expires no later than 400 days after its latest publication.",
+    ],
+    outreach_records: [
+      "When turva.dev writes to a company, it records the company, the business contact it wrote to, the public page where that contact was found and the date. Keeping it stops the same company from being contacted twice and lets the promised rescan be sent. The lawful basis is legitimate interest, and the record is shown or removed on request.",
+      "The record is kept for 24 months from the latest contact. A company that asks not to be contacted stays on an exclusion list for as long as that request stands, so that the request can be honored. You can object to this processing at any time, and an objection stops further contact.",
+    ],
+    ai_tools: [
+      "The AI tool used in the work is Claude, apart from security work, which uses GLM 5.3 as the section AI tools in security work describes. Security work means active security testing, the MCP server security test and, in an audit, the internet.nl tests, the published security scans and the security headers of the client's domain. Security headers are the response headers that set a browser security policy: Strict-Transport-Security, Content-Security-Policy, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, Cross-Origin-Opener-Policy, Cross-Origin-Embedder-Policy and Cross-Origin-Resource-Policy, together with the report-only forms of those that have one. The other response headers are read in the rest of the audit. Writing and checking the report section on security work is security work too. In an MCP server security test, GLM 5.3 fills in and checks the whole report on a fixed template from turva.dev that holds no client material, and the test's scripted walkthrough uses no AI model.",
+      "In the rest of an audit, client material, including what is read from a client's public site, is processed only through the Anthropic API, unless the engagement agreement names another route for part of the work at the client's request, such as Claude through Amazon Bedrock. That exception does not apply to security work, whose model route the section AI tools in security work covers. The recorded questions of an audit are put to the assistants named in the written scope in anonymous sessions and contain only the public product name and the question text, never client material.",
+      "The API is used on Anthropic's commercial terms, with Anthropic Ireland, Limited as the contracting party. Anthropic's data processing addendum and the standard contractual clauses named under International transfers apply, and data can be transferred to Anthropic, PBC in the United States.",
+      "Anthropic's retention article says that for the Anthropic API it deletes inputs and outputs within 30 days of receipt or generation. The exceptions it names are a service with longer retention, a different agreement, enforcement of its Usage Policy and the law. The same article says that inputs and outputs its systems flag under its Usage Policy are kept for up to two years and their trust and safety classification scores for up to seven years, that feedback sent to it is kept for five years, and it names limited retention for the safety review of the models it calls covered models.",
+      "For client work, the AI tool is instructed to work only in the client's own folder, which holds only the files the task needs, inside the virtual machine described under Where the work runs. Credentials are held in an encrypted vault and read by scripts at runtime, so no secret sits in a file. The one exception is a client's test credentials for active security testing or the MCP server security test, which are made available to the test run in the virtual machine only during the test or retest window and are removed from it when that window ends. A copy can remain in the workstation's disk images, which include the virtual machine's disk file, until the rotation described under Client material replaces them. Vault storage and the permissions a tool has while running are separate controls, and each task has its own access limits.",
+      "In an audit the tools read what the client's site and API serve publicly, and a test account is used only when the client names it in writing and the written scope states what it allows. In active security testing and the MCP server security test the tools send test traffic only to the targets named in the client's signed authorization. Material a client wants excluded from AI tooling is named in the non-disclosure agreement and excluded.",
+    ],
+    providers: [
+      "No data is sold. Client material and correspondence reach only the providers needed for the work.",
+      "Cloudflare, Inc. in the United States hosts the site. Proton AG in Switzerland provides email. Synology Inc. in Taiwan provides the encrypted cloud backup storage, in its Frankfurt region in Germany.",
+      "Anthropic Ireland, Limited is the contracting party for Claude, and data can be transferred to Anthropic, PBC in the United States. Melious AI GmbH in Germany provides GLM 5.3, the model used in security work, and states that it runs the model on its own hardware in the facilities of DataCrunch Oy in Finland. Its agreement also names its own hardware at OVH SAS in France.",
+      "Signal Messenger LLC in the United States carries messages sent over Signal. LinkedIn Ireland Unlimited Company, part of Microsoft, carries messages sent over LinkedIn. Masto.host in Portugal hosts the Mastodon server social.turva.dev and carries messages sent over Mastodon. The server's data is stored in France. A card payment made through a payment link is processed by Stripe.",
+      "The audit's scanner, isitagentready.com, receives only the public address under test from turva.dev, reads the public site at that address itself and sees the connection data of the request. For an audit, internet.nl receives the domain under test, and turva.dev uses it as an ordinary user and not as a processor. The footer of isitagentready.com links Cloudflare's privacy policy, and internet.nl has its own privacy statement. internet.nl stores the tested domain, shows the result at a permanent link and can list the domain in its Hall of Fame, and turva.dev cannot remove the stored result itself. internet.nl's privacy statement treats domain names as public data and takes requests about personal data. Its email test checks secure connections to mail servers, which can be the email provider's servers. turva.dev runs the internet.nl tests on a client's domain only with the client's written permission.",
+      "The Cloudflare 1.1.1.1 public DNS resolver receives the names that turva.dev queries, as its privacy page describes. The same page says that APNIC, Cloudflare's research partner for the resolver, can access query names and other metadata through a Cloudflare API.",
+      "YTJ is the Finnish business information system run by the Finnish Patent and Registration Office and the Tax Administration. Looking up a Business ID there, a foreign register ID in that country's open register or a VAT ID in the EU's VIES service sends that ID to the public register or service.",
+      "A new provider is added to this list before it receives client material.",
+    ],
+    data_rights: [
+      "Send a request for access to, correction of, deletion of or restriction of personal data held about you to info@turva.dev. The same address takes a request for a portable copy of data you gave for an engagement. An objection to processing based on legitimate interest, which includes outreach, can be made at any time.",
+      "The supervisory authority in Finland is the Data Protection Ombudsman (tietosuoja.fi). You can lodge a complaint with it or with the supervisory authority of the EU country where you live or work.",
+    ],
+    cookies: [
+      "This site sets no cookies of its own. A check of the home page, this page and the contact page on 27 September 2026 received no cookie.",
+      "If Cloudflare's bot protection is triggered, it can set one of its own security cookies, __cf_bm, which tells bot traffic apart from human visitors, or cf_clearance, which records that a challenge was passed, for that purpose only, as Cloudflare's own cookie table names them. Cloudflare describes __cf_bm as necessary for its bot protection to work and cf_clearance as required to reach the origin after a challenge. turva.dev treats both as strictly necessary for security and does not ask for consent for them.",
+    ],
+    not_included: "The sections AI tools in security work and Where the work runs are on the legal page only.",
+  },
 } as const;
 
 // One output schema per tool, written against the objects above. Every object is strict, so
@@ -302,6 +466,9 @@ export const CONTACT = {
 // additionalProperties false, and a call that passes an argument anyway gets a tool error, a
 // result with isError set to true, which is how the SDK reports every input validation failure.
 const noArguments = z.strictObject({});
+
+// A section of the legal page as an array of paragraphs, one string per paragraph, in the page's order.
+const paragraphs = (what: string) => z.array(z.string().describe("One paragraph of the legal page, quoted as the page words it.")).describe(what);
 
 const servicesOutput = z.strictObject({
   pricing_model: z.string().describe("The pricing model. fixed_list_prices means fixed list prices, apart from the services priced on request."),
@@ -344,6 +511,28 @@ const servicesOutput = z.strictObject({
     sold_separately: z.boolean().describe("Whether the add-on can be bought without its service. False means it cannot."),
     summary: z.string().describe("What the add-on covers and when it starts."),
   })).describe("Add-ons to a service, priced by quote for each written scope."),
+  contract_terms: z.strictObject({
+    url: z.string().describe("The turva.dev legal page that states the terms."),
+    applies_to: paragraphs("Which services the terms apply to and to whom they are sold."),
+    scope: paragraphs("How the scope is agreed and what counts as the order."),
+    business_days: paragraphs("What a business day means in the terms."),
+    deliverables: paragraphs("What each service produces."),
+    payment: paragraphs("When payment is due and what it does not depend on."),
+    cancellation_and_refunds: paragraphs("The cancellation rules per service, the first-month opt-out of advisory, refunds and the correction of a deliverable that does not match its page."),
+    delay: paragraphs("How dates in the written scope move and when the client can cancel."),
+    continuity: paragraphs("What happens when the one person who runs turva.dev cannot work."),
+    confidentiality: paragraphs("Confidentiality, non-disclosure agreements, data processing and access."),
+    liability: paragraphs("The limit of liability."),
+    intellectual_property: paragraphs("Who owns the deliverables and what turva.dev retains."),
+    governing_law: paragraphs("The governing law and the court that resolves disputes."),
+  }).describe("The engagement terms of the legal page, every paragraph of every subsection, quoted as the page words them."),
+  sample_report: z.strictObject({
+    url: z.string().describe("The published sample audit report."),
+    title: z.string().describe("The title of the sample report."),
+    fictional: z.boolean().describe("Whether the sample is invented. True means the company and every reading in it are fictional."),
+    sections: z.array(z.string().describe("The heading of one section.")).describe("Every section heading of the sample report, in order."),
+    example_findings: z.array(z.string().describe("The heading of one finding, numbered F1 onward.")).describe("The headings of the example findings in the sample report, in order."),
+  }).describe("The published sample audit report, a fictional worked example of the deliverable, with its sections and its example findings."),
 });
 
 const readinessOutput = z.strictObject({
@@ -393,7 +582,7 @@ const contactOutput = z.strictObject({
   correspondence_languages: z.array(z.string().describe("An ISO 639-1 language code.")).describe("ISO 639-1 codes of the languages the correspondence is held in."),
   first_reply: z.string().describe("How soon the first reply comes and by which channels, and that LinkedIn has no set reply time."),
   channel_note: z.string().describe("Which channel suits which kind of message, and that there are no calls."),
-  how_to_start: z.array(z.string().describe("One step as a sentence.")).describe("The steps to start an engagement and the access an audit needs, one per entry."),
+  how_to_start: z.array(z.string().describe("One step as a sentence.")).describe("The first steps to start an engagement, one per entry."),
   operator: z.strictObject({
     name: z.string().describe("The trading name of the business."),
     run_by: z.string().describe("The person who runs the business."),
@@ -407,6 +596,22 @@ const contactOutput = z.strictObject({
     company_page: z.string().describe("The turva.dev page that states the business details."),
     legal_page: z.string().describe("The turva.dev page that states the terms, the privacy notice and how data is handled."),
   }).describe("Who runs turva.dev and the registered business behind it."),
+  privacy: z.strictObject({
+    url: z.string().describe("The turva.dev legal page that states the privacy notice."),
+    overview: paragraphs("What the site does and does not use, and where cookies are described."),
+    roles: paragraphs("The controller, the lawful bases, Article 14 and processing as a client's processor."),
+    server_logs: paragraphs("The request logs, their retention, the analysis of a traffic spike and the llms.txt validator."),
+    international_transfers: paragraphs("The transfer mechanisms for each provider outside the EEA."),
+    email: paragraphs("How long email is kept and when it is deleted."),
+    client_material: paragraphs("Where client material is stored, when it is deleted, backups and credentials."),
+    public_site_briefs: paragraphs("How a brief about a company's public website is published."),
+    outreach_records: paragraphs("What the record of a company that was written to holds, its lawful basis and its retention."),
+    ai_tools: paragraphs("Which AI tool is used and how its provider handles the data."),
+    providers: paragraphs("The providers that process data and what each one holds."),
+    data_rights: paragraphs("The rights of a person whose data is processed and how to use them."),
+    cookies: paragraphs("The cookies the site sets."),
+    not_included: z.string().describe("Which sections of the legal page this object leaves out."),
+  }).describe("The privacy sections of the legal page, every paragraph of every section listed, quoted as the page words them. A markdown link is reduced to its text."),
 });
 
 // Every tool returns its data twice: as structuredContent, which its outputSchema describes,
@@ -456,7 +661,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.12.0",
+  version: "1.13.0",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -468,7 +673,7 @@ const SERVER_INFO = {
 // Each tool description repeats the routing to its neighbours, and this says it once for a
 // client that reads server/discover, or initialize on the 2025-era lane, before it lists the
 // tools.
-const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the terms of an engagement and the published sample report. For the standing rules behind every engagement and the reason for each, call get_principles. For who runs turva.dev, its business and legal details, how to reach it and what access an audit needs, call get_contact. get_agent_readiness returns turva.dev's own score from the independent scanner isitagentready.com. get_security_evidence returns its own web-security scan results, which are a separate measurement. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
+const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the access an engagement needs, the full contract terms and the outline of the published sample report. For the standing principles behind every engagement and the reason for each, call get_principles. Call get_contact for who runs turva.dev, its business details, how to reach it and how it handles personal data. get_agent_readiness returns turva.dev's own agent-readiness score from the independent scanner isitagentready.com. get_security_evidence returns its own web and email security scan results, which are a separate measurement. For evidence in general, call both. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
 
 function createServer(): McpServer {
   const server = new McpServer(
@@ -499,7 +704,7 @@ function createServer(): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog: the agent-readiness audit, advisory, implementation, the MCP server security test, agent operations, and MCP server design, with pricing and the terms of an engagement: scope, access, dates and payment. Fixed list prices apply to the audit, advisory and implementation. The MCP server security test, agent operations and MCP server design are on request. The catalog also lists one implementation add-on that carries a fixed price and is sold only with the audit it follows, bought with it, with its report, or after the report and before implementation starts. It also lists active security testing, an add-on to the audit that is priced by quote for each written scope, under quoted_add_ons. The audit links a published sample report in sample_url, a fictional worked example of the deliverable. Use this when a user asks what turva.dev offers, what it costs, what the terms of an engagement are, or what a delivered report looks like. For the standing rules turva.dev keeps in every engagement use get_principles instead, and for how to reach turva.dev or start an audit use get_contact. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns turva.dev's service catalog and contract terms. The catalog covers the agent-readiness audit, advisory, implementation, the MCP server security test, agent operations and MCP server design. The audit, advisory and implementation have fixed list prices, and the other three are priced on request. One fixed-price implementation add-on, sold only with the audit it follows, is listed under bundled_implementation. Active security testing, an audit add-on priced by quote, is listed under quoted_add_ons. The engagement field holds the working terms of an engagement, including the access the audit and implementation need. Its contract_terms field quotes the engagement terms of the legal page in full: scope, business days, deliverables, payment, cancellation and refunds, delay, continuity, confidentiality, liability, intellectual property and governing law. The sample_report field describes the published sample audit report, a fictional worked example, with its sections and its nine example findings. Use this when a user asks what turva.dev offers or costs, what access an engagement needs, what the contract says, or what a delivered report contains. For the standing principles behind every engagement use get_principles, and for who runs turva.dev, how to reach it and how personal data is handled use get_contact. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: servicesOutput,
@@ -511,7 +716,7 @@ function createServer(): McpServer {
     "get_agent_readiness",
     {
       title: "Agent-readiness score",
-      description: "Returns turva.dev's own agent-readiness score from an independent public scanner (isitagentready.com), including category sub-scores, with the measurement date and a link to the scanner's start page, where a new check can be run (the link does not open the recorded reading). Use this when a user asks how turva.dev scores, whether its claims are verifiable, or what proof backs the audit service. For web-security scan results, which are a separate measurement, use get_security_evidence instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns how well AI agents can discover and use turva.dev, as scored by one independent public scanner, isitagentready.com: the overall score and level, the category sub-scores, the measurement date and a link to the scanner's start page, where a new check can be run. That link does not open the recorded reading. Use this when a user asks for turva.dev's agent-readiness score or level, or wants to check the readiness claim behind the audit service. It holds no TLS, DNS or email security results, which get_security_evidence returns. When a user asks for evidence in general, call both. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: readinessOutput,
@@ -523,7 +728,7 @@ function createServer(): McpServer {
     "get_security_evidence",
     {
       title: "Web-security scan evidence",
-      description: "Returns the latest public web-security scan results for turva.dev's own domain (Hardenize, Internet.nl site and mail), each with its scan date. Use this when a user asks about turva.dev's own security posture or wants evidence beyond agent-readiness scores. For the agent-readiness score itself, which is a separate measurement, use get_agent_readiness instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns the web and email security scan results for turva.dev's own domain from three scans: Hardenize and two Internet.nl tests, one for the site and one for its mail. They cover HTTPS, DNSSEC, RPKI, IPv6 and email authentication, and each has its result, scan date and public report link. Use this when a user asks how turva.dev's own domain is secured or configured. It holds no agent-readiness score, which get_agent_readiness returns. When a user asks for evidence in general, call both. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: securityOutput,
@@ -547,7 +752,7 @@ function createServer(): McpServer {
     "get_contact",
     {
       title: "Contact and operator details",
-      description: "Returns who runs turva.dev and the official ways to reach it. The operator details give the legal form, Business ID, VAT ID and postal address. The rest gives the email address, the Signal link, the LinkedIn profile, the correspondence languages, the first-reply time, the access an audit needs, and links to the company page and to the legal page that states the terms, the privacy notice and how data is handled. Use this when a user asks who is behind turva.dev, for its legal or imprint details, how to contact it, how to start an audit or what access has to be granted. For what is sold and what it costs use get_services instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns who runs turva.dev, how to reach it and how it handles personal data. The operator field gives the legal form, Business ID, VAT ID and postal address, with the team and the background. Beside it are the email address, the Signal link and the LinkedIn profile, with the correspondence languages, the first-reply time and the first steps to start an audit. The privacy field quotes the privacy sections of the legal page: the controller and lawful bases, server logs, international transfers, email, client material, public-site briefs, outreach records, AI tools, providers, data rights and cookies. Two legal page sections are left out: AI tools in security work, and where the work runs. Use this when a user asks who is behind turva.dev, for its legal details, how to contact it or start an audit, or how it handles personal data. For the services, prices, the access an engagement needs and the contract terms use get_services instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: contactOutput,

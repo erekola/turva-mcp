@@ -267,3 +267,46 @@ test("M11: the agent-readiness note describes the url as the scanner start page,
   assert.match(AGENT_READINESS.note, /does not show the recorded reading itself/i);
   assert.doesNotMatch(AGENT_READINESS.note, /carry the current reading/i);
 });
+
+// Tek-886: the legal page and the sample report are mirrored as data. tools/verify.mjs holds the drift gate against the
+// worker.ts source; these cases hold the shape, so a missing key or an empty section fails before the gate is read.
+test("M11: contract_terms holds the twelve subsections as non-empty paragraph arrays", async () => {
+  const keys = ["applies_to", "scope", "business_days", "deliverables", "payment", "cancellation_and_refunds", "delay", "continuity", "confidentiality", "liability", "intellectual_property", "governing_law"];
+  const ct: Record<string, unknown> = SERVICES.contract_terms;
+  assert.deepEqual(Object.keys(ct), ["url", ...keys]);
+  assert.equal(ct.url, "https://turva.dev/legal");
+  for (const k of keys) {
+    const v = ct[k] as string[];
+    assert.ok(Array.isArray(v) && v.length > 0 && v.every((p) => typeof p === "string" && p.length > 0), k);
+  }
+  assert.equal((ct.cancellation_and_refunds as string[]).length, 5, "the cancellation subsection keeps its five paragraphs");
+  assert.match((ct.payment as string[]).join(" "), /Payment does not depend on an outside scanner's result/);
+  assert.match((ct.liability as string[]).join(" "), /Liability is limited to the fee for the engagement/);
+});
+
+test("M11b: sample_report names the sample page, its sections and the nine example findings", async () => {
+  const r = SERVICES.sample_report;
+  assert.equal(r.url, "https://turva.dev/samples/audit-report");
+  assert.equal(SERVICES.services.find((s) => s.id === "audit")!.sample_url, r.url, "the audit service links the same sample");
+  assert.equal(r.title, "A sample website and API audit");
+  assert.equal(r.fictional, true);
+  assert.equal(r.example_findings.length, 9);
+  r.example_findings.forEach((f, i) => assert.match(f, new RegExp("^F" + (i + 1) + "\\. ")));
+  assert.ok((r.sections as readonly string[]).includes("The findings in detail"));
+  assert.equal(new Set(r.sections).size, r.sections.length, "no section is listed twice");
+});
+
+test("M12: privacy holds the twelve sections as paragraph arrays, with the links reduced to text and two sections named as left out", async () => {
+  const keys = ["overview", "roles", "server_logs", "international_transfers", "email", "client_material", "public_site_briefs", "outreach_records", "ai_tools", "providers", "data_rights", "cookies"];
+  const p: Record<string, unknown> = CONTACT.privacy;
+  assert.deepEqual(Object.keys(p), ["url", ...keys, "not_included"]);
+  assert.equal(p.url, "https://turva.dev/legal");
+  for (const k of keys) {
+    const v = p[k] as string[];
+    assert.ok(Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && x.length > 0), k);
+    assert.ok(v.every((x) => !/\]\(/.test(x)), k + " carries no markdown link");
+  }
+  assert.match(String(p.not_included), /AI tools in security work/);
+  assert.match(String(p.not_included), /Where the work runs/);
+  assert.match(String(p.not_included), /legal page only/);
+});
