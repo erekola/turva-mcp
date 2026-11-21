@@ -87,7 +87,7 @@ Five read-only tools, each idempotent. Each returns its data as `structuredConte
 
 | Tool | Returns |
 | --- | --- |
-| `get_services` | The engagement terms, the service catalog (audit, advisory, implementation, agent operations and MCP server design) and pricing (three fixed list prices and two on request), plus one implementation add-on that carries a fixed price and is sold only with the audit it follows, and active security testing, an add-on to the audit priced by quote |
+| `get_services` | The engagement terms, the service catalog (audit, advisory, implementation, MCP server security test, agent operations and MCP server design) and pricing (three fixed list prices and three on request), plus one implementation add-on that carries a fixed price and is sold only with the audit it follows, and active security testing, an add-on to the audit priced by quote |
 | `get_agent_readiness` | turva.dev's agent-readiness score, category scores, measurement date and a link to the scanner start page |
 | `get_security_evidence` | Public Hardenize and Internet.nl results for turva.dev, with their measurement date |
 | `get_principles` | The principles covering written work, access and verification |

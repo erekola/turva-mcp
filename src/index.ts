@@ -18,7 +18,7 @@ export const SERVICES = {
   // Corrected 2026-09-28 (P4, 3rd round): named when an implementation add-on is bought.
   // Corrected 2026-10-22 (outside review, A2): reverse charge is named for business customers in another
   // EU member state, and outside the EU no Finnish VAT applies because the place of supply is outside Finland.
-  pricing_note: "The audit, advisory and implementation have fixed list prices in EUR, VAT not included: 25,5% for Finnish customers, reverse charge for business customers in another EU member state with a valid VAT ID, no Finnish VAT for customers outside the EU, because the place of supply is outside Finland. Agent operations and MCP server design are scoped and quoted per engagement. One implementation add-on carries a fixed price and is sold only with the audit it follows, listed under bundled_implementation. The add-on can be bought together with the audit, with its report, or after the report and before implementation starts. Active security testing is an add-on to the audit, priced by quote for each written scope, listed under quoted_add_ons. Request a quote: turva.dev",
+  pricing_note: "The audit, advisory and implementation have fixed list prices in EUR, VAT not included: 25,5% for Finnish customers, reverse charge for business customers in another EU member state with a valid VAT ID, no Finnish VAT for customers outside the EU, because the place of supply is outside Finland. The MCP server security test, agent operations and MCP server design are scoped and quoted per engagement. One implementation add-on carries a fixed price and is sold only with the audit it follows, listed under bundled_implementation. The add-on can be bought together with the audit, with its report, or after the report and before implementation starts. Active security testing is an add-on to the audit, priced by quote for each written scope, listed under quoted_add_ons. Request a quote: turva.dev",
   currency: "EUR",
   vat_included: false,
   engagement: {
@@ -91,6 +91,15 @@ export const SERVICES = {
       // day rate's definition, its exclusions, the per-correction acceptance check or
       // the handover question round /services states.
       deliverable: "The completion date is agreed as a stated number of business days from the agreed written kickoff before the work starts. Delivery includes test results, deployment instructions, rollback instructions and a list of any unresolved external dependencies. The improvement is verifiable against the audit baseline in the next scan, or a direct test. Every implemented correction gets its own acceptance check, source changes are verified separately from edge changes and a failed or unverified item is left open. One round of handover questions submitted within 14 calendar days of delivery is answered within five business days. A billable day is seven and a half hours of work, covering implementation, testing and handover. Recurring hosting, ongoing monitoring and maintenance after handover are not included in the implementation fee.",
+    },
+    {
+      id: "mcp-server-security-test",
+      name: "MCP Server Security Test",
+      url: "https://turva.dev/services#mcp-server-security-test",
+      price: "on request",
+      // Added 2026-11-21 with the service's section on /services. The wording follows that section.
+      summary: "On request. One MCP server, tested from the outside with two test accounts that the client provides. A scripted walkthrough takes every tool the client's tool table allows through the same list of 18 checks, and two test runs with GLM 5.3 follow it. The test can be bought without an audit and starts only after a signed written authorization and a check that the client controls the target.",
+      deliverable: "A report of findings, each with its severity, a CVSS vector, the affected target, a command that reproduces it, redacted evidence and a recommended fix. With it come an executive summary of one page, a coverage matrix of tools and checks, a table of observations on a selection of the requirements of a named and dated version of the MCP specification, and a framework map against the OWASP MCP Top 10 in its beta version, the OWASP API Security Top 10 2023 and the OWASP Top 10 for LLM Applications 2025. The client also receives a list of questions for its own team, a timeline of the test traffic, one retest of the reported findings within 30 days of the report and one round of written questions within 14 days of the report. The standard scope covers one MCP server at one endpoint address, at most 25 tools, at most 25 resources, resource templates and prompts in total, two test accounts and one environment. It excludes denial of service, load and stress testing, social engineering, review of source code and other MCP servers. A test does not certify that a server is safe, and it is not a compliance assessment.",
     },
     {
       id: "agent-operations",
@@ -447,8 +456,8 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.11.0",
-  description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
+  version: "1.12.0",
+  description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
     { src: "https://turva.dev/favicon.svg", mimeType: "image/svg+xml", sizes: ["any"] },
@@ -490,7 +499,7 @@ function createServer(): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog: the agent-readiness audit, advisory, implementation, agent operations, and MCP server design, with pricing and the terms of an engagement: scope, access, dates and payment. Fixed list prices apply to the audit, advisory and implementation. Agent operations and MCP server design are on request. The catalog also lists one implementation add-on that carries a fixed price and is sold only with the audit it follows, bought with it, with its report, or after the report and before implementation starts. It also lists active security testing, an add-on to the audit that is priced by quote for each written scope, under quoted_add_ons. The audit links a published sample report in sample_url, a fictional worked example of the deliverable. Use this when a user asks what turva.dev offers, what it costs, what the terms of an engagement are, or what a delivered report looks like. For the standing rules turva.dev keeps in every engagement use get_principles instead, and for how to reach turva.dev or start an audit use get_contact. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns turva.dev's service catalog: the agent-readiness audit, advisory, implementation, the MCP server security test, agent operations, and MCP server design, with pricing and the terms of an engagement: scope, access, dates and payment. Fixed list prices apply to the audit, advisory and implementation. The MCP server security test, agent operations and MCP server design are on request. The catalog also lists one implementation add-on that carries a fixed price and is sold only with the audit it follows, bought with it, with its report, or after the report and before implementation starts. It also lists active security testing, an add-on to the audit that is priced by quote for each written scope, under quoted_add_ons. The audit links a published sample report in sample_url, a fictional worked example of the deliverable. Use this when a user asks what turva.dev offers, what it costs, what the terms of an engagement are, or what a delivered report looks like. For the standing rules turva.dev keeps in every engagement use get_principles instead, and for how to reach turva.dev or start an audit use get_contact. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: servicesOutput,
