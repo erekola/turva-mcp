@@ -501,7 +501,8 @@ test("P15: a disallowed Origin is refused before the malformed-params and __prot
   );
   assert.equal(badCursor.status, 403, "malformed params from a disallowed Origin");
   const badCursorBody = await badCursor.json() as Rpc;
-  assert.equal(badCursorBody.error!.code, -32000);
+  // C3 finding 2: the 2026-07-28 lane answers a transport refusal with -32600 (P29).
+  assert.equal(badCursorBody.error!.code, -32600);
   assert.equal("id" in badCursorBody, false, "B2: the 2026-07-28 lane has no id field");
   const raw = '{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_contact","arguments":{"__proto__":{"audit":true}},"_meta":' + JSON.stringify(META) + '}}';
   const protoFromEvil = await post(raw, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_contact", ...evilOrigin });
@@ -607,7 +608,8 @@ test("P17c: a body not declared as JSON is answered 415 by the Worker with the l
     }), {}, ctx);
     assert.equal(wrongType.status, 415, lane);
     const wrongTypeBody = await wrongType.json() as Rpc;
-    assert.equal(wrongTypeBody.error!.code, -32000, lane);
+    // C3 finding 2: -32600 on the 2026-07-28 lane, the SDK's -32000 on the legacy lane (P29).
+    assert.equal(wrongTypeBody.error!.code, lane === "current" ? -32600 : -32000, lane);
     assert.equal(wrongTypeBody.error!.message, "Unsupported Media Type: Content-Type must be application/json", lane);
     if (lane === "current") assert.equal("id" in wrongTypeBody, false, `${lane}: no id key`);
     else assert.equal(wrongTypeBody.id, null, `${lane}: id null`);
@@ -793,7 +795,9 @@ test("P21: errors the SDK answers on the 2026-07-28 lane carry no id field", asy
     ["a number", "42"],
     ["a null id", '{"jsonrpc":"2.0","id":null,"method":"tools/list"}'],
     ["an array id", '{"jsonrpc":"2.0","id":[],"method":"tools/list"}'],
-    ["a numeric method", '{"jsonrpc":"2.0","id":1,"method":5}'],
+    // C3 finding 5 moved "a numeric method" with id 1 out of this list: its id can be read, so
+    // the Worker now answers it with that id (P30).
+    ["a numeric method and no id", '{"jsonrpc":"2.0","method":5}'],
   ];
   for (const [label, raw] of bodies) {
     const r = await post(raw, MODERN_LIST_HEADERS);
@@ -809,13 +813,14 @@ test("P21: errors the SDK answers on the 2026-07-28 lane carry no id field", asy
     const r = await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method, headers: { "MCP-Protocol-Version": "2026-07-28" } }), {}, ctx);
     assert.equal(r.status, 405, method);
     const body = await r.json() as Rpc;
-    assert.equal(body.error!.code, -32000, method);
+    // C3 finding 2: the SDK's -32000 becomes -32600 on this lane (P29).
+    assert.equal(body.error!.code, -32600, method);
     assert.equal("id" in body, false, method + ": no id field");
   }
   const evil = await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method: "GET", headers: { "MCP-Protocol-Version": "2026-07-28", Origin: "https://evil.example" } }), {}, ctx);
   assert.equal(evil.status, 403);
   const evilBody = await evil.json() as Rpc;
-  assert.equal(evilBody.error!.code, -32000);
+  assert.equal(evilBody.error!.code, -32600);
   assert.match(evilBody.error!.message, /Invalid Origin/);
   assert.equal("id" in evilBody, false, "a disallowed Origin on the modern lane: no id field");
 });
@@ -853,8 +858,9 @@ test("P21c: control: the other lane and the SDK's legacy answers keep their id s
   const modernCases: [string, Response, number, number][] = [
     ["parse error", await post("{", MODERN_LIST_HEADERS), 400, -32700],
     ["batch", await post([valid], MODERN_LIST_HEADERS), 400, -32600],
-    ["oversized body", await post(padded, MODERN_LIST_HEADERS), 413, -32000],
-    ["disallowed Origin", await post(valid, { ...MODERN_LIST_HEADERS, Origin: "https://evil.example" }), 403, -32000],
+    // C3 finding 2: the 2026-07-28 lane uses -32600 for these (P29); the legacy cases below keep -32000.
+    ["oversized body", await post(padded, MODERN_LIST_HEADERS), 413, -32600],
+    ["disallowed Origin", await post(valid, { ...MODERN_LIST_HEADERS, Origin: "https://evil.example" }), 403, -32600],
   ];
   for (const [label, r, status, code] of modernCases) {
     assert.equal(r.status, status, label);
@@ -1134,4 +1140,279 @@ test("P27: deployment and repository hygiene: no preview URLs, a named rate-limi
   const readme = read("../README.md");
   const deploy = readme.slice(readme.indexOf("## Deploy your own copy"), readme.indexOf("## Maintainer"));
   assert.ok(deploy.includes("npm ci"), "the deploy-your-own-copy steps say to run npm ci");
+});
+
+// C3 (MCP protocol test of mcp.turva.dev 1.13.0, 2026-11-22): the five low deviations a
+// verifier confirmed against the source and the 2026-07-28 schema, and finding 13 as a proposal.
+const MODERN_CALL_HEADERS = (name?: string): Record<string, string> => ({
+  "MCP-Protocol-Version": "2026-07-28",
+  "Mcp-Method": "tools/call",
+  ...(name === undefined ? {} : { "Mcp-Name": name }),
+});
+
+test("P28: on the 2026-07-28 lane an error carries no id that the revision's RequestId does not allow", async () => {
+  // C3 finding 1: the SDK answered id 1.5 with "id":1.5, and the 2026-07-28 schema's RequestId is a
+  // string or an integer. The filter of SDK answers on that lane (withoutNullId, now
+  // modernLaneAnswer) took out only a null id.
+  const envelope = '"method":"tools/list","params":{"_meta":' + JSON.stringify(META) + '}}';
+  const cases: [string, string][] = [
+    ["a fractional id", '{"jsonrpc":"2.0","id":1.5,' + envelope],
+    ["an id beyond the safe integers", '{"jsonrpc":"2.0","id":1e30,' + envelope],
+    ["a boolean id", '{"jsonrpc":"2.0","id":true,' + envelope],
+    ["a fractional id and no method", '{"jsonrpc":"2.0","id":1.5}'],
+  ];
+  for (const [label, raw] of cases) {
+    const r = await post(raw, MODERN_LIST_HEADERS);
+    assert.equal(r.status, 400, label);
+    const text = await r.text();
+    const length = r.headers.get("content-length");
+    if (length !== null) assert.equal(Number(length), new TextEncoder().encode(text).length, label + ": Content-Length matches the rebuilt body");
+    const body = JSON.parse(text) as Rpc;
+    assert.equal(body.error!.code, -32600, label);
+    assert.equal("id" in body, false, label + ": no id field");
+  }
+  // Control: the legacy lane keeps the SDK's answer, and JSON-RPC 2.0 allows a number id there.
+  const legacy = await post({ jsonrpc: "2.0", id: 1.5, method: "tools/list" });
+  assert.equal(legacy.status, 400);
+  assert.equal(((await legacy.json()) as Rpc).id, 1.5, "legacy lane: the SDK's echo is kept");
+  // Control: a string id and an integer id are still echoed on the 2026-07-28 lane.
+  for (const id of ["abc", 7]) {
+    const ok = await readJson(await post({ jsonrpc: "2.0", id, method: "tools/list", params: { _meta: META } }, MODERN_LIST_HEADERS));
+    assert.equal(ok.id, id, String(id));
+    assert.ok(ok.result, String(id) + ": a result");
+  }
+});
+
+test("P29: transport refusals use -32600 on the 2026-07-28 lane and keep -32000 on the legacy lane", async () => {
+  // C3 finding 2: MCP 2026-07-28 marks -32000 to -32019 as a legacy sub-range that new
+  // implementations SHOULD NOT use, and -32020 to -32099 holds only the codes the specification
+  // defines. The HTTP status keeps naming the reason.
+  const valid = (modern: boolean) => ({ jsonrpc: "2.0", id: 1, method: "tools/list", ...(modern ? { params: { _meta: META } } : {}) });
+  const padded = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(70_000) } });
+  const lanes: [string, Record<string, string>, boolean, number][] = [
+    ["2026-07-28", MODERN_LIST_HEADERS, true, -32600],
+    ["legacy", {}, false, -32000],
+  ];
+  for (const [lane, headers, modern, code] of lanes) {
+    const evil = { ...headers, Origin: "https://evil.example" };
+    const answers: [string, Response, number][] = [
+      ["an oversized body", await post(padded, headers), 413],
+      ["a Content-Length over the limit", await post("{}", { ...headers, "Content-Length": "70000" }), 413],
+      ["a disallowed Origin", await post(valid(modern), evil), 403],
+      ["a disallowed Origin and a body that does not parse", await post("{", evil), 403],
+      ["a body not declared as JSON", await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method: "POST", headers: { "Content-Type": "text/plain", ...headers }, body: JSON.stringify(valid(modern)) }), {}, ctx), 415],
+      ["a GET", await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method: "GET", headers }), {}, ctx), 405],
+      ["a GET from a disallowed Origin", await worker.fetch(new Request("https://mcp.turva.dev/mcp", { method: "GET", headers: evil }), {}, ctx), 403],
+    ];
+    for (const [label, r, status] of answers) {
+      assert.equal(r.status, status, `${lane}: ${label}`);
+      const body = await r.json() as Rpc;
+      assert.equal(body.error!.code, code, `${lane}: ${label}`);
+    }
+  }
+  // Control: the codes the specification defines on the 2026-07-28 lane are untouched.
+  const missingHeader = await post({ jsonrpc: "2.0", id: 7, method: "tools/list", params: { _meta: META } }, { "Mcp-Method": "tools/list" });
+  assert.equal(missingHeader.status, 400);
+  assert.equal(((await missingHeader.json()) as Rpc).error!.code, -32020, "HeaderMismatch stays -32020");
+});
+
+test("P30: a request with a missing or non-string method keeps its readable id in the error, on both lanes", async () => {
+  // C3 finding 5: FM19 (no method) and FM20 (method 42) were answered without the readable ids
+  // 319 and 320, while a missing jsonrpc (FM17) and jsonrpc 1.0 (FM18) kept theirs.
+  const bodies: [string, Record<string, unknown>, string | number][] = [
+    ["no method", { jsonrpc: "2.0", id: 319 }, 319],
+    ["a numeric method", { jsonrpc: "2.0", id: 320, method: 42 }, 320],
+    ["a null method and a string id", { jsonrpc: "2.0", id: "x", method: null }, "x"],
+    ["no jsonrpc and no method", { id: 321 }, 321],
+  ];
+  const lanes: [string, Record<string, string>, boolean][] = [["2026-07-28", MODERN_LIST_HEADERS, true], ["legacy", {}, false]];
+  for (const [lane, headers, modern] of lanes) {
+    const params = modern ? { params: { _meta: META } } : {};
+    for (const [label, body, id] of bodies) {
+      const r = await post({ ...body, ...params }, headers);
+      assert.equal(r.status, 400, `${lane}: ${label}`);
+      const parsed = await r.json() as Rpc;
+      assert.equal(parsed.error!.code, -32600, `${lane}: ${label}`);
+      assert.equal(parsed.error!.message, "Bad Request: the request body is not a valid JSON-RPC message", `${lane}: ${label}`);
+      assert.equal(parsed.id, id, `${lane}: ${label}: the id is echoed`);
+    }
+    // Control: FM17 and FM18, which the SDK already answered with the id, keep that answer.
+    for (const body of [{ id: 317, method: "tools/list", ...params }, { jsonrpc: "1.0", id: 318, method: "tools/list", ...params }]) {
+      const r = await post(body, headers);
+      assert.equal(r.status, 400, `${lane}: ${JSON.stringify(body.id)}`);
+      const parsed = await r.json() as Rpc;
+      assert.equal(parsed.error!.code, -32600, lane);
+      assert.equal(parsed.id, body.id, lane);
+    }
+  }
+  // Control: a JSON-RPC response a client posts (a result or an error member, no method) is not a
+  // request, still reaches the SDK, and is accepted on the legacy lane as before.
+  for (const response of [{ jsonrpc: "2.0", id: 9, result: {} }, { jsonrpc: "2.0", id: 10, error: { code: -1, message: "x" } }]) {
+    const r = await post(response);
+    assert.equal(r.status, 202, JSON.stringify(response));
+    await r.text();
+  }
+});
+
+test("P31: a tools/call that fails the SDK's request schema names the path, not the schema library's issue list", async () => {
+  // C3 finding 6: the message was the issue list, 213 to 300 characters over several lines, on
+  // both lanes, where initialize answers the same class with "params.X is invalid" (P20).
+  const cases: [string, Record<string, unknown>, string][] = [
+    ["no name", { arguments: {} }, "params.name"],
+    ["arguments as a string", { name: "get_contact", arguments: "x" }, "params.arguments"],
+    ["arguments as a list", { name: "get_contact", arguments: [] }, "params.arguments"],
+    ["arguments as null", { name: "get_contact", arguments: null }, "params.arguments"],
+  ];
+  for (const [lane, modern] of [["2026-07-28", true], ["legacy", false]] as [string, boolean][]) {
+    for (const [label, params, path] of cases) {
+      const name = typeof params.name === "string" ? params.name : undefined;
+      const r = await post(
+        { jsonrpc: "2.0", id: 91, method: "tools/call", params: modern ? { ...params, _meta: META } : params },
+        modern ? MODERN_CALL_HEADERS(name) : {},
+      );
+      assert.equal(r.status, 200, `${lane}: ${label}`);
+      const text = await r.text();
+      if (!modern) assert.ok(text.startsWith("event: message\n"), `${lane}: ${label}: still one event stream frame`);
+      const body = (modern ? JSON.parse(text) : JSON.parse(text.split("\n").find((l) => l.startsWith("data: "))!.slice(6))) as Rpc;
+      assert.equal(body.id, 91, `${lane}: ${label}`);
+      assert.equal(body.error!.code, -32602, `${lane}: ${label}`);
+      assert.equal(body.error!.message, `Invalid params: ${path} is invalid`, `${lane}: ${label}`);
+    }
+  }
+  // Control: a call the schema accepts is served as before, and an unknown tool keeps its own
+  // answer and data field (P16).
+  const served = await call("tools/call", { name: "get_contact", arguments: {} });
+  assert.deepEqual(served.structuredContent, plain(CONTACT));
+  const unknown = await readJson(await post(
+    { jsonrpc: "2.0", id: 92, method: "tools/call", params: { name: "missing", arguments: {}, _meta: META } },
+    MODERN_CALL_HEADERS("missing"),
+  ));
+  assert.equal(unknown.error!.message, "Invalid params: unknown tool name");
+  assert.equal(unknown.error!.data!.tool.name, "missing");
+});
+
+test("P32: the Worker's own tool errors carry serverInfo in _meta on the 2026-07-28 lane, as the SDK's do", async () => {
+  // C3 finding 7: toolArgumentError results had resultType but no
+  // _meta["io.modelcontextprotocol/serverInfo"], which servers SHOULD include in every result.
+  const raw = '{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_contact","arguments":{"__proto__":{"audit":true}},"_meta":' + JSON.stringify(META) + '}}';
+  const proto = await readJson(await post(raw, MODERN_CALL_HEADERS("get_contact")));
+  const longKey = await call("tools/call", { name: "get_contact", arguments: { ["k".repeat(65)]: 1 } });
+  const sdkOwn = await call("tools/call", { name: "get_contact", arguments: { extra: 1 } });
+  assert.equal(sdkOwn.isError, true);
+  assert.ok(sdkOwn._meta["io.modelcontextprotocol/serverInfo"], "the SDK's own tool error carries serverInfo");
+  for (const [label, result] of [["a raw __proto__ key", proto.result!], ["an over-long key", longKey]] as [string, Result][]) {
+    assert.equal(result.isError, true, label);
+    assert.equal(result.resultType, "complete", label);
+    assert.deepEqual(result._meta, sdkOwn._meta, label + ": the same _meta as the SDK's own tool error");
+  }
+  // Control: the legacy lane keeps its earlier bytes, with no _meta and no resultType.
+  const legacy = await readJson(await post('{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_contact","arguments":{"__proto__":{"audit":true}}}}'));
+  assert.equal(legacy.result!.isError, true);
+  assert.equal(legacy.result!._meta, undefined);
+  assert.equal(legacy.result!.resultType, undefined);
+});
+
+test("P33b: on the 2026-07-28 lane the Worker's own checks give way to the SDK's entry ladder, with the SDK's own answer", async () => {
+  // Independent check of the C3 finding 13 fix (2026-11-22): the SDK validates the _meta envelope
+  // before it compares headers, and it refuses an initialize or an envelope-less request sent with
+  // the modern header. Each case is sent twice: with an unknown tool name or a bad cursor, which a
+  // Worker check refuses, and with a known tool or a valid cursor, which only the SDK refuses. The
+  // two answers must be the same bytes apart from the id.
+  const V = "io.modelcontextprotocol/protocolVersion";
+  const cases: [string, (bad: boolean) => unknown, Record<string, string>, number, number][] = [
+    ["an envelope without clientCapabilities and a mismatching Mcp-Name",
+      (bad) => ({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: bad ? "nope" : "get_contact", arguments: {}, _meta: { [V]: "2026-07-28" } } }),
+      MODERN_CALL_HEADERS("get_services"), 400, -32602],
+    ["a claimed version that is not a string and a mismatching Mcp-Method",
+      (bad) => ({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: bad ? "nope" : "get_contact", arguments: {}, _meta: { ...META, [V]: 5 } } }),
+      { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" }, 400, -32602],
+    ["an initialize sent with the modern header",
+      (bad) => ({ jsonrpc: "2.0", id: 1, method: "initialize", params: bad ? {} : { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "x", version: "1" } } }),
+      { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "initialize" }, 400, -32020],
+    ["a modern header with no envelope claim",
+      (bad) => ({ jsonrpc: "2.0", id: 1, method: "tools/list", params: bad ? { cursor: 5 } : {} }),
+      MODERN_LIST_HEADERS, 400, -32602],
+  ];
+  for (const [label, body, headers, status, code] of cases) {
+    const worker = await post(body(true), headers);
+    const sdk = await post(body(false), headers);
+    assert.equal(worker.status, status, label + ": the Worker's status");
+    assert.equal(sdk.status, status, label + ": the SDK's status");
+    const workerText = await worker.text();
+    assert.equal(workerText, await sdk.text(), label + ": the same answer as the SDK's");
+    assert.equal((JSON.parse(workerText) as Rpc).error!.code, code, label);
+  }
+});
+
+test("P33c: control for C3 finding 13: a header that disagrees with a body the Worker passes reads 400 -32020", async () => {
+  // The SDK compares Mcp-Method and Mcp-Name with the body once guardMcpPost has passed it on.
+  const r = await post(
+    { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_contact", arguments: {}, _meta: META } },
+    MODERN_CALL_HEADERS("get_services"),
+  );
+  assert.equal(r.status, 400);
+  assert.equal(((await r.json()) as Rpc).error!.code, -32020);
+});
+
+test("P33: a header that disagrees with the body reads 400 -32020 before the Worker's own checks", async () => {
+  // C3 finding 13 (Erik's decision 2026-11-22): MCP 2026-07-28 says servers that process the
+  // request body MUST reject a request whose headers do not match it. The Worker's unknown-tool,
+  // depth, cursor and argument-key checks used to answer first, with 200 -32602 or a tool error.
+  const disagree = "Bad Request: the request headers and body disagree: ";
+  const deep = '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_services","arguments":{},"_meta":' + JSON.stringify(META) + ',"deep":' + nestedObjects(70) + '}}';
+  const proto = '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_contact","arguments":{"__proto__":{"audit":true}},"_meta":' + JSON.stringify(META) + '}}';
+  const unknownCall = (name: string) => ({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: {}, _meta: META } });
+  const cases: [string, unknown, Record<string, string>, string, string][] = [
+    ["an unknown tool against Mcp-Name get_services", unknownCall("no_such_tool"), MODERN_CALL_HEADERS("get_services"),
+      'the body carries params.name="no_such_tool" but the Mcp-Name header names "get_services"', "get_services"],
+    ["an unknown tool without Mcp-Name", unknownCall("no_such_tool"), MODERN_CALL_HEADERS(),
+      'the body carries params.name="no_such_tool" but the required Mcp-Name header is absent', "(missing)"],
+    ["an unknown tool and an invalid Base64 sentinel", unknownCall("no_such_tool"), MODERN_CALL_HEADERS("=?base64?not base64?="),
+      "the Mcp-Name header carries an invalid Base64 sentinel value", "=?base64?not base64?="],
+    ["params nested past the limit against Mcp-Method tools/list", deep, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" },
+      "the body names method tools/call but the Mcp-Method header names tools/list", "tools/list"],
+    ["a numeric cursor against Mcp-Method tools/call", { jsonrpc: "2.0", id: 3, method: "tools/list", params: { cursor: 5, _meta: META } }, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call" },
+      "the body names method tools/list but the Mcp-Method header names tools/call", "tools/call"],
+    ["a numeric cursor without Mcp-Method", { jsonrpc: "2.0", id: 3, method: "tools/list", params: { cursor: 5, _meta: META } }, { "MCP-Protocol-Version": "2026-07-28" },
+      "the body names method tools/list but the required Mcp-Method header is absent", "(missing)"],
+    ["a raw __proto__ key against Mcp-Name get_services", proto, MODERN_CALL_HEADERS("get_services"),
+      'the body carries params.name="get_contact" but the Mcp-Name header names "get_services"', "get_services"],
+    ["an unknown tool and a body envelope naming 2025-11-25", { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "no_such_tool", arguments: {}, _meta: { ...META, "io.modelcontextprotocol/protocolVersion": "2025-11-25" } } }, MODERN_CALL_HEADERS("no_such_tool"),
+      "the body envelope names protocol version 2025-11-25 but the MCP-Protocol-Version header names 2026-07-28", "2026-07-28"],
+  ];
+  for (const [label, body, headers, reason, header] of cases) {
+    const r = await post(body, headers);
+    assert.equal(r.status, 400, label);
+    const parsed = await r.json() as Rpc & { error: { data: { mismatch: { header: string; body: string } } } };
+    assert.equal(parsed.error.code, -32020, label);
+    assert.equal(parsed.error.message, disagree + reason, label);
+    assert.deepEqual(parsed.error.data.mismatch, { header, body: reason }, label);
+    assert.equal(typeof parsed.id === "number", true, label + ": the readable id is echoed");
+  }
+  // The Worker's answer has the SDK's own shape: compare a known-name mismatch, which the SDK
+  // answers, with the unknown-name mismatch above, which the Worker answers.
+  const sdk = await (await post(unknownCall("get_contact"), MODERN_CALL_HEADERS("get_services"))).json() as Rpc & { error: { data: unknown } };
+  const own = await (await post(unknownCall("no_such_tool"), MODERN_CALL_HEADERS("get_services"))).json() as Rpc & { error: { data: unknown } };
+  assert.deepEqual(Object.keys(own), Object.keys(sdk), "the same members in the same order");
+  assert.deepEqual(Object.keys(own.error), Object.keys(sdk.error));
+  assert.equal(own.error.message, sdk.error.message.replace('"get_contact"', '"no_such_tool"'));
+  // A caller-chosen value is echoed at most 64 characters long.
+  const longName = "n".repeat(200);
+  const long = await post(unknownCall(longName), MODERN_CALL_HEADERS("x".repeat(200)));
+  assert.equal(long.status, 400);
+  const longText = await long.text();
+  assert.equal(longText.includes("n".repeat(65)), false, "the body's name is cut at 64");
+  assert.equal(longText.includes("x".repeat(65)), false, "the header's value is cut at 64");
+  assert.ok(longText.includes("n".repeat(64)));
+  // Controls: headers that agree keep the Worker's own answers, a matching Base64 sentinel is
+  // decoded first, and the legacy lane, which has no such headers, is unchanged.
+  const matching = await readJson(await post(unknownCall("no_such_tool"), MODERN_CALL_HEADERS("no_such_tool")));
+  assert.equal(matching.error!.message, "Invalid params: unknown tool name");
+  const sentinel = "=?base64?" + Buffer.from("no_such_tool").toString("base64") + "?=";
+  const encoded = await readJson(await post(unknownCall("no_such_tool"), MODERN_CALL_HEADERS(sentinel)));
+  assert.equal(encoded.error!.message, "Invalid params: unknown tool name");
+  const deepMatching = await readJson(await post(deep, MODERN_CALL_HEADERS("get_services")));
+  assert.match(deepMatching.error!.message, /nested more than 64 levels deep/);
+  const legacy = await readJson(await post({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "no_such_tool", arguments: {} } }, { "Mcp-Name": "get_services" }));
+  assert.equal(legacy.error!.message, "Invalid params: unknown tool name", "legacy lane: the Worker's own answer");
 });

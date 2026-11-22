@@ -1,4 +1,4 @@
-import { McpServer, PROTOCOL_VERSION_META_KEY, isJsonContentType, SUBSCRIPTION_ID_META_KEY, SERVER_INFO_META_KEY, specTypeSchemas, validateOriginHeader } from "@modelcontextprotocol/server";
+import { McpServer, PROTOCOL_VERSION_META_KEY, isJsonContentType, SUBSCRIPTION_ID_META_KEY, SERVER_INFO_META_KEY, specTypeSchemas, validateOriginHeader, classifyInboundRequest, UnsupportedProtocolVersionError } from "@modelcontextprotocol/server";
 import { createMcpHandler } from "agents/mcp/server";
 // The namespace import lets the bundler keep only the parts of zod the schemas below use.
 // Importing the named z export instead pulled in all of zod: a dry-run build measured
@@ -661,7 +661,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.13.0",
+  version: "1.13.1",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -1007,8 +1007,9 @@ function isModernLane(request: Request): boolean {
   return request.headers.get("MCP-Protocol-Version") === "2026-07-28";
 }
 
-// T-02 (Astra audit 2026-09-26), refined in the S5 round (2026-11-05): the 2026-07-28
-// revision's JSONRPCErrorResponse allows id to be a string, a number, or absent, and nothing else,
+// T-02 (Astra audit 2026-09-26), refined in the S5 round (2026-11-05) and after the C3 protocol
+// test (2026-11-22): the 2026-07-28 revision's JSONRPCErrorResponse allows id to be a string, an
+// integer (the schema's RequestId is string or integer), or absent, and nothing else,
 // so an error on that lane leaves the id out when none was read, which is most callers of this
 // function (an oversized body, a batch). The legacy lane follows JSON-RPC 2.0 section 5
 // instead: a request whose id could not be read is answered with id null. `modern` is the
@@ -1022,20 +1023,49 @@ function mcpError(modern: boolean, status: number, code: number, message: string
   ));
 }
 
+// The id a request can carry under the 2026-07-28 revision's RequestId: a string or an integer.
+// An integer outside the safe range is not counted, because it cannot be echoed exactly.
+function isReadableRequestId(value: unknown): value is string | number {
+  return typeof value === "string" || Number.isSafeInteger(value);
+}
+
+// C3 finding 2 (MCP protocol test 2026-11-22): the 2026-07-28 revision marks -32000 to -32019 as
+// a legacy sub-range that new implementations SHOULD NOT use, and -32020 to -32099 holds only
+// the codes the specification itself defines. A refusal at the transport layer (an oversized
+// body, a disallowed Origin, a body not declared as JSON, a method /mcp does not serve) is
+// therefore answered on that lane with the standard JSON-RPC code -32600 Invalid Request, and
+// the HTTP status still names the reason. The legacy lane keeps -32000, the code the SDK gives
+// these answers there. The set of refused requests does not move, only the code on one lane.
+const LEGACY_TRANSPORT_REFUSAL_CODE = -32000;
+const MODERN_TRANSPORT_REFUSAL_CODE = -32600;
+function transportRefusalCode(modern: boolean): number {
+  return modern ? MODERN_TRANSPORT_REFUSAL_CODE : LEGACY_TRANSPORT_REFUSAL_CODE;
+}
+
 // MCP-05 (S5 triage 2026-11-05): the SDK answers its own errors with "id":null on both lanes
 // (invalid request, 405, a refused Origin), which the 2026-07-28 revision does not allow. On
-// that lane only, the id member is taken out of such a JSON answer. The answer is rebuilt
-// without the old Content-Length, and the status, the headers and the error stay as they were.
-// The legacy lane keeps the SDK's answer.
-async function withoutNullId(res: Response): Promise<Response> {
+// that lane only, the id member is taken out of such a JSON answer. C3 finding 1 (2026-11-22):
+// the SDK also echoed an id the revision's RequestId does not allow, such as 1.5, so every id
+// that is neither a string nor a safe integer is taken out the same way. C3 finding 2: an SDK
+// error with the legacy code -32000 (its 405, for example) gets the lane's transport refusal
+// code. The answer is rebuilt without the old Content-Length, and the status, the headers and
+// the error message stay as they were. The legacy lane keeps the SDK's answer.
+async function modernLaneAnswer(res: Response): Promise<Response> {
   if (res.body === null || !(res.headers.get("Content-Type") ?? "").includes("application/json")) return res;
   const text = await res.text();
   let out = text;
   try {
     const body: unknown = JSON.parse(text);
-    if (isPlainObject(body) && body.id === null) {
-      const { id: _nullId, ...rest } = body;
-      out = JSON.stringify(rest);
+    if (isPlainObject(body)) {
+      let next: Record<string, unknown> = body;
+      if ("id" in next && !isReadableRequestId(next.id)) {
+        const { id: _unreadableId, ...rest } = next;
+        next = rest;
+      }
+      if (isPlainObject(next.error) && next.error.code === LEGACY_TRANSPORT_REFUSAL_CODE) {
+        next = { ...next, error: { ...next.error, code: MODERN_TRANSPORT_REFUSAL_CODE } };
+      }
+      if (next !== body) out = JSON.stringify(next);
     }
   } catch {
     // Not JSON after all: handed on as it was.
@@ -1145,6 +1175,10 @@ function invalidParamsReason(method: string, params: unknown): string | undefine
   return undefined;
 }
 
+function argumentKeysExceedEchoLimits(keys: string[]): boolean {
+  return keys.length > MAX_ECHOED_ARGUMENT_KEYS || keys.some((k) => k.length > MAX_ECHOED_ARGUMENT_KEY_LENGTH);
+}
+
 // T-04 (Astra audit 2026-09-26): every tool above takes noArguments, z.strictObject({}), but
 // a JSON body whose arguments object has "__proto__" as its only key got past that check,
 // although README and every other extra key promise a tool error. Test P13 still fails without
@@ -1161,10 +1195,9 @@ function invalidParamsReason(method: string, params: unknown): string | undefine
 // W16 F1 (ChatGPT review 2026-10-02): the 2026-07-28 revision requires resultType on every result, so
 // the modern lane gets "complete" here as the SDK adds it on every other result. The legacy lane
 // keeps its earlier bytes.
-function argumentKeysExceedEchoLimits(keys: string[]): boolean {
-  return keys.length > MAX_ECHOED_ARGUMENT_KEYS || keys.some((k) => k.length > MAX_ECHOED_ARGUMENT_KEY_LENGTH);
-}
-
+// C3 finding 7 (MCP protocol test 2026-11-22): servers SHOULD include
+// io.modelcontextprotocol/serverInfo in every result's _meta, and the SDK's own tool errors on
+// the 2026-07-28 lane carry it, so this result carries the same SERVER_INFO there too.
 function toolArgumentError(id: string | number, toolName: string, keys: string[], modern: boolean): Response {
   const listed = keys.slice(0, MAX_ECHOED_ARGUMENT_KEYS).map((k) => `'${k.slice(0, MAX_ECHOED_ARGUMENT_KEY_LENGTH)}'`).join(", ");
   const more = keys.length > MAX_ECHOED_ARGUMENT_KEYS ? ` and ${keys.length - MAX_ECHOED_ARGUMENT_KEYS} more` : "";
@@ -1174,7 +1207,7 @@ function toolArgumentError(id: string | number, toolName: string, keys: string[]
     result: {
       content: [{ type: "text", text: `Input validation error: Invalid arguments for tool ${toolName}: unrecognized key(s) in object: ${listed}${more}` }],
       isError: true,
-      ...(modern ? { resultType: "complete" } : {}),
+      ...(modern ? { resultType: "complete", _meta: { [SERVER_INFO_META_KEY]: SERVER_INFO } } : {}),
     },
   }, { status: 200 }));
 }
@@ -1188,6 +1221,135 @@ function unknownToolError(modern: boolean, id: string | number, toolName: string
   const truncated = toolName.length > MAX_ECHOED_TOOL_NAME_LENGTH;
   const name = truncated ? toolName.slice(0, MAX_ECHOED_TOOL_NAME_LENGTH) : toolName;
   return mcpError(modern, 200, -32602, "Invalid params: unknown tool name", id, { tool: { name, truncated } });
+}
+
+// C3 finding 6 (MCP protocol test 2026-11-22): a tools/call whose params fail the SDK's own
+// request schema (no name, or arguments that are a string, a list or null) was answered -32602
+// with the schema library's issue list as the message, 213 to 300 characters over several
+// lines, on both lanes. initialize answers the same class with the path of the first issue
+// alone (invalidParamsReason below), and this gives tools/call the same plain form. The SDK
+// still decides what fails, so the accepted set does not move: only the message of that one
+// answer is replaced. The legacy lane answers as an event stream and the 2026-07-28 lane as
+// JSON, and both are read.
+const TOOLS_CALL_SCHEMA_ERROR_PREFIX = "Invalid tools/call request: ";
+
+function plainToolsCallSchemaMessage(message: string): string {
+  let path: unknown[] = [];
+  try {
+    const issues: unknown = JSON.parse(message.slice(TOOLS_CALL_SCHEMA_ERROR_PREFIX.length));
+    if (Array.isArray(issues) && isPlainObject(issues[0]) && Array.isArray(issues[0].path)) path = issues[0].path;
+  } catch {
+    // Not the issue list after all: the message then names params alone.
+  }
+  // The SDK checks the whole request, so its path starts at params. A caller-chosen key in it is
+  // cut like the argument keys (MAX_ECHOED_ARGUMENT_KEY_LENGTH).
+  const parts = path.map((part) => String(part).slice(0, MAX_ECHOED_ARGUMENT_KEY_LENGTH));
+  return `Invalid params: ${(parts[0] === "params" ? parts : ["params", ...parts]).join(".")} is invalid`;
+}
+
+function rewrittenToolsCallMessage(json: string): string | undefined {
+  let message: unknown;
+  try {
+    message = JSON.parse(json);
+  } catch {
+    return undefined;
+  }
+  if (!isPlainObject(message) || !isPlainObject(message.error)) return undefined;
+  const text = message.error.message;
+  if (message.error.code !== -32602 || typeof text !== "string" || !text.startsWith(TOOLS_CALL_SCHEMA_ERROR_PREFIX)) return undefined;
+  return JSON.stringify({ ...message, error: { ...message.error, message: plainToolsCallSchemaMessage(text) } });
+}
+
+async function withPlainToolsCallSchemaError(res: Response): Promise<Response> {
+  const type = res.headers.get("Content-Type") ?? "";
+  const json = type.includes("application/json");
+  if (res.body === null || !(json || type.includes("text/event-stream"))) return res;
+  const text = await res.clone().text();
+  let out: string | undefined;
+  if (json) {
+    out = rewrittenToolsCallMessage(text);
+  } else {
+    let changed = false;
+    const lines = text.split("\n").map((line) => {
+      if (!line.startsWith("data: ")) return line;
+      const next = rewrittenToolsCallMessage(line.slice("data: ".length));
+      if (next === undefined) return line;
+      changed = true;
+      return "data: " + next;
+    });
+    if (changed) out = lines.join("\n");
+  }
+  if (out === undefined) return res;
+  await res.body.cancel();
+  const headers = new Headers(res.headers);
+  headers.delete("Content-Length");
+  return new Response(out, { status: res.status, statusText: res.statusText, headers });
+}
+
+// C3 finding 13 (MCP protocol test 2026-11-22, Erik's decision the same day): MCP 2026-07-28
+// says servers that process the request body MUST reject a request whose headers do not match
+// it, with 400 -32020 HeaderMismatch. The SDK makes that comparison, but the Worker's own checks
+// below (params, an unknown tool name, argument keys) answered first, with 200 -32602 or a tool
+// error. On the 2026-07-28 lane those checks now ask this function first, and it runs the SDK's
+// own entry ladder in the SDK's order. First classifyInboundRequest, which the SDK exports and
+// its handler runs before anything else: the _meta envelope, the version the body names against
+// the header, Mcp-Method against the body, an initialize sent with the modern header and a
+// modern header without the envelope claim. Its rejection is answered as the SDK answers it,
+// status, code, message and data unchanged. Then the unsupported-revision answer the SDK gives
+// next, and last the part of validateStandardRequestHeaders the SDK does not export (a missing
+// Mcp-Method and, for tools/call, the Mcp-Name header with its Base64 sentinel decoded), copied
+// with the SDK's wording; there every value the caller chose is echoed at most
+// MAX_ECHOED_TOOL_NAME_LENGTH characters long, as the tool name is elsewhere. The classifier
+// reads a body nested deeper than the params limit without overflowing (measured 2026-11-22 up
+// to 10 000 levels in params, arguments and _meta; a 64 KiB body holds about 10 900). A request
+// no Worker check answers still reaches the SDK unchanged, so its answer keeps the SDK's own
+// bytes, and the set of refused requests does not move.
+const MODERN_PROTOCOL_VERSION = "2026-07-28";
+const BASE64_SENTINEL_PREFIX = "=?base64?";
+const BASE64_SENTINEL_SUFFIX = "?=";
+const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+// The SDK's decodeMcpParamValue: a value in the sentinel is canonical Base64 of UTF-8 text, any
+// other value is taken as it is, and undefined means a sentinel that does not decode.
+function decodedNameHeader(value: string): string | undefined {
+  if (!(value.startsWith(BASE64_SENTINEL_PREFIX) && value.endsWith(BASE64_SENTINEL_SUFFIX))) return value;
+  const encoded = value.slice(BASE64_SENTINEL_PREFIX.length, value.length - BASE64_SENTINEL_SUFFIX.length);
+  if (!CANONICAL_BASE64.test(encoded)) return undefined;
+  try {
+    // ignoreBOM false is the platform default, named because the Workers types require the member.
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0)));
+  } catch {
+    return undefined;
+  }
+}
+
+function headerMismatchAnswer(request: Request, body: Record<string, unknown>, method: string, params: unknown, id: string | number): Response | undefined {
+  const asData = (value: unknown) => (isPlainObject(value) ? value : undefined);
+  const headers = {
+    ...(request.headers.has("MCP-Protocol-Version") ? { protocolVersionHeader: request.headers.get("MCP-Protocol-Version")! } : {}),
+    ...(request.headers.has("Mcp-Method") ? { mcpMethodHeader: request.headers.get("Mcp-Method")! } : {}),
+    ...(request.headers.has("Mcp-Name") ? { mcpNameHeader: request.headers.get("Mcp-Name")! } : {}),
+  };
+  const outcome = classifyInboundRequest({ httpMethod: "POST", ...headers, body });
+  if (outcome.kind === "reject") return mcpError(true, outcome.httpStatus, outcome.code, outcome.message, id, asData(outcome.data));
+  if (outcome.kind !== "modern" || outcome.messageKind !== "request") return undefined;
+  const revision = outcome.classification.revision;
+  if (revision !== MODERN_PROTOCOL_VERSION) {
+    const unsupported = new UnsupportedProtocolVersionError({ supported: [MODERN_PROTOCOL_VERSION], requested: revision ?? "unknown" });
+    return mcpError(true, 400, unsupported.code, unsupported.message, id, asData(unsupported.data));
+  }
+  const cap = (value: string) => value.slice(0, MAX_ECHOED_TOOL_NAME_LENGTH);
+  const mismatch = (header: string, reason: string) =>
+    mcpError(true, 400, -32020, `Bad Request: the request headers and body disagree: ${reason}`, id, { mismatch: { header, body: reason } });
+  const methodHeader = request.headers.get("Mcp-Method");
+  if (methodHeader === null) return mismatch("(missing)", `the body names method ${cap(method)} but the required Mcp-Method header is absent`);
+  if (method !== "tools/call" || !isPlainObject(params) || typeof params.name !== "string") return undefined;
+  const nameHeader = request.headers.get("Mcp-Name");
+  if (nameHeader === null) return mismatch("(missing)", `the body carries params.name="${cap(params.name)}" but the required Mcp-Name header is absent`);
+  const decoded = decodedNameHeader(nameHeader);
+  if (decoded === undefined) return mismatch(cap(nameHeader), "the Mcp-Name header carries an invalid Base64 sentinel value");
+  if (decoded !== params.name) return mismatch(cap(nameHeader), `the body carries params.name="${cap(params.name)}" but the Mcp-Name header names "${cap(decoded)}"`);
+  return undefined;
 }
 
 // Reads the body chunk by chunk and stops at the limit, so an oversized body is never held
@@ -1216,13 +1378,14 @@ async function readCapped(request: Request, limit: number): Promise<Uint8Array |
   return bytes;
 }
 
-async function guardMcpPost(request: Request): Promise<{ request: Request; listenSubscriptionId?: string | number } | Response> {
+async function guardMcpPost(request: Request): Promise<{ request: Request; listenSubscriptionId?: string | number; toolsCall: boolean } | Response> {
   const modern = isModernLane(request);
-  const tooLarge = () => mcpError(modern, 413, -32000, `Content Too Large: the request body may be at most ${MAX_BODY_BYTES} bytes`);
+  const tooLarge = () => mcpError(modern, 413, transportRefusalCode(modern), `Content Too Large: the request body may be at most ${MAX_BODY_BYTES} bytes`);
   if (Number(request.headers.get("Content-Length") ?? "0") > MAX_BODY_BYTES) return tooLarge();
   const bytes = await readCapped(request, MAX_BODY_BYTES);
   if (bytes === null) return tooLarge();
   let listenSubscriptionId: string | number | undefined;
+  let toolsCall = false;
   // A body not declared as JSON is refused with 415 below, after the Origin check and before
   // the SDK, which would answer the same 415 with "id":null. The checks that read the body
   // as JSON-RPC therefore run only when the Content-Type is JSON. The Origin check runs for
@@ -1238,7 +1401,7 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
       // that lane and null on the legacy lane (see mcpError). The Origin check runs first so a
       // disallowed Origin keeps its 403.
       const early = checkedOrigin(request.headers.get("Origin"));
-      if (!early.ok) return mcpError(modern, 403, -32000, early.message);
+      if (!early.ok) return mcpError(modern, 403, transportRefusalCode(modern), early.message);
       return mcpError(modern, 400, -32700, "Parse error: Invalid JSON");
     }
     if (Array.isArray(body)) {
@@ -1253,7 +1416,8 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
   // rule (validateOriginHeader, exported by @modelcontextprotocol/server: a missing Origin
   // passes, any other value is parsed as a URL and its hostname checked against the same
   // MCP_ALLOWED_ORIGIN_HOSTNAMES createMcpHandler is given below) through checkedOrigin,
-  // which adds the serialized-origin rule, and answers with the same code and message text.
+  // which adds the serialized-origin rule, and answers with the same message text, and with the
+  // same code on the legacy lane (the 2026-07-28 lane gets -32600, see transportRefusalCode).
   // None has been read yet, so the id member follows the lane (B2; see mcpError): absent on
   // the 2026-07-28 lane, null on the legacy lane. It runs after the batch check above and the
   // oversized-body check at the top of this function, which is the order decided for the guard
@@ -1268,13 +1432,14 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
   // Content-Type-specific handling, gives every Content-Type the same code, message and
   // id shape for its lane.
   const originResult = checkedOrigin(request.headers.get("Origin"));
-  if (!originResult.ok) return mcpError(modern, 403, -32000, originResult.message);
-  // Same condition, code and message as the SDK's own check (isJsonContentType in handle()),
+  if (!originResult.ok) return mcpError(modern, 403, transportRefusalCode(modern), originResult.message);
+  // Same condition and message as the SDK's own check (isJsonContentType in handle()), and the
+  // same code on the legacy lane (the 2026-07-28 lane gets -32600, see transportRefusalCode),
   // answered here with the lane's id shape because the SDK sends "id":null, which the
   // 2026-07-28 revision does not allow. A header the SDK accepts, such as application/json with
   // a charset, still reaches it.
   if (!contentTypeIsJson) {
-    return mcpError(modern, 415, -32000, "Unsupported Media Type: Content-Type must be application/json");
+    return mcpError(modern, 415, transportRefusalCode(modern), "Unsupported Media Type: Content-Type must be application/json");
   }
   if (contentTypeIsJson) {
     // A single-object body with a string method and no usable id (a notification) has no result
@@ -1287,26 +1452,48 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
       && nestsDeeperThan(body.params, MAX_PARAMS_DEPTH)) {
       return mcpError(modern, 400, -32600, `Invalid Request: params are nested more than ${MAX_PARAMS_DEPTH} levels deep`);
     }
+    // C3 finding 5 (MCP protocol test 2026-11-22): a request whose method is missing or not a
+    // string, with an id that can be read, was left to the SDK, which answered 400 -32600 with
+    // no id on the 2026-07-28 lane and id null on the legacy lane, although an error must carry
+    // the id of the request it answers whenever that id can be read. The Worker answers it
+    // itself with the SDK's code and message and that id, on both lanes. A body with a result or
+    // an error member is a client's JSON-RPC response, not a request, and still reaches the SDK.
+    if (isPlainObject(body) && typeof body.method !== "string" && isReadableRequestId(body.id)
+      && !("result" in body) && !("error" in body)) {
+      return mcpError(modern, 400, -32600, "Bad Request: the request body is not a valid JSON-RPC message", body.id as string | number);
+    }
     // MCP-03 (S5 triage 2026-11-05): the guards below act only on a well-formed request
     // envelope: jsonrpc "2.0", a string method, and a string or safe-integer id, the same as
-    // the SDK's own check. Anything else is left to the SDK, which answers 400 with -32600 and
-    // echoes an id it can read.
+    // the SDK's own check. Anything else is left to the SDK, which answers 400 with -32600; it
+    // echoes a readable id when jsonrpc is wrong or absent (measured 2026-11-22, C3 FM17 and
+    // FM18), and the case where it did not, a missing or non-string method, is answered above.
     if (isPlainObject(body) && body.jsonrpc === "2.0" && typeof body.method === "string"
       && (typeof body.id === "string" || Number.isSafeInteger(body.id))) {
+      // C3 finding 13: on the 2026-07-28 lane a header that disagrees with the body is answered
+      // before any of the three Worker checks below (headerMismatchAnswer).
+      const requestBody = body;
+      const requestMethod = body.method;
+      const requestId = body.id as string | number;
+      const requestParams = body.params;
+      const ownAnswer = (answer: () => Response): Response =>
+        (modern ? headerMismatchAnswer(request, requestBody, requestMethod, requestParams, requestId) : undefined) ?? answer();
       const paramsProblem = invalidParamsReason(body.method, body.params);
       if (paramsProblem !== undefined) {
-        return mcpError(modern, 200, -32602, `Invalid params: ${paramsProblem}`, body.id as string | number);
+        return ownAnswer(() => mcpError(modern, 200, -32602, `Invalid params: ${paramsProblem}`, requestId));
       }
       if (body.method === "tools/call" && isPlainObject(body.params) && typeof body.params.name === "string"
         && !NO_ARGUMENT_TOOLS.has(body.params.name)) {
-        return unknownToolError(modern, body.id as string | number, body.params.name);
+        const toolName = body.params.name;
+        return ownAnswer(() => unknownToolError(modern, requestId, toolName));
       }
       if (body.method === "tools/call" && isPlainObject(body.params) && typeof body.params.name === "string"
         && NO_ARGUMENT_TOOLS.has(body.params.name) && isPlainObject(body.params.arguments)) {
         const keys = Object.keys(body.params.arguments);
-        if (keys.includes("__proto__") || argumentKeysExceedEchoLimits(keys)) return toolArgumentError(body.id as string | number, body.params.name, keys, modern);
+        const toolName = body.params.name;
+        if (keys.includes("__proto__") || argumentKeysExceedEchoLimits(keys)) return ownAnswer(() => toolArgumentError(requestId, toolName, keys, modern));
       }
       if (body.method === "subscriptions/listen") listenSubscriptionId = body.id as string | number;
+      if (body.method === "tools/call") toolsCall = true;
       if (!request.headers.has("MCP-Protocol-Version")) {
         const meta = isPlainObject(body.params) && isPlainObject(body.params._meta) ? body.params._meta : undefined;
         const claim = meta !== undefined && PROTOCOL_VERSION_META_KEY in meta;
@@ -1320,7 +1507,7 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
       }
     }
   }
-  return { request: new Request(request.url, { method: request.method, headers: request.headers, body: bytes, signal: request.signal }), listenSubscriptionId };
+  return { request: new Request(request.url, { method: request.method, headers: request.headers, body: bytes, signal: request.signal }), listenSubscriptionId, toolsCall };
 }
 
 // Typed structurally rather than against an ambient binding type, so the shape this code
@@ -1381,25 +1568,31 @@ export default {
     if (url.pathname === "/mcp" || url.pathname === "/mcp/") {
       let forwarded = url.pathname === "/mcp" ? request : new Request(new URL("/mcp" + url.search, url), request);
       let listenSubscriptionId: string | number | undefined;
+      let toolsCall = false;
       if (request.method.toUpperCase() === "POST") {
         const guarded = await guardMcpPost(request);
         if (guarded instanceof Response) return guarded;
         forwarded = guarded.request;
         listenSubscriptionId = guarded.listenSubscriptionId;
+        toolsCall = guarded.toolsCall;
       } else {
         // OPTIONS, GET and DELETE get the same Origin rule as a POST, here before the SDK's
         // own hostname-only check (MCP-09). A preflight has no version header, so a refusal
         // of one is the legacy answer.
         const origin = checkedOrigin(request.headers.get("Origin"));
-        if (!origin.ok) return mcpError(isModernLane(request), 403, -32000, origin.message);
+        const modern = isModernLane(request);
+        if (!origin.ok) return mcpError(modern, 403, transportRefusalCode(modern), origin.message);
       }
       const handled = await createMcpHandler(createServer, {
         route: "/mcp",
         corsOptions: MCP_CORS,
         allowedOriginHostnames: MCP_ALLOWED_ORIGIN_HOSTNAMES,
       })(forwarded, env, ctx);
-      // MCP-05: no null id in an SDK answer on the 2026-07-28 lane.
-      const res = isModernLane(request) ? await withoutNullId(handled) : handled;
+      // MCP-05 and C3 findings 1 and 2: on the 2026-07-28 lane an SDK answer carries no id the
+      // revision does not allow and no legacy -32000 code. C3 finding 6: a tools/call schema
+      // error names the path of the first issue instead of the schema library's issue list.
+      const modernChecked = isModernLane(request) ? await modernLaneAnswer(handled) : handled;
+      const res = toolsCall ? await withPlainToolsCallSchemaError(modernChecked) : modernChecked;
       return withSecurityHeaders(listenSubscriptionId === undefined ? res : closeListenStreamAfterAck(res, listenSubscriptionId));
     }
     if (request.method === "OPTIONS") {
