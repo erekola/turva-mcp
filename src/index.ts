@@ -307,8 +307,8 @@ export const SECURITY_EVIDENCE = {
   note: "We publish our own domain's scan results as proof that we follow the same practices we recommend to clients.",
 } as const;
 
-// measured-result says what the site says of the audit in the section What is unchanged of
-// /blog/cheating-to-keep-the-old-price: the promise covers the fixes the audit report names.
+// measured-result says what the site says of the audit: the promise covers the fixes the
+// audit report names.
 // A promise of a higher reading without that bound would contradict the advisory
 // deliverable above, which says in as many words that a higher score is not guaranteed.
 export const PRINCIPLES = {
