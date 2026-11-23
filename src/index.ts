@@ -25,7 +25,7 @@ export const SERVICES = {
     communication: "async_only",
     notes: [
       "All communication is async. No calls and no calendar links.",
-      "Read access is enough for the audit. Write access is scoped per task only if implementation is purchased separately.",
+      "Read access is enough for the audit. Write access to repositories is scoped per task.",
       "Existing production passwords are not requested. Correction add-ons and implementation need delegated access agreed in writing in advance: deployment access or DNS access when a fix requires it.",
       // Corrected 2026-09-28 (P2, 3rd round): the written scope, not an unstated cap,
       // bounds how many fixes, questions or review pages a service month covers.
@@ -322,7 +322,7 @@ export const PRINCIPLES = {
   model: "agent_readiness_audit",
   rules: [
     { id: "async-only", title: "All communication is async", rationale: "No calls and no calendar links. Everything stays in writing, so the work and the trail are auditable end to end." },
-    { id: "least-access", title: "No production credentials, scoped write access", rationale: "Read access is enough for the audit. Write access is scoped per task only if implementation is purchased separately." },
+    { id: "least-access", title: "No production credentials, scoped write access", rationale: "Read access is enough for the audit. Write access to repositories is scoped per task." },
     // Corrected 2026-09-28 (V08-29): "the next scan either reads higher ... or the
     // report explains which tradeoff was kept on purpose" promised more than
     // /agent-readiness-audit.md does; this now matches that page's own wording
@@ -368,7 +368,7 @@ export const CONTACT = {
   how_to_start: [
     "Email the domain you want read and the question you want answered. That is enough to start.",
     "Read access is enough for the audit. Production credentials are not requested.",
-    "Write access to repositories is scoped per task, and only if implementation is purchased separately.",
+    "Write access to repositories is scoped per task.",
   ],
   operator: {
     name: "turva.dev",
@@ -675,7 +675,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.13.2",
+  version: "1.13.3",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
