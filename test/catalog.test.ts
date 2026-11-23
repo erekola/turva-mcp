@@ -270,8 +270,8 @@ test("M11: the agent-readiness note describes the url as the scanner start page,
 
 // Tek-886: the legal page and the sample report are mirrored as data. tools/verify.mjs holds the drift gate against the
 // worker.ts source; these cases hold the shape, so a missing key or an empty section fails before the gate is read.
-test("M11: contract_terms holds the twelve subsections as non-empty paragraph arrays", async () => {
-  const keys = ["applies_to", "scope", "business_days", "deliverables", "payment", "cancellation_and_refunds", "delay", "continuity", "confidentiality", "liability", "intellectual_property", "governing_law"];
+test("M11: contract_terms holds the twelve subsections and the updates section as non-empty paragraph arrays", async () => {
+  const keys = ["applies_to", "scope", "business_days", "deliverables", "payment", "cancellation_and_refunds", "delay", "continuity", "confidentiality", "liability", "intellectual_property", "governing_law", "updates"];
   const ct: Record<string, unknown> = SERVICES.contract_terms;
   assert.deepEqual(Object.keys(ct), ["url", ...keys]);
   assert.equal(ct.url, "https://turva.dev/legal");
@@ -296,8 +296,8 @@ test("M11b: sample_report names the sample page, its sections and the nine examp
   assert.equal(new Set(r.sections).size, r.sections.length, "no section is listed twice");
 });
 
-test("M12: privacy holds the twelve sections as paragraph arrays, with the links reduced to text and two sections named as left out", async () => {
-  const keys = ["overview", "roles", "server_logs", "international_transfers", "email", "client_material", "public_site_briefs", "outreach_records", "ai_tools", "providers", "data_rights", "cookies"];
+test("M12: privacy holds the twelve sections and the updates section as paragraph arrays, with the links reduced to text and two sections named as left out", async () => {
+  const keys = ["overview", "roles", "server_logs", "international_transfers", "email", "client_material", "public_site_briefs", "outreach_records", "ai_tools", "providers", "data_rights", "cookies", "updates"];
   const p: Record<string, unknown> = CONTACT.privacy;
   assert.deepEqual(Object.keys(p), ["url", ...keys, "not_included"]);
   assert.equal(p.url, "https://turva.dev/legal");
@@ -309,4 +309,19 @@ test("M12: privacy holds the twelve sections as paragraph arrays, with the links
   assert.match(String(p.not_included), /AI tools in security work/);
   assert.match(String(p.not_included), /Where the work runs/);
   assert.match(String(p.not_included), /legal page only/);
+});
+
+// 2026-11-22 outside read (P1 and P6): the audit's two-target limit is stated beside its price, and the /legal Updates section,
+// which gives the date the terms apply from, is mirrored next to the terms and the privacy sections it dates.
+test("M13: the audit service states the two-target limit and the terms and privacy carry the effective date", async () => {
+  const audit = SERVICES.services.find((s) => s.id === "audit")!;
+  assert.match(audit.summary, /up to two targets named in the written scope, at one fixed price/);
+  assert.equal(audit.price, 4300, "the price is unchanged");
+  const sections: (readonly string[])[] = [SERVICES.contract_terms.updates, CONTACT.privacy.updates];
+  for (const section of sections) {
+    const text = section.join("\n");
+    assert.match(text, /The terms apply to engagements started on or after the Terms date below/);
+    assert.match(text, /\*\*Terms last updated:\*\* 2026-11-21/);
+    assert.match(text, /\*\*Privacy last updated:\*\* 2026-11-21/);
+  }
 });

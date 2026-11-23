@@ -62,7 +62,8 @@ export const SERVICES = {
       unit: "fixed",
       duration: "2 weeks",
       duration_from: "agreed written kickoff",
-      summary: "Fixed scope. An independent public scanner runs against the site or API, followed by a written report with a prioritized fix list.",
+      // Added 2026-11-22 (outside read P1): the two-target limit of the audit page, in its words, beside the price.
+      summary: "Fixed scope. An independent public scanner runs against the site or API, followed by a written report with a prioritized fix list. The audit covers up to two targets named in the written scope, at one fixed price.",
       deliverable: "A measured baseline, a clear plan for what to fix first, and a fix instruction for every finding with a link to the matching guide on turva.dev where a guide covers that surface. You also receive the recorded AI questions and answers, one round of written follow-up questions submitted within 14 calendar days of the report and answered within five business days, and one re-scan within 30 days of the report, or within 30 days of the delivered corrections when the correction add-on is bought. The written scope agreed before kickoff sets how many questions that round covers.",
     },
     {
@@ -210,6 +211,12 @@ export const SERVICES = {
     ],
     governing_law: [
       "Finnish law applies. Disputes are resolved in the District Court of Pirkanmaa, Finland.",
+    ],
+    // Added 2026-11-22 (outside read P6): the ## Updates section of the /legal twin, byte for byte, which says the terms apply
+    // to engagements started on or after the Terms date. The page's list is one block, so it is one string with its line break.
+    updates: [
+      "This page is updated when the terms or the privacy sections change. The terms apply to engagements started on or after the Terms date below, and the privacy sections apply from the Privacy date below.",
+      "- **Terms last updated:** 2026-11-21\n- **Privacy last updated:** 2026-11-21",
     ],
   },
   sample_report: {
@@ -453,6 +460,11 @@ export const CONTACT = {
       "This site sets no cookies of its own. A check of the home page, this page and the contact page on 27 September 2026 received no cookie.",
       "If Cloudflare's bot protection is triggered, it can set one of its own security cookies, __cf_bm, which tells bot traffic apart from human visitors, or cf_clearance, which records that a challenge was passed, for that purpose only, as Cloudflare's own cookie table names them. Cloudflare describes __cf_bm as necessary for its bot protection to work and cf_clearance as required to reach the origin after a challenge. turva.dev treats both as strictly necessary for security and does not ask for consent for them.",
     ],
+    // Added 2026-11-22 (outside read P6): the same ## Updates section as contract_terms.updates, which dates the privacy sections.
+    updates: [
+      "This page is updated when the terms or the privacy sections change. The terms apply to engagements started on or after the Terms date below, and the privacy sections apply from the Privacy date below.",
+      "- **Terms last updated:** 2026-11-21\n- **Privacy last updated:** 2026-11-21",
+    ],
     not_included: "The sections AI tools in security work and Where the work runs are on the legal page only.",
   },
 } as const;
@@ -525,6 +537,7 @@ const servicesOutput = z.strictObject({
     liability: paragraphs("The limit of liability."),
     intellectual_property: paragraphs("Who owns the deliverables and what turva.dev retains."),
     governing_law: paragraphs("The governing law and the court that resolves disputes."),
+    updates: paragraphs("The Updates section of the legal page, which dates the terms and the engagements they apply to."),
   }).describe("The engagement terms of the legal page, every paragraph of every subsection, quoted as the page words them."),
   sample_report: z.strictObject({
     url: z.string().describe("The published sample audit report."),
@@ -610,6 +623,7 @@ const contactOutput = z.strictObject({
     providers: paragraphs("The providers that process data and what each one holds."),
     data_rights: paragraphs("The rights of a person whose data is processed and how to use them."),
     cookies: paragraphs("The cookies the site sets."),
+    updates: paragraphs("The Updates section of the legal page, which dates the privacy sections."),
     not_included: z.string().describe("Which sections of the legal page this object leaves out."),
   }).describe("The privacy sections of the legal page, every paragraph of every section listed, quoted as the page words them. A markdown link is reduced to its text."),
 });
@@ -661,7 +675,7 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.13.1",
+  version: "1.13.2",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -1520,6 +1534,67 @@ interface Env {
   RATE_LIMITER?: RateLimiterBinding;
 }
 
+// An IPv6 client usually holds a whole /64, so keying on the full address would hand one
+// client 2^64 separate buckets. The key for IPv6 is therefore the /64 prefix; IPv4 stays the
+// full address, and an IPv4-mapped IPv6 address (::ffff:a.b.c.d) counts as that IPv4 address.
+// Anything that does not parse falls back to the header value itself, so a strange value can
+// only share or split a bucket and never throws. The key is never logged.
+const IPV4_PATTERN = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+const IPV6_GROUP = /^[0-9a-f]{1,4}$/;
+
+function expandIpv6(address: string): number[] | undefined {
+  const halves = address.split("::");
+  if (halves.length > 2) return undefined;
+  const toGroups = (part: string): number[] | undefined => {
+    if (part === "") return [];
+    const groups: number[] = [];
+    const pieces = part.split(":");
+    for (let i = 0; i < pieces.length; i++) {
+      const piece = pieces[i]!;
+      const dotted = i === pieces.length - 1 ? IPV4_PATTERN.exec(piece) : null;
+      if (dotted) {
+        const octets = dotted.slice(1).map(Number);
+        if (octets.some((o) => o > 255)) return undefined;
+        groups.push(octets[0]! * 256 + octets[1]!, octets[2]! * 256 + octets[3]!);
+      } else if (IPV6_GROUP.test(piece)) {
+        groups.push(parseInt(piece, 16));
+      } else {
+        return undefined;
+      }
+    }
+    return groups;
+  };
+  const head = toGroups(halves[0]!);
+  const tail = halves.length === 2 ? toGroups(halves[1]!) : [];
+  if (!head || !tail) return undefined;
+  if (halves.length === 1) return head.length === 8 ? head : undefined;
+  const missing = 8 - head.length - tail.length;
+  if (missing < 1) return undefined;
+  return [...head, ...new Array<number>(missing).fill(0), ...tail];
+}
+
+export function rateLimitKey(header: string | null): string {
+  const raw = (header ?? "").trim();
+  if (raw === "") return "no-ip";
+  if (IPV4_PATTERN.test(raw)) return raw;
+  if (!raw.includes(":")) return raw;
+  const withoutZone = raw.split("%")[0]!.toLowerCase();
+  const groups = expandIpv6(withoutZone);
+  if (!groups) return raw;
+  const mapped = groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0xffff;
+  if (mapped) return [groups[6]! >> 8, groups[6]! & 255, groups[7]! >> 8, groups[7]! & 255].join(".");
+  return groups.slice(0, 4).map((g) => g.toString(16)).join(":") + "::/64";
+}
+
+// One warning per isolate, so a deployment that lost its rate-limit binding shows up in a
+// live tail (wrangler tail) without the log filling with one line per request. Workers
+// observability is off in wrangler.jsonc, so nothing is stored. The warning carries no
+// request data and no address.
+let warnedMissingLimiter = false;
+export function resetRateLimiterWarningForTests(): void {
+  warnedMissingLimiter = false;
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // Applied before anything else, so a burst from one address meets the limiter before it
@@ -1532,7 +1607,7 @@ export default {
         // Cloudflare's edge sets CF-Connecting-IP on every request it passes to the Worker.
         // The fallback key covers a request without the header, such as a local test, and
         // all such requests share one bucket.
-        const key = request.headers.get("CF-Connecting-IP") || "no-ip";
+        const key = rateLimitKey(request.headers.get("CF-Connecting-IP"));
         const { success } = await env.RATE_LIMITER.limit({ key });
         if (!success) {
           const limited = new Response(
@@ -1550,6 +1625,9 @@ export default {
       } catch (err) {
         console.error("Rate limiter error (failing open):", err instanceof Error ? err.stack : String(err));
       }
+    } else if (!warnedMissingLimiter) {
+      warnedMissingLimiter = true;
+      console.warn("RATE_LIMITER binding is missing: requests are served without a rate limit (failing open).");
     }
     const url = new URL(request.url);
     const preflight = request.method.toUpperCase() === "OPTIONS";
