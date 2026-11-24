@@ -102,7 +102,7 @@ Six read-only tools, each idempotent. Each returns its data as `structuredConten
 
 The responses of the five tools that take no arguments come from static TypeScript objects bundled with the Worker. They do not depend on a live upstream request. `get_page` is the exception: it reads one page of turva.dev through a service binding to the main turva.dev Worker when it is called, so its answer is the page as the site serves it at that moment. The measurement tools include a `measured_at` date and public verification links, so compare the recorded values with a fresh scan when current status matters.
 
-The bundled snapshot records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/). It also records that all 24 categories passed on [Hardenize](https://www.hardenize.com/report/turva.dev). All of these readings are dated 2026-11-15. They come from third parties. This server did not produce any of the scores.
+The bundled snapshot records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/). It also records that all 24 categories passed on [Hardenize](https://www.hardenize.com/report/turva.dev). The isitagentready.com reading is dated 2026-11-25, and the Hardenize and Internet.nl readings are dated 2026-11-15. They come from third parties. This server did not produce any of the scores.
 
 ## Endpoints
 

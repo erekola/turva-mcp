@@ -190,6 +190,15 @@ function evidenceProblem(text: string): string | null {
   if (!categories || categories[1] !== categories[2] || !para.includes(`all ${categories[2]} categories passed`)) return "the Hardenize result differs";
   // When every reading shares one day the README names that day once (2026-11-15); both forms are read
   // as a Hardenize date and a date of the others, so each is still compared with the data.
+  // Tek-911: the scanner reading can be newer than the security readings, so a third form dates the scanner reading
+  // on its own: "The isitagentready.com reading is dated A, and the Hardenize and Internet.nl readings are dated B."
+  const scannerOwn = para.match(/The isitagentready\.com reading is dated (\d{4}-\d{2}-\d{2}), and the Hardenize and Internet\.nl readings are dated (\d{4}-\d{2}-\d{2})\./);
+  if (scannerOwn) {
+    if (scannerOwn[1] !== AGENT_READINESS.measured_at) return `the scanner date ${scannerOwn[1]} differs from ${AGENT_READINESS.measured_at}`;
+    const security = [hardenize.measured_at, siteScan.measured_at, mailScan.measured_at];
+    if (!security.every((d) => d === scannerOwn[2])) return `the security readings are dated ${security.join(", ")}, the README says ${scannerOwn[2]}`;
+    return null;
+  }
   const oneDay = para.match(/All of these readings are dated (\d{4}-\d{2}-\d{2})\./);
   const dates = oneDay ? [oneDay[0], oneDay[1], oneDay[1]] : para.match(/Hardenize reading is dated (\d{4}-\d{2}-\d{2}) and the others (\d{4}-\d{2}-\d{2})/);
   if (!dates) return "the date sentence is missing";
@@ -206,13 +215,13 @@ test("K6: the README Evidence paragraph carries the scores and dates the tools r
   assert.notEqual(evidenceProblem(README.replace("Level 5 Agent-Native", "Level 4 Agent-Native")), null, "a changed level fails");
   assert.notEqual(evidenceProblem(README.replace("all 24 categories passed", "all 23 categories passed")), null, "a changed Hardenize result fails");
   const hardenizeDate = SECURITY_EVIDENCE.scans[0].measured_at;
+  // Tek-911: the README as it stands uses the scanner's own date; both of its dates are mutated.
+  assert.notEqual(evidenceProblem(README.replace(`The isitagentready.com reading is dated ${AGENT_READINESS.measured_at}`, "The isitagentready.com reading is dated 2026-10-30")), null, "a stale scanner date fails");
+  assert.notEqual(evidenceProblem(README.replace(`readings are dated ${hardenizeDate}`, "readings are dated 2026-10-30")), null, "a stale security date fails");
   assert.notEqual(evidenceProblem(README.replace(`dated ${hardenizeDate}`, "dated 2026-10-30")), null, "a stale Hardenize date fails");
-  // 2026-11-15: the README may name one day for all readings, so the two-date form is built from it here and both
-  // forms are mutated; the dates are read from the data, so the mutations follow each measurement day.
-  const twoDates = README.replace(`All of these readings are dated ${AGENT_READINESS.measured_at}.`, `The Hardenize reading is dated ${hardenizeDate} and the others ${AGENT_READINESS.measured_at}.`);
-  assert.equal(evidenceProblem(twoDates), null, "the two-date form passes while its dates hold");
-  assert.notEqual(evidenceProblem(twoDates.replace(`the others ${AGENT_READINESS.measured_at}`, "the others 2026-10-28")), null, "a stale date of the others fails");
-  assert.notEqual(evidenceProblem(twoDates.replace(`dated ${hardenizeDate}`, "dated 2026-10-30")), null, "a stale Hardenize date fails in the two-date form");
+  // Tek-911: evidenceProblem still reads the older one-day and two-date forms, but the README now dates the scanner
+  // reading on its own, so the form the README uses is the one exercised here.
+  assert.notEqual(evidenceProblem(README.replace("The isitagentready.com reading is dated", "The reading is dated")), null, "a README without the scanner date sentence fails");
 });
 
 // ---- README and wrangler.jsonc: observability ---------------------------------------

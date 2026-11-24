@@ -259,7 +259,7 @@ export const SERVICES = {
 
 export const AGENT_READINESS = {
   domain: "turva.dev",
-  measured_at: "2026-11-15",
+  measured_at: "2026-11-25",
   // Corrected 2026-09-28 (32/T1-01): "Always verify against the live links below" was an
   // imperative addressed to the caller; this states the fact instead.
   // Corrected 2026-09-28 (V08-N01, 3rd round): "the live links below carry the current
@@ -270,7 +270,7 @@ export const AGENT_READINESS = {
     {
       provider: "isitagentready.com",
       result: "100/100, Level 5 (Agent-Native)",
-      note: "isitagentready.com is Cloudflare's agent-readiness scanner. The reading is the scanner's, not turva.dev's, and it can be re-run by anyone.",
+      note: "isitagentready.com is Cloudflare's agent-readiness scanner. The reading is the scanner's, not turva.dev's, and it can be re-run by anyone. On the scanner's own page, commerce is shown for information and does not count toward the score.",
       categories: {
         discoverability: "100/100",
         content: "100/100",
@@ -570,7 +570,7 @@ const readinessOutput = z.strictObject({
     provider: z.string().describe("The domain of the scanner that produced the reading."),
     result: z.string().describe("The scanner's overall result as text, giving the score out of 100 and the level reached."),
     note: z.string().describe("Who runs the scanner and a reminder that the reading is the scanner's and can be re-run by anyone."),
-    categories: z.record(z.string(), z.string().describe("The category score as text, out of 100.")).describe("Sub-scores by category. Each key is a category name: discoverability, content, bot_access_control, api_auth_mcp_a2a_discovery or commerce."),
+    categories: z.record(z.string(), z.string().describe("The category score as text, out of 100.")).describe("Sub-scores by category. Each key is a category name: discoverability, content, bot_access_control, api_auth_mcp_a2a_discovery or commerce. The key api_auth_mcp_a2a_discovery is the group the scanner's page labels API, Auth, MCP & Skill Discovery. On the scanner's own page, commerce is shown for information and does not count toward the score."),
     url: z.string().describe("The scanner's start page, where a new check can be run. It does not show the recorded reading."),
   })).describe("Readings from independent scanners, one per entry."),
 });
@@ -855,7 +855,7 @@ export async function readSitePage(site: SiteBinding | undefined, path: unknown)
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.14.0",
+  version: "1.14.1",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, engagement principles: async-only, no calls and no calendar links, the contact and privacy details, and the markdown of pages on turva.dev. No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
