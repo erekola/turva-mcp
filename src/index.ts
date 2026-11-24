@@ -385,8 +385,10 @@ export const CONTACT = {
     legal_page: "https://turva.dev/legal",
   },
   // Added 2026-11-21 (Tek-886): the privacy sections of the /legal twin in worker.ts, byte for byte except that a markdown
-  // link [text](url) is reduced to text. The two sections AI tools in security work and Where the work runs are left out
-  // on purpose and not_included says so. tools/verify.mjs fails the run when a string here no longer occurs in the page.
+  // link [text](url) is reduced to text. Every section under ## Privacy is here (Tek-908): the two sections AI tools in
+  // security work and Where the work runs were left out until then and a not_included field said so. This file is ASCII, so a
+  // character outside ASCII is written as an escape sequence. tools/verify.mjs fails the run when a string here no longer
+  // occurs in the page, and when a section of the page has no key here.
   privacy: {
     url: "https://turva.dev/legal",
     overview: [
@@ -442,6 +444,19 @@ export const CONTACT = {
       "For client work, the AI tool is instructed to work only in the client's own folder, which holds only the files the task needs, inside the virtual machine described under Where the work runs. Credentials are held in an encrypted vault and read by scripts at runtime, so no secret sits in a file. The one exception is a client's test credentials for active security testing or the MCP server security test, which are made available to the test run in the virtual machine only during the test or retest window and are removed from it when that window ends. A copy can remain in the workstation's disk images, which include the virtual machine's disk file, until the rotation described under Client material replaces them. Vault storage and the permissions a tool has while running are separate controls, and each task has its own access limits.",
       "In an audit the tools read what the client's site and API serve publicly, and a test account is used only when the client names it in writing and the written scope states what it allows. In active security testing and the MCP server security test the tools send test traffic only to the targets named in the client's signed authorization. Material a client wants excluded from AI tooling is named in the non-disclosure agreement and excluded.",
     ],
+    ai_tools_in_security_work: [
+      "Security work runs with GLM 5.3, an open-weight model from Z.AI published under its own GLM-5.3 License, through Melious AI GmbH in Saarbr\u00fccken, Germany, under its terms and data processing agreement. Their English versions are translations, and the German text prevails. The agent program is Claude Code, which in this work is set to send its model calls only to Melious, with its other traffic to Anthropic, such as telemetry and error reports, switched off.",
+      "Melious has stated in writing that it runs GLM 5.3 on its own hardware in the facilities of DataCrunch Oy in Finland. The agreement names that hardware and Melious's own hardware at OVH SAS in France as the hardware its zero retention clause covers. For processing on that hardware, the agreement states that inputs and outputs are processed only in volatile memory and are not stored, logged or used for training, apart from processing the law requires and operational metadata such as time stamps, the model used and token counts. The same exception covers anything stored with Melious's own storage functions, which this work does not use. The agreement allows Melious to forward data to other providers when its capacity is short. turva.dev's Melious account and the API key it uses are limited to Melious's own route, and Melious states that this stops the forwarding.",
+      "The test requests themselves are sent from the virtual machine, and Melious does not send them. Web test requests go through Burp Suite Professional. turva.dev switches off Burp's own AI features, so no test data goes to PortSwigger's AI service.",
+      "A check the model declines or does not complete is reported as not tested. The signed authorization repeats this, and material a client wants excluded from AI processing is named in the non-disclosure agreement. No other model route, such as Claude through the Anthropic API or Amazon Bedrock, is used for security work.",
+    ],
+    where_the_work_runs: [
+      "Work agreed with a client runs in a virtual machine that is kept apart from the rest of turva.dev's workstation, in a folder of its own for each client. No credentials for turva.dev's site, repositories or publishing are stored in that virtual machine. The API key for the model used in security work is passed into it only for each run and held in the run's process environment, and the run's files are checked for it and cleaned when the run ends. The AI tool's connectors that could write to them are blocked there by rules in the tool's settings, and each client session is instructed to check at the start that they are still blocked. Anything delivered to the client, such as the report, is moved out of the virtual machine and sent from the workstation itself.",
+      "The virtual machine isolates execution. Code that is run and packages that are installed stay inside it, and so do the working files, apart from the delivered copy and the session records described below. It does not isolate what the AI model reads, because the model runs at its provider under the terms in the AI tools sections.",
+      "The AI tool's record of each working session is kept both in the virtual machine and on the workstation. Within thirty days of the engagement closing, as the Client material section sets out, the client's folder and its session records are deleted from the virtual machine, and the tool's shared prompt history there, which can also name the client, is deleted by hand. On the workstation, the delivered copy and the session records are deleted, the client's sessions are removed from the AI tool's list of past sessions by hand, and the restore point taken at kickoff is removed.",
+      "Engagements do not overlap in the virtual machine by default. If they do, the restore point taken for the later engagement also holds the earlier client's folder, so that copy is removed only when the later engagement closes, which can be more than thirty days after the earlier one closed.",
+      "Backups follow the rotation in the Client material section. Deletion removes the files. It does not overwrite the freed disk space. The virtual machine's disk file sits on the workstation's own disk, and the disk images described in the Client material section include it.",
+    ],
     providers: [
       "No data is sold. Client material and correspondence reach only the providers needed for the work.",
       "Cloudflare, Inc. in the United States hosts the site. Proton AG in Switzerland provides email. Synology Inc. in Taiwan provides the encrypted cloud backup storage, in its Frankfurt region in Germany.",
@@ -465,7 +480,6 @@ export const CONTACT = {
       "This page is updated when the terms or the privacy sections change. The terms apply to engagements started on or after the Terms date below, and the privacy sections apply from the Privacy date below.",
       "- **Terms last updated:** 2026-11-21\n- **Privacy last updated:** 2026-11-21",
     ],
-    not_included: "The sections AI tools in security work and Where the work runs are on the legal page only.",
   },
 } as const;
 
@@ -620,12 +634,27 @@ const contactOutput = z.strictObject({
     public_site_briefs: paragraphs("How a brief about a company's public website is published."),
     outreach_records: paragraphs("What the record of a company that was written to holds, its lawful basis and its retention."),
     ai_tools: paragraphs("Which AI tool is used and how its provider handles the data."),
+    ai_tools_in_security_work: paragraphs("The model used in security work and who provides it, the hardware it runs on, who sends the test requests and what a check the model declines means for the report."),
+    where_the_work_runs: paragraphs("The virtual machine that client work runs in, what is kept apart from the rest of the workstation, and what is deleted from it and when."),
     providers: paragraphs("The providers that process data and what each one holds."),
     data_rights: paragraphs("The rights of a person whose data is processed and how to use them."),
     cookies: paragraphs("The cookies the site sets."),
     updates: paragraphs("The Updates section of the legal page, which dates the privacy sections."),
-    not_included: z.string().describe("Which sections of the legal page this object leaves out."),
   }).describe("The privacy sections of the legal page, every paragraph of every section listed, quoted as the page words them. A markdown link is reduced to its text."),
+});
+
+// get_page is the one tool with an input and the one that reads something at call time. The path is
+// checked by pageUrlFor below, and the length limit here is what a client sees in tools/list.
+const pageInput = z.strictObject({
+  path: z.string().max(512).describe("A path on turva.dev that starts with a single slash, has no query string and is in normal form, for example /guides/llms-txt or /agent-readiness-audit. Call get_page with /llms.txt to list the paths."),
+});
+
+const pageOutput = z.strictObject({
+  path: z.string().describe("The path that was read, as given."),
+  status: z.number().describe("The HTTP status the site answered. Always a 2xx, because any other status is returned as a tool error."),
+  content_type: z.string().describe("The Content-Type header the site answered with: text/markdown for a page, text/plain for llms.txt."),
+  markdown: z.string().describe("The text of the page as the site serves it to a request for text/markdown, at most 262144 bytes."),
+  bytes: z.number().describe("The size of that text in bytes."),
 });
 
 // Every tool returns its data twice: as structuredContent, which its outputSchema describes,
@@ -638,15 +667,166 @@ function dataResult(data: Record<string, unknown>) {
   };
 }
 
-// Read-only annotations, identical on all five tools. Declared once so the five
+// Read-only annotations, identical on all six tools. Declared once so the six
 // registrations cannot drift apart, which is the same failure class the signed
-// server card has already produced twice.
+// server card has already produced twice. openWorldHint is false for get_page too: it
+// reads turva.dev's own site through a service binding and nothing else, so the set of
+// things it can reach is closed.
 const READ_ONLY = {
   readOnlyHint: true,
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: false,
 } as const;
+
+// get_page (Tek-908). The five other tools return objects compiled into this Worker. This one reads a page of
+// turva.dev when it is called, and the design below keeps that from becoming a general fetch:
+// - The only thing it can call is the SITE service binding, which wrangler.jsonc points at the turva-worker
+//   Worker. A service binding never leaves Cloudflare and cannot be pointed at another host, so nothing the
+//   caller sends can reach a different origin, and this code never calls the global fetch.
+// - The request is a GET with two headers this code sets itself: Accept: text/markdown and CF-Connecting-IP. No
+//   header of the caller's request and no caller address is passed on.
+// - The path is checked by pageUrlFor: one slash first, printable ASCII, no backslash, query or fragment, and
+//   the URL parser must give back the same path unchanged under the origin https://turva.dev. A path with a
+//   scheme, userinfo or another host cannot start with a single slash, so it never gets that far.
+// - A redirect is not followed. The site's redirects are all 301 answers with an absolute https://turva.dev
+//   Location (trailing slash, letter case, retired paths), so the tool names the target path and the caller
+//   asks again, which keeps one call to one subrequest.
+// - The body is read with a cap of PAGE_BODY_MAX_BYTES and a response above it is refused, not cut, because a
+//   cut page would pass for the whole page.
+// The site Worker rate-limits by CF-Connecting-IP. Every get_page call carries the same constant address from
+// the documentation range of RFC 3849, so all calls share one bucket there and no visitor's address leaves
+// this Worker. The price is that a burst of get_page calls from anyone can spend that bucket and get a 429 for
+// the next ones, which the tool reports as an error with its status. If the runtime replaces or drops the
+// header on a service binding, the site falls back to its own no-ip bucket, which has the same effect.
+export interface SiteBinding {
+  fetch(request: Request): Promise<Response>;
+}
+
+const SITE_ORIGIN = "https://turva.dev";
+const SITE_CLIENT_ADDRESS = "2001:db8::7475";
+const PAGE_PATH_MAX_LENGTH = 512;
+const PAGE_BODY_MAX_BYTES = 262_144;
+const PAGE_TIMEOUT_MS = 8_000;
+
+export function pageUrlFor(path: unknown): { url: URL } | { refusal: string } {
+  if (typeof path !== "string" || path === "") return { refusal: "path must be a non-empty string" };
+  if (path.length > PAGE_PATH_MAX_LENGTH) return { refusal: `path must be at most ${PAGE_PATH_MAX_LENGTH} characters` };
+  if (!path.startsWith("/") || path.startsWith("//")) return { refusal: "path must start with a single slash" };
+  for (const ch of path) {
+    const code = ch.codePointAt(0)!;
+    if (code < 0x21 || code > 0x7e) return { refusal: "path may hold printable ASCII only, with anything else percent-encoded" };
+    if (ch === "\\" || ch === "?" || ch === "#") return { refusal: "path may not hold a backslash, a query string or a fragment" };
+  }
+  let url: URL;
+  try {
+    url = new URL(path, SITE_ORIGIN);
+  } catch {
+    return { refusal: "path is not a valid path" };
+  }
+  if (url.origin !== SITE_ORIGIN || url.pathname !== path || url.search !== "" || url.hash !== "") {
+    return { refusal: "path must be a path on turva.dev in normal form, without dot segments" };
+  }
+  return { url };
+}
+
+function pageError(text: string) {
+  return { content: [{ type: "text" as const, text }], isError: true as const };
+}
+
+// Reads at most max bytes. Returns undefined when the body is longer, after cancelling the stream.
+async function readCappedBody(res: Response, max: number): Promise<Uint8Array | undefined> {
+  if (res.body === null) return new Uint8Array(0);
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel();
+      return undefined;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return out;
+}
+
+async function discard(res: Response): Promise<void> {
+  try {
+    await res.body?.cancel();
+  } catch {
+    // The body is not wanted, so a failed cancel changes nothing.
+  }
+}
+
+export async function readSitePage(site: SiteBinding | undefined, path: unknown) {
+  const target = pageUrlFor(path);
+  if ("refusal" in target) return pageError(`Refused: ${target.refusal}.`);
+  if (site === undefined) return pageError("get_page is not available on this deployment: the site binding is missing.");
+  let res: Response;
+  try {
+    res = await site.fetch(new Request(target.url.href, {
+      method: "GET",
+      headers: { Accept: "text/markdown", "CF-Connecting-IP": SITE_CLIENT_ADDRESS },
+      redirect: "manual",
+      signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
+    }));
+  } catch {
+    return pageError(`The site did not answer ${target.url.pathname} within ${PAGE_TIMEOUT_MS / 1000} seconds.`);
+  }
+  const shownPath = target.url.pathname;
+  if (res.status >= 300 && res.status < 400) {
+    const location = res.headers.get("Location");
+    await discard(res);
+    let moved: string | undefined;
+    try {
+      const next = location === null ? undefined : new URL(location, SITE_ORIGIN);
+      if (next !== undefined && next.origin === SITE_ORIGIN) {
+        const checked = pageUrlFor(next.pathname);
+        if ("url" in checked) moved = checked.url.pathname;
+      }
+    } catch {
+      moved = undefined;
+    }
+    return pageError(moved === undefined
+      ? `The site answered ${res.status} for ${shownPath} with a redirect that this tool does not follow.`
+      : `The site answered ${res.status} for ${shownPath}: the page is at ${moved}. Call get_page again with that path.`);
+  }
+  if (res.status < 200 || res.status > 299) {
+    await discard(res);
+    return pageError(`The site answered ${res.status} for ${shownPath}.`);
+  }
+  const contentType = res.headers.get("Content-Type") ?? "";
+  const mediaType = contentType.split(";")[0]!.trim().toLowerCase();
+  if (mediaType !== "text/markdown" && mediaType !== "text/plain") {
+    await discard(res);
+    return pageError(`The site answered ${res.status} for ${shownPath} with a content type that is neither text/markdown nor text/plain, so there is no markdown to return.`);
+  }
+  // A timeout or a broken stream can end the read after the headers arrived, so the read is inside its own catch and the
+  // caller gets the same fixed error as for a site that did not answer, with nothing of the internal message.
+  let body: Uint8Array | undefined;
+  try {
+    body = await readCappedBody(res, PAGE_BODY_MAX_BYTES);
+  } catch {
+    return pageError(`The answer for ${shownPath} could not be read to the end.`);
+  }
+  if (body === undefined) return pageError(`The answer for ${shownPath} is longer than ${PAGE_BODY_MAX_BYTES} bytes, so it is not returned.`);
+  return dataResult({
+    path: shownPath,
+    status: res.status,
+    content_type: contentType,
+    markdown: new TextDecoder().decode(body),
+    bytes: body.byteLength,
+  });
+}
 
 // A fresh server per request. The 2026-07-28 revision is stateless, and stateless here
 // means that nothing survives the request, not that the endpoint refuses to shake hands.
@@ -675,8 +855,8 @@ const READ_ONLY = {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.13.3",
-  description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, and engagement principles (async-only, no calls, no calendar links). No authentication, no write operations.",
+  version: "1.14.0",
+  description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, engagement principles: async-only, no calls and no calendar links, the contact and privacy details, and the markdown of pages on turva.dev. No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
     { src: "https://turva.dev/favicon.svg", mimeType: "image/svg+xml", sizes: ["any"] },
@@ -687,14 +867,14 @@ const SERVER_INFO = {
 // Each tool description repeats the routing to its neighbours, and this says it once for a
 // client that reads server/discover, or initialize on the 2025-era lane, before it lists the
 // tools.
-const INSTRUCTIONS = "Five read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the access an engagement needs, the full contract terms and the outline of the published sample report. For the standing principles behind every engagement and the reason for each, call get_principles. Call get_contact for who runs turva.dev, its business details, how to reach it and how it handles personal data. get_agent_readiness returns turva.dev's own agent-readiness score from the independent scanner isitagentready.com. get_security_evidence returns its own web and email security scan results, which are a separate measurement. For evidence in general, call both. No tool takes arguments. The data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
+const INSTRUCTIONS = "Six read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the access an engagement needs, the full contract terms and the outline of the published sample report. For the standing principles behind every engagement and the reason for each, call get_principles. Call get_contact for who runs turva.dev, its business details, how to reach it and how it handles personal data, quoted from every privacy section of the legal page. get_agent_readiness returns turva.dev's own agent-readiness score from the independent scanner isitagentready.com. get_security_evidence returns its own web and email security scan results, which are a separate measurement. For evidence in general, call both. For any other page of turva.dev, such as a guide or a blog post, call get_page with its path: it reads that page's markdown from the site when you call it, and get_page with /llms.txt returns the index of the site's pages. The other five tools take no arguments, and their data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. get_page takes one path and sends one request to turva.dev and to no other host. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
 
-function createServer(): McpServer {
+function createServer(site?: SiteBinding): McpServer {
   const server = new McpServer(
     SERVER_INFO,
     {
       // listChanged is false because this server never sends notifications/tools/list_changed:
-      // the five tools are compiled in and change only on deploy, and no request outlives its
+      // the six tools are compiled in and change only on deploy, and no request outlives its
       // response. @modelcontextprotocol/server set the flag to true at the first
       // registerTool unless the code that creates the server passes a value (measured on
       // 2.0.0 on 2026-09-23; protocol.test.ts P1 and P6 hold the outcome on the pinned
@@ -703,10 +883,12 @@ function createServer(): McpServer {
       capabilities: { tools: { listChanged: false } },
       instructions: INSTRUCTIONS,
       // The revision requires ttlMs and cacheScope on every cacheable result. The SDK
-      // would default them to 0 and private. These five tools are static data compiled
-      // into the Worker, so the answer is byte-identical for every caller and changes
-      // only on deploy: public is a true statement about this server, not an
-      // optimization, and one hour is well inside how often it is redeployed.
+      // would default them to 0 and private. The two methods named here answer from the
+      // tool declarations compiled into the Worker, so the answer is byte-identical for
+      // every caller and changes only on deploy: public is a true statement about this
+      // server, not an optimization, and one hour is well inside how often it is
+      // redeployed. A tools/call answer is not covered by these hints, so get_page, which
+      // reads the site when it is called, is not cached by them.
       cacheHints: {
         "tools/list": { ttlMs: 3_600_000, cacheScope: "public" },
         "server/discover": { ttlMs: 3_600_000, cacheScope: "public" },
@@ -766,12 +948,24 @@ function createServer(): McpServer {
     "get_contact",
     {
       title: "Contact and operator details",
-      description: "Returns who runs turva.dev, how to reach it and how it handles personal data. The operator field gives the legal form, Business ID, VAT ID and postal address, with the team and the background. Beside it are the email address, the Signal link and the LinkedIn profile, with the correspondence languages, the first-reply time and the first steps to start an audit. The privacy field quotes the privacy sections of the legal page: the controller and lawful bases, server logs, international transfers, email, client material, public-site briefs, outreach records, AI tools, providers, data rights and cookies. Two legal page sections are left out: AI tools in security work, and where the work runs. Use this when a user asks who is behind turva.dev, for its legal details, how to contact it or start an audit, or how it handles personal data. For the services, prices, the access an engagement needs and the contract terms use get_services instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
+      description: "Returns who runs turva.dev, how to reach it and how it handles personal data. The operator field gives the legal form, Business ID, VAT ID and postal address, with the team and the background. Beside it are the email address, the Signal link and the LinkedIn profile, with the correspondence languages, the first-reply time and the first steps to start an audit. The privacy field quotes the privacy sections of the legal page: the controller and lawful bases, server logs, international transfers, email, client material, public-site briefs, outreach records, AI tools, AI tools in security work, where the work runs, providers, data rights and cookies. Use this when a user asks who is behind turva.dev, for its legal details, how to contact it or start an audit, or how it handles personal data. For the services, prices, the access an engagement needs and the contract terms use get_services instead. Read-only: returns static JSON that is compiled into the Worker, so it changes nothing and updates only on deploy.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: contactOutput,
     },
     async () => dataResult(CONTACT),
+  );
+
+  server.registerTool(
+    "get_page",
+    {
+      title: "Page of turva.dev as markdown",
+      description: "Returns the markdown of one page on turva.dev, read from the site when you call it: the text that the site serves to a request for text/markdown. The path argument is a path on turva.dev that starts with a single slash and has no query string, for example /guides/llms-txt or /agent-readiness-audit. To find paths, call get_page with /llms.txt: it returns the site's index, which lists the main pages, the sample report, the guides and the blog posts, each as a markdown address ending in .md, and the path part of such an address works as it stands. The result holds the path, the HTTP status, the content type, the text and its size in bytes. Use this when a user asks about a guide, a blog post or a page that the other five tools do not cover, or wants a page's own wording. For the services and their prices, and for the contract terms, use get_services, and for who runs turva.dev and how personal data is handled use get_contact. Read-only: it sends one GET request to turva.dev's own site through a service binding that cannot reach any other host, passes on nothing from your request, and changes nothing. It refuses a path outside turva.dev, an answer longer than 262144 bytes and any status that is not 2xx, and it does not follow a redirect: it names the new path and you call again. The markdown holds the main content of the page without the frame around it, so it is not the HTML page byte for byte.",
+      annotations: READ_ONLY,
+      inputSchema: pageInput,
+      outputSchema: pageOutput,
+    },
+    async ({ path }) => readSitePage(site, path),
   );
 
   return server;
@@ -1123,11 +1317,12 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// The five names server.registerTool gives below, every one with noArguments as its
-// inputSchema. protocol.test.ts asserts this list matches tools/list's own names, so the two
-// cannot drift apart silently.
+// The five names server.registerTool gives to the tools with noArguments as their
+// inputSchema, and the six names of every tool. protocol.test.ts asserts that the second
+// list matches tools/list's own names, so the two cannot drift apart silently.
 export const NO_ARGUMENT_TOOL_NAMES = ["get_services", "get_agent_readiness", "get_security_evidence", "get_principles", "get_contact"] as const;
-const NO_ARGUMENT_TOOLS = new Set<string>(NO_ARGUMENT_TOOL_NAMES);
+export const TOOL_NAMES = [...NO_ARGUMENT_TOOL_NAMES, "get_page"] as const;
+const KNOWN_TOOLS = new Set<string>(TOOL_NAMES);
 
 // T-01 (Astra audit 2026-09-26): the SDK's
 // own request-schema validation throws a plain Error, not a ProtocolError, when a known
@@ -1193,8 +1388,8 @@ function argumentKeysExceedEchoLimits(keys: string[]): boolean {
   return keys.length > MAX_ECHOED_ARGUMENT_KEYS || keys.some((k) => k.length > MAX_ECHOED_ARGUMENT_KEY_LENGTH);
 }
 
-// T-04 (Astra audit 2026-09-26): every tool above takes noArguments, z.strictObject({}), but
-// a JSON body whose arguments object has "__proto__" as its only key got past that check,
+// T-04 (Astra audit 2026-09-26): five tools took noArguments, z.strictObject({}), and get_page takes one
+// path (Tek-908), but a JSON body whose arguments object has "__proto__" as its only key got past that check,
 // although README and every other extra key promise a tool error. Test P13 still fails without
 // this branch (measured 2026-11-04). The SDK's spread of the raw params, "{ ...request.params }",
 // is not the mechanism: an object spread copies "__proto__" as an ordinary own property, and only
@@ -1226,8 +1421,8 @@ function toolArgumentError(id: string | number, toolName: string, keys: string[]
   }, { status: 200 }));
 }
 
-// P19 (Astra audit 2026-09-26, 32/T2-03): pre-checks a tools/call name against the five
-// tools this server registers (NO_ARGUMENT_TOOL_NAMES above), before the SDK reaches it
+// P19 (Astra audit 2026-09-26, 32/T2-03): pre-checks a tools/call name against the six
+// tools this server registers (TOOL_NAMES above), before the SDK reaches it
 // and echoes an unrecognised name verbatim into "Tool <name> not found". The caller's
 // name is capped at MAX_ECHOED_TOOL_NAME_LENGTH and carried in its own data field, never
 // spliced into the message string.
@@ -1496,12 +1691,12 @@ async function guardMcpPost(request: Request): Promise<{ request: Request; liste
         return ownAnswer(() => mcpError(modern, 200, -32602, `Invalid params: ${paramsProblem}`, requestId));
       }
       if (body.method === "tools/call" && isPlainObject(body.params) && typeof body.params.name === "string"
-        && !NO_ARGUMENT_TOOLS.has(body.params.name)) {
+        && !KNOWN_TOOLS.has(body.params.name)) {
         const toolName = body.params.name;
         return ownAnswer(() => unknownToolError(modern, requestId, toolName));
       }
       if (body.method === "tools/call" && isPlainObject(body.params) && typeof body.params.name === "string"
-        && NO_ARGUMENT_TOOLS.has(body.params.name) && isPlainObject(body.params.arguments)) {
+        && KNOWN_TOOLS.has(body.params.name) && isPlainObject(body.params.arguments)) {
         const keys = Object.keys(body.params.arguments);
         const toolName = body.params.name;
         if (keys.includes("__proto__") || argumentKeysExceedEchoLimits(keys)) return ownAnswer(() => toolArgumentError(requestId, toolName, keys, modern));
@@ -1532,6 +1727,9 @@ interface RateLimiterBinding {
 
 interface Env {
   RATE_LIMITER?: RateLimiterBinding;
+  // The turva-worker Worker, bound in wrangler.jsonc. Optional in the type because a test or a local run
+  // may not have it, and get_page then answers with a tool error instead of failing.
+  SITE?: SiteBinding;
 }
 
 // An IPv6 client usually holds a whole /64, so keying on the full address would hand one
@@ -1661,7 +1859,7 @@ export default {
         const modern = isModernLane(request);
         if (!origin.ok) return mcpError(modern, 403, transportRefusalCode(modern), origin.message);
       }
-      const handled = await createMcpHandler(createServer, {
+      const handled = await createMcpHandler(() => createServer(env.SITE), {
         route: "/mcp",
         corsOptions: MCP_CORS,
         allowedOriginHostnames: MCP_ALLOWED_ORIGIN_HOSTNAMES,

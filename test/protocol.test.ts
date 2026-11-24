@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import worker, { SERVICES, AGENT_READINESS, SECURITY_EVIDENCE, PRINCIPLES, CONTACT, NO_ARGUMENT_TOOL_NAMES, closeListenStreamAfterAck } from "../src/index.ts";
+import worker, { SERVICES, AGENT_READINESS, SECURITY_EVIDENCE, PRINCIPLES, CONTACT, NO_ARGUMENT_TOOL_NAMES, TOOL_NAMES, closeListenStreamAfterAck, pageUrlFor } from "../src/index.ts";
 import { SUBSCRIPTION_ID_META_KEY } from "@modelcontextprotocol/server";
 
 // The MCP endpoint itself, called the way a client calls it. catalog.test.ts holds the
@@ -49,6 +49,9 @@ const TOOLS = {
   get_principles: PRINCIPLES,
   get_contact: CONTACT,
 };
+// The five tools above return compiled-in data and take no arguments. get_page (Tek-908) reads the site, so it is
+// listed beside them and tested on its own below.
+const ALL_TOOLS = [...Object.keys(TOOLS), "get_page"];
 const plain = (data: unknown) => JSON.parse(JSON.stringify(data));
 // The 2026-07-28 lane is exactly this version header. Any other request is the legacy lane.
 const MODERN_LIST_HEADERS = { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" };
@@ -97,7 +100,7 @@ test("P1: server/discover declares what the server does and nothing it does not"
   assert.ok(info.description, "the identity carries the card's description");
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(info.version, pkg.version, "serverInfo and package.json carry one version");
-  for (const name of Object.keys(TOOLS)) {
+  for (const name of ALL_TOOLS) {
     assert.match(d.instructions, new RegExp("\\b" + name + "\\b"), "the instructions route to " + name);
   }
 });
@@ -118,12 +121,25 @@ test("P2: subscriptions/listen acknowledges no tools filter, because none can fi
   assert.deepEqual(ack.params.notifications, {});
 });
 
-test("P3: tools/list declares five read-only tools that take no arguments and describe their output", async () => {
+test("P3: tools/list declares six read-only tools, five that take no arguments and get_page that takes a path, and describes their output", async () => {
   const { tools } = await call("tools/list") as { tools: Tool[] };
-  assert.deepEqual(tools.map((t) => t.name), Object.keys(TOOLS));
+  assert.deepEqual(tools.map((t) => t.name), ALL_TOOLS);
+  const page = tools.find((t) => t.name === "get_page")! as Tool & { description: string; inputSchema: { required?: string[]; properties: Record<string, { type?: string; maxLength?: number }> } };
+  assert.deepEqual(Object.keys(page.inputSchema.properties), ["path"]);
+  assert.equal(page.inputSchema.properties.path!.type, "string");
+  assert.equal(page.inputSchema.properties.path!.maxLength, 512);
+  assert.deepEqual(page.inputSchema.required, ["path"]);
+  assert.equal(page.inputSchema.additionalProperties, false, "get_page names its one argument and refuses others");
+  assert.deepEqual(Object.keys(page.outputSchema!.properties), ["path", "status", "content_type", "markdown", "bytes"]);
+  assert.equal(page.outputSchema!.additionalProperties, false);
+  assert.match(page.description, /\/llms\.txt/, "the description says how to find paths");
+  assert.match(page.description, /262144 bytes/, "the description names the cap the code applies");
+  assert.match(page.description, /does not follow a redirect/);
+  assert.match(page.description, /not the HTML page byte for byte/, "it does not claim byte equality with the HTML page");
   for (const t of tools) {
     assert.deepEqual(t.annotations, { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, t.name);
     assert.equal(t.inputSchema.type, "object", t.name);
+    if (t.name === "get_page") continue;
     assert.deepEqual(t.inputSchema.properties, {}, t.name + " takes no arguments");
     assert.equal(t.inputSchema.additionalProperties, false, t.name + " says it takes no arguments");
     assert.equal(t.outputSchema?.type, "object", t.name + " describes its output");
@@ -177,6 +193,8 @@ test("P4c: get_services returns contract_terms and sample_report, get_contact re
   assert.match(text("get_services"), /contract_terms/);
   assert.match(text("get_services"), /sample_report/);
   assert.match(text("get_contact"), /privacy/);
+  assert.match(text("get_contact"), /AI tools in security work, where the work runs/, "get_contact names the two sections it now quotes");
+  assert.doesNotMatch(text("get_contact"), /left out/, "get_contact no longer says a privacy section is left out");
   assert.match(text("get_agent_readiness"), /get_security_evidence/, "the two proof tools point at each other");
   assert.match(text("get_security_evidence"), /get_agent_readiness/, "the two proof tools point at each other");
 });
@@ -200,7 +218,7 @@ test("P6: the 2025-era lane declares the same capabilities and serves the same t
   assert.ok(init.result!.instructions, "initialize carries the same instructions");
   const legacy = { "MCP-Protocol-Version": "2025-06-18" };
   const list = await readJson(await post({ jsonrpc: "2.0", id: 2, method: "tools/list" }, legacy));
-  assert.deepEqual(list.result!.tools.map((t: Tool) => t.name), Object.keys(TOOLS));
+  assert.deepEqual(list.result!.tools.map((t: Tool) => t.name), ALL_TOOLS);
   const res = await readJson(await post({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "get_contact", arguments: {} } }, legacy));
   assert.deepEqual(res.result!.structuredContent, plain(CONTACT));
 });
@@ -256,7 +274,7 @@ test("P7b: a batch is refused on a negotiated 2025-03-26 session too, and a sing
   assert.equal(batchBody.id, null, "legacy lane: id null");
   // Control: a single request with the same header is served.
   const single = await readJson(await post({ jsonrpc: "2.0", id: 2, method: "tools/list" }, old));
-  assert.deepEqual(single.result!.tools.map((t: Tool) => t.name), Object.keys(TOOLS));
+  assert.deepEqual(single.result!.tools.map((t: Tool) => t.name), ALL_TOOLS);
 });
 
 test("P8: a body over 64 KiB is refused before the handler reads it", async () => {
@@ -426,8 +444,9 @@ test("P13: a raw __proto__ argument key is refused the same way any other extra 
   const legacy = await readJson(await post(legacyRaw));
   assert.equal(legacy.result!.isError, true);
   assert.equal(legacy.result!.resultType, undefined);
-  // The set this check applies to is exactly the five argumentless tools, not every tool name.
+  // NO_ARGUMENT_TOOL_NAMES is exactly the five argumentless tools, and TOOL_NAMES, which the unknown-tool check reads, is every tool.
   assert.deepEqual([...NO_ARGUMENT_TOOL_NAMES].sort(), Object.keys(TOOLS).sort());
+  assert.deepEqual([...TOOL_NAMES], ALL_TOOLS);
 });
 
 test("P14: subscriptions/listen closes itself right after the acknowledgement", async () => {
@@ -1126,6 +1145,10 @@ test("P27: deployment and repository hygiene: no preview URLs, a named rate-limi
   assert.equal(bindingName, "RATE_LIMITER");
   const declares = (config: string, name: string) => new RegExp(`"name":\\s*"${name}"`).test(config);
   assert.ok(declares(conf, bindingName), "wrangler.jsonc declares the binding the code reads");
+  // Tek-908: get_page reads the site through a service binding, and the code's name for it must be the name wrangler.jsonc declares.
+  assert.match(read("../src/index.ts"), /interface Env \{[^}]*\bSITE\?: SiteBinding;/);
+  assert.match(conf, /"services":\s*\[\s*\{\s*"binding":\s*"SITE",\s*"service":\s*"turva-worker"\s*\}\s*\]/, "wrangler.jsonc binds SITE to the turva-worker Worker");
+  assert.doesNotMatch(read("../src/index.ts").replace(/\/\/.*$/gm, ""), /\bfetch\(\s*["'`]/, "no code path calls the global fetch with a URL of its own");
   assert.ok(!declares(conf.replace('"RATE_LIMITER"', '"RATE_LIMITER_RENAMED"'), bindingName), "the check does fail on a rename");
   // The CI job neither keeps the checkout token nor runs without a time limit.
   const ci = read("../.github/workflows/ci.yml");
@@ -1415,4 +1438,164 @@ test("P33: a header that disagrees with the body reads 400 -32020 before the Wor
   assert.match(deepMatching.error!.message, /nested more than 64 levels deep/);
   const legacy = await readJson(await post({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "no_such_tool", arguments: {} } }, { "Mcp-Name": "get_services" }));
   assert.equal(legacy.error!.message, "Invalid params: unknown tool name", "legacy lane: the Worker's own answer");
+});
+
+// ---- Tek-908: get_page reads turva.dev through the SITE service binding -------------------------------
+
+// A mock of the binding. It records what the tool sent, so a test can say what did and did not reach the site.
+interface SiteCall { url: string; method: string; headers: Record<string, string>; redirect: string }
+function mockSite(answer: (request: Request) => Response | Promise<Response>) {
+  const calls: SiteCall[] = [];
+  const site = {
+    async fetch(request: Request) {
+      calls.push({ url: request.url, method: request.method, headers: Object.fromEntries(request.headers), redirect: request.redirect });
+      return answer(request);
+    },
+  };
+  return { site, calls };
+}
+const markdownAnswer = (body: string, type = "text/markdown; charset=utf-8", status = 200) => new Response(body, { status, headers: { "Content-Type": type } });
+// The caller sends headers a careless proxy would forward. None of them may reach the site.
+const CALLER_HEADERS = { "Authorization": "Bearer caller-secret", "Cookie": "session=caller", "X-Forwarded-For": "203.0.113.9", "CF-Connecting-IP": "198.51.100.7", "Referer": "https://caller.example/", "User-Agent": "caller-agent" };
+async function pageCall(env: Env, args: unknown): Promise<Result> {
+  const r = await post({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_page", arguments: args, _meta: META } },
+    { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_page", ...CALLER_HEADERS }, env);
+  assert.equal(r.status, 200);
+  const body = await readJson(r);
+  assert.equal(body.error, undefined, "a refusal is a tool error and not a protocol error");
+  return body.result!;
+}
+
+test("P34: get_page returns the page the site serves, sends the site only its own two headers, and does not follow a redirect", async () => {
+  const text = "# llms.txt explained\n\nA page with a euro sign \u20ac and more.\n";
+  const { site, calls } = mockSite(() => markdownAnswer(text));
+  const res = await pageCall({ SITE: site }, { path: "/guides/llms-txt" });
+  assert.notEqual(res.isError, true);
+  assert.deepEqual(res.structuredContent, { path: "/guides/llms-txt", status: 200, content_type: "text/markdown; charset=utf-8", markdown: text, bytes: new TextEncoder().encode(text).length });
+  assert.deepEqual(JSON.parse(res.content[0].text), res.structuredContent, "the text block carries the same JSON");
+  assert.equal(res.resultType, "complete");
+  assert.equal(calls.length, 1, "one call, one subrequest");
+  const c = calls[0]!;
+  assert.equal(c.url, "https://turva.dev/guides/llms-txt");
+  assert.equal(c.method, "GET");
+  assert.equal(c.redirect, "manual");
+  assert.deepEqual(Object.keys(c.headers).sort(), ["accept", "cf-connecting-ip"], "nothing of the caller's request is passed on");
+  assert.equal(c.headers.accept, "text/markdown");
+  assert.equal(c.headers["cf-connecting-ip"], "2001:db8::7475", "the constant address, not the caller's 198.51.100.7");
+  // llms.txt is served as text/plain, and the tool returns it, because that is the index it tells callers to read.
+  const plainSite = mockSite(() => markdownAnswer("# turva.dev\n", "text/plain; charset=utf-8"));
+  const idx = await pageCall({ SITE: plainSite.site }, { path: "/llms.txt" });
+  assert.notEqual(idx.isError, true);
+  assert.equal(idx.structuredContent.content_type, "text/plain; charset=utf-8");
+  assert.equal(idx.structuredContent.markdown, "# turva.dev\n");
+  // A path that holds an at sign stays a path: the origin of the request is still turva.dev.
+  const at = mockSite(() => markdownAnswer("x"));
+  await pageCall({ SITE: at.site }, { path: "/@evil.example" });
+  assert.equal(at.calls[0]!.url, "https://turva.dev/@evil.example");
+});
+
+test("P35: get_page refuses a path that is not a plain path on turva.dev, before any call reaches the site", async () => {
+  const NUL = String.fromCharCode(0);
+  const bad: string[] = [
+    "//evil.example/x", "//turva.dev/x", "http://evil.example/x", "https://turva.dev/x", "evil.example/x", "@evil.example/x", "x", "",
+    "/\\evil.example/x", "\\\\evil.example\\x", "/x\\y",
+    "/../../etc/passwd", "/a/../b", "/a/./b", "/%2e%2e/x", "/%2E/x", "/x/..",
+    "/x y", "/x\ty", "/x" + String.fromCharCode(10) + "/y", "/x" + String.fromCharCode(13) + "Host: evil.example", "/x" + NUL, "/x" + String.fromCharCode(127),
+    "/\u00e4", "/x\u00a0y", "/x\u2028y",
+    "/x?y=1", "/x#y", "/?", "/#",
+    "/" + "a".repeat(512),
+  ];
+  const { site, calls } = mockSite(() => markdownAnswer("must not be read"));
+  for (const path of bad) {
+    const res = await pageCall({ SITE: site }, { path });
+    assert.equal(res.isError, true, JSON.stringify(path) + " is refused");
+    assert.equal(res.structuredContent, undefined, JSON.stringify(path));
+    if (path.length <= 512) assert.match(res.content[0].text, /^Refused: /, JSON.stringify(path));
+  }
+  assert.equal(calls.length, 0, "no refused path reached the site");
+  // The same rules, called directly: a refusal names its reason and never carries the caller's text back.
+  for (const path of bad.filter((p) => p.length <= 512)) {
+    const r = pageUrlFor(path);
+    assert.ok("refusal" in r, JSON.stringify(path));
+    if ("refusal" in r) assert.ok(!r.refusal.includes("evil"), "the reason does not echo the path");
+  }
+  for (const path of [123, null, undefined, {}, ["/x"]]) assert.ok("refusal" in pageUrlFor(path), "a non-string path is refused");
+  // Control: ordinary paths pass, including the longest one allowed.
+  for (const path of ["/", "/services", "/guides/llms-txt", "/guides/llms-txt.md", "/blog/feed.xml", "/llms.txt", "/a-b_c.d/e~f", "/%E2%82%AC", "/" + "a".repeat(511)]) {
+    const r = pageUrlFor(path);
+    assert.ok("url" in r, JSON.stringify(path) + " is accepted");
+    if ("url" in r) assert.equal(r.url.origin, "https://turva.dev");
+  }
+  // An argument other than path is refused by the input schema, like every other tool's extra key.
+  const extra = await pageCall({ SITE: site }, { path: "/services", host: "evil.example" });
+  assert.equal(extra.isError, true);
+  assert.match(extra.content[0].text, /Input validation error/);
+  const missing = await pageCall({ SITE: site }, {});
+  assert.equal(missing.isError, true);
+  assert.equal(calls.length, 0);
+});
+
+test("P36: get_page answers a status that is not 2xx, a redirect, a wrong type, a long answer, a dead site and a missing binding as tool errors", async () => {
+  const errorText = async (env: Env, path = "/guides/llms-txt") => {
+    const res = await pageCall(env, { path });
+    assert.equal(res.isError, true);
+    assert.equal(res.structuredContent, undefined);
+    return res.content[0].text as string;
+  };
+  for (const status of [400, 404, 410, 429, 500, 503]) {
+    const { site } = mockSite(() => markdownAnswer("# Not found\n", "text/markdown", status));
+    assert.match(await errorText({ SITE: site }), new RegExp("answered " + status + " for /guides/llms-txt"), String(status));
+  }
+  // The site's redirects are absolute https://turva.dev addresses. The tool names the path and does not follow it.
+  const moved = mockSite(() => new Response(null, { status: 301, headers: { Location: "https://turva.dev/guides/llms-txt" } }));
+  const movedText = await errorText({ SITE: moved.site }, "/Guides/llms-txt");
+  assert.match(movedText, /answered 301 for \/Guides\/llms-txt: the page is at \/guides\/llms-txt\. Call get_page again/);
+  assert.equal(moved.calls.length, 1, "the redirect is not followed");
+  const away = mockSite(() => new Response(null, { status: 302, headers: { Location: "https://evil.example/x" } }));
+  const awayText = await errorText({ SITE: away.site });
+  assert.match(awayText, /does not follow/);
+  assert.doesNotMatch(awayText, /evil/, "a target outside turva.dev is not repeated");
+  assert.equal(away.calls.length, 1);
+  const noLocation = mockSite(() => new Response(null, { status: 307 }));
+  assert.match(await errorText({ SITE: noLocation.site }), /does not follow/);
+  // Only text is returned.
+  const html = mockSite(() => markdownAnswer("<html></html>", "text/html; charset=utf-8"));
+  assert.match(await errorText({ SITE: html.site }), /neither text\/markdown nor text\/plain/);
+  const json = mockSite(() => markdownAnswer("{}", "application/json"));
+  assert.match(await errorText({ SITE: json.site }), /neither text\/markdown nor text\/plain/);
+  const typeless = mockSite(() => new Response("x", { status: 200, headers: { "Content-Type": "" } }));
+  assert.match(await errorText({ SITE: typeless.site }), /neither text\/markdown nor text\/plain/);
+  // The cap: the largest allowed answer passes, one byte more is refused and not cut.
+  const atCap = mockSite(() => markdownAnswer("a".repeat(262_144)));
+  const ok = await pageCall({ SITE: atCap.site }, { path: "/services" });
+  assert.notEqual(ok.isError, true);
+  assert.equal(ok.structuredContent.bytes, 262_144);
+  const overCap = mockSite(() => markdownAnswer("a".repeat(262_145)));
+  assert.match(await errorText({ SITE: overCap.site }, "/services"), /longer than 262144 bytes/);
+  const chunked = mockSite(() => new Response(new ReadableStream({ start(c) { for (let i = 0; i < 40; i++) c.enqueue(new Uint8Array(10_000)); c.close(); } }), { status: 200, headers: { "Content-Type": "text/plain" } }));
+  assert.match(await errorText({ SITE: chunked.site }, "/services"), /longer than 262144 bytes/, "a streamed body is cut off at the cap as well");
+  // A body that breaks after the headers arrived is a tool error too, and its internal message is not passed on.
+  const broken = mockSite(() => new Response(new ReadableStream({ start(c) { c.enqueue(new Uint8Array(10)); c.error(new Error("stream broke")); } }), { status: 200, headers: { "Content-Type": "text/plain" } }));
+  const brokenText = await errorText({ SITE: broken.site }, "/services");
+  assert.match(brokenText, /answered|could not be read to the end/);
+  assert.match(brokenText, /could not be read to the end/);
+  assert.doesNotMatch(brokenText, /stream broke/);
+  // A site that cannot be reached, and a deployment without the binding.
+  const dead = { async fetch(): Promise<Response> { throw new Error("connection refused"); } };
+  assert.match(await errorText({ SITE: dead }), /did not answer \/guides\/llms-txt within 8 seconds/);
+  assert.match(await errorText({}), /site binding is missing/);
+  // The refusal never echoes a caller-chosen path that was refused.
+  assert.doesNotMatch(await errorText({ SITE: dead }, "/guides/llms-txt"), /connection refused/, "an internal error message is not passed on");
+});
+
+test("P37: a raw __proto__ argument to get_page is refused like any other extra key, and the tool name list still rejects an unknown name", async () => {
+  const { site, calls } = mockSite(() => markdownAnswer("x"));
+  const raw = '{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_page","arguments":{"path":"/services","__proto__":{"audit":true}},"_meta":' + JSON.stringify(META) + '}}';
+  const r = await readJson(await post(raw, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_page" }, { SITE: site }));
+  assert.equal(r.result!.isError, true);
+  assert.match(r.result!.content[0].text, /unrecognized key\(s\) in object/);
+  assert.equal(calls.length, 0);
+  const unknown = await readJson(await post({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_pages", arguments: { path: "/services" }, _meta: META } }, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_pages" }, { SITE: site }));
+  assert.equal(unknown.error!.message, "Invalid params: unknown tool name");
+  assert.equal(calls.length, 0);
 });

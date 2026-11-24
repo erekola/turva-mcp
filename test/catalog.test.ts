@@ -296,19 +296,22 @@ test("M11b: sample_report names the sample page, its sections and the nine examp
   assert.equal(new Set(r.sections).size, r.sections.length, "no section is listed twice");
 });
 
-test("M12: privacy holds the twelve sections and the updates section as paragraph arrays, with the links reduced to text and two sections named as left out", async () => {
-  const keys = ["overview", "roles", "server_logs", "international_transfers", "email", "client_material", "public_site_briefs", "outreach_records", "ai_tools", "providers", "data_rights", "cookies", "updates"];
+test("M12: privacy holds every section of the legal page's Privacy part and the updates section as paragraph arrays, with the links reduced to text and nothing named as left out", async () => {
+  // Tek-908: the two sections AI tools in security work and Where the work runs are in, in the page's order, and not_included is gone.
+  const keys = ["overview", "roles", "server_logs", "international_transfers", "email", "client_material", "public_site_briefs", "outreach_records", "ai_tools", "ai_tools_in_security_work", "where_the_work_runs", "providers", "data_rights", "cookies", "updates"];
   const p: Record<string, unknown> = CONTACT.privacy;
-  assert.deepEqual(Object.keys(p), ["url", ...keys, "not_included"]);
+  assert.deepEqual(Object.keys(p), ["url", ...keys]);
   assert.equal(p.url, "https://turva.dev/legal");
   for (const k of keys) {
     const v = p[k] as string[];
     assert.ok(Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && x.length > 0), k);
     assert.ok(v.every((x) => !/\]\(/.test(x)), k + " carries no markdown link");
   }
-  assert.match(String(p.not_included), /AI tools in security work/);
-  assert.match(String(p.not_included), /Where the work runs/);
-  assert.match(String(p.not_included), /legal page only/);
+  assert.equal("not_included" in p, false, "nothing is named as left out any more");
+  assert.equal((p.ai_tools_in_security_work as string[]).length, 4);
+  assert.equal((p.where_the_work_runs as string[]).length, 5);
+  assert.match((p.ai_tools_in_security_work as string[])[0]!, /^Security work runs with GLM 5\.3, an open-weight model from Z\.AI published under its own GLM-5\.3 License, through Melious AI GmbH in Saarbr/);
+  assert.match((p.where_the_work_runs as string[])[0]!, /^Work agreed with a client runs in a virtual machine that is kept apart from the rest of turva\.dev's workstation/);
 });
 
 // 2026-11-22 outside read (P1 and P6): the audit's two-target limit is stated beside its price, and the /legal Updates section,

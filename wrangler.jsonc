@@ -27,6 +27,13 @@
       "simple": { "limit": 100, "period": 60 }
     }
   ],
+  // get_page reads turva.dev's own pages through this service binding to the site Worker. A
+  // service binding is a Worker-to-Worker call inside Cloudflare: it never leaves the network
+  // and cannot be pointed at another host, which is why get_page uses it and not a fetch to a
+  // URL. src/index.ts SITE is typed optional so a test without the binding still runs.
+  "services": [
+    { "binding": "SITE", "service": "turva-worker" }
+  ],
   "observability": {
     "enabled": false
   },

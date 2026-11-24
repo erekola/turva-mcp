@@ -98,12 +98,12 @@ test("K2: the README tool table lists exactly the registered tools, in order, wi
   const text = await r.text();
   const data = text.split(/\r?\n/).filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim());
   const registered = (JSON.parse(data.at(-1) ?? text).result.tools as { name: string }[]).map((t) => t.name);
-  assert.equal(registered.length, 5);
+  assert.equal(registered.length, 6);
   assert.equal(toolTableProblem(README, registered), null);
   const rows = README.split(/\r?\n/).filter((l) => /^\| `get_[a-z_]+` \|/.test(l));
   assert.notEqual(toolTableProblem(README.replace(rows[0], ""), registered), null, "a dropped row fails");
   assert.notEqual(toolTableProblem(README.replace("`get_principles`", "`get_principle`"), registered), null, "a renamed tool fails");
-  assert.notEqual(toolTableProblem(README.replace("Five read-only tools", "Six read-only tools"), registered), null, "a wrong count fails");
+  assert.notEqual(toolTableProblem(README.replace("Six read-only tools", "Five read-only tools"), registered), null, "a wrong count fails");
 });
 
 // ---- README: header rules, Accept rules, notifications -----------------------------------
