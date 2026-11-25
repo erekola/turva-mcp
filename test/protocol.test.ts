@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import worker, { SERVICES, AGENT_READINESS, SECURITY_EVIDENCE, PRINCIPLES, CONTACT, NO_ARGUMENT_TOOL_NAMES, TOOL_NAMES, closeListenStreamAfterAck, pageUrlFor } from "../src/index.ts";
+import worker, { SERVICES, AGENT_READINESS, SECURITY_EVIDENCE, PRINCIPLES, CONTACT, NO_ARGUMENT_TOOL_NAMES, TOOL_NAMES, closeListenStreamAfterAck, pageUrlFor, parsePageIndex } from "../src/index.ts";
 import { SUBSCRIPTION_ID_META_KEY } from "@modelcontextprotocol/server";
 
 // The MCP endpoint itself, called the way a client calls it. catalog.test.ts holds the
@@ -49,9 +49,10 @@ const TOOLS = {
   get_principles: PRINCIPLES,
   get_contact: CONTACT,
 };
-// The five tools above return compiled-in data and take no arguments. get_page (Tek-908) reads the site, so it is
-// listed beside them and tested on its own below.
-const ALL_TOOLS = [...Object.keys(TOOLS), "get_page"];
+// The five tools above return compiled-in data and take no arguments. get_page_index (Tek-915) takes no arguments
+// either and get_page (Tek-908) takes a path, and both read the site, so they are listed beside them and tested on
+// their own below.
+const ALL_TOOLS = [...Object.keys(TOOLS), "get_page_index", "get_page"];
 const plain = (data: unknown) => JSON.parse(JSON.stringify(data));
 // The 2026-07-28 lane is exactly this version header. Any other request is the legacy lane.
 const MODERN_LIST_HEADERS = { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" };
@@ -121,7 +122,7 @@ test("P2: subscriptions/listen acknowledges no tools filter, because none can fi
   assert.deepEqual(ack.params.notifications, {});
 });
 
-test("P3: tools/list declares six read-only tools, five that take no arguments and get_page that takes a path, and describes their output", async () => {
+test("P3: tools/list declares seven read-only tools, six that take no arguments and get_page that takes a path, and describes their output", async () => {
   const { tools } = await call("tools/list") as { tools: Tool[] };
   assert.deepEqual(tools.map((t) => t.name), ALL_TOOLS);
   const page = tools.find((t) => t.name === "get_page")! as Tool & { description: string; inputSchema: { required?: string[]; properties: Record<string, { type?: string; maxLength?: number }> } };
@@ -144,8 +145,28 @@ test("P3: tools/list declares six read-only tools, five that take no arguments a
     assert.equal(t.inputSchema.additionalProperties, false, t.name + " says it takes no arguments");
     assert.equal(t.outputSchema?.type, "object", t.name + " describes its output");
     assert.equal(t.outputSchema!.additionalProperties, false, t.name + " names every field it returns");
+    if (t.name === "get_page_index") continue;
     assert.deepEqual(Object.keys(t.outputSchema!.properties).sort(), Object.keys(TOOLS[t.name as keyof typeof TOOLS]).sort(), t.name + " schema and data name the same fields");
   }
+  // Tek-915: get_page_index takes no arguments, names the four fields it returns, describes every field at every level,
+  // and says in its description when to use it and when to use get_page instead.
+  const index = tools.find((t) => t.name === "get_page_index")! as Tool & { description: string };
+  assert.deepEqual(Object.keys(index.outputSchema!.properties), ["source", "count", "skipped_links", "sections"]);
+  const undescribed = (schema: any, path: string): string[] => {
+    const found: string[] = [];
+    for (const [key, sub] of Object.entries<any>(schema.properties ?? {})) {
+      if (typeof sub.description !== "string" || sub.description === "") found.push(path + key);
+      found.push(...undescribed(sub, path + key + "."), ...(sub.items ? undescribed(sub.items, path + key + "[].") : []));
+    }
+    return found;
+  };
+  assert.deepEqual(undescribed(index.outputSchema, ""), [], "every output field of get_page_index carries a description");
+  assert.match(index.description, /\/llms\.txt/, "the description names the index it reads");
+  assert.match(index.description, /get_page\b/, "the description hands a page read over to get_page");
+  assert.match(index.description, /get_services/, "the description hands the services over to get_services");
+  assert.match(index.description, /does not follow a redirect/);
+  assert.match(page.description, /get_page_index/, "get_page points to get_page_index to find the paths");
+  assert.doesNotMatch(page.description + " " + (page.inputSchema.properties.path as { description?: string }).description, /Call get_page with \/llms\.txt to list/, "the old way of finding paths is not the advice");
 });
 
 test("P4: every tool returns its data as structuredContent and as the same JSON in text", async () => {
@@ -444,8 +465,8 @@ test("P13: a raw __proto__ argument key is refused the same way any other extra 
   const legacy = await readJson(await post(legacyRaw));
   assert.equal(legacy.result!.isError, true);
   assert.equal(legacy.result!.resultType, undefined);
-  // NO_ARGUMENT_TOOL_NAMES is exactly the five argumentless tools, and TOOL_NAMES, which the unknown-tool check reads, is every tool.
-  assert.deepEqual([...NO_ARGUMENT_TOOL_NAMES].sort(), Object.keys(TOOLS).sort());
+  // NO_ARGUMENT_TOOL_NAMES is exactly the six argumentless tools, and TOOL_NAMES, which the unknown-tool check reads, is every tool.
+  assert.deepEqual([...NO_ARGUMENT_TOOL_NAMES].sort(), [...Object.keys(TOOLS), "get_page_index"].sort());
   assert.deepEqual([...TOOL_NAMES], ALL_TOOLS);
 });
 
@@ -1598,4 +1619,222 @@ test("P37: a raw __proto__ argument to get_page is refused like any other extra 
   const unknown = await readJson(await post({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_pages", arguments: { path: "/services" }, _meta: META } }, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_pages" }, { SITE: site }));
   assert.equal(unknown.error!.message, "Invalid params: unknown tool name");
   assert.equal(calls.length, 0);
+});
+
+// ---- Tek-915: get_page_index lists the pages of turva.dev from the site's llms.txt ------------------------------
+
+// A cut of the real llms.txt of turva.dev: the blockquote, a section of pages, sections of plain lines, a page that is
+// linked twice, the plain "Label: address" lines of the endpoint section, and a level 3 heading.
+const LLMS_FIXTURE = [
+  "# turva.dev",
+  "",
+  "> Agent-readiness audits and advisory for product teams.",
+  "> Language: English. Correspondence in English or Finnish.",
+  "",
+  "## Services",
+  "- [Services](https://turva.dev/services.md)",
+  "- [Website and API agent-readiness audit](https://turva.dev/agent-readiness-audit.md)",
+  "- [llms.txt validator](https://turva.dev/llms-txt-validator.md)",
+  "",
+  "## Pricing (EUR, VAT not included)",
+  "- Audit: EUR 4,300 (fixed scope, within two weeks of the agreed written kickoff)",
+  "- Implementation: EUR 1,500 / day (scoped per task)",
+  "",
+  "## Sample reports",
+  "- [Sample audit report](https://turva.dev/samples/audit-report.md)",
+  "",
+  "## Contact",
+  "- Email: info@turva.dev",
+  "- [Contact page](https://turva.dev/contact.md)",
+  "- [The services again](https://turva.dev/services.md)",
+  "",
+  "## Guides",
+  "- [Practical guides to agent-readiness](https://turva.dev/guides.md)",
+  "- [llms.txt explained](https://turva.dev/guides/llms-txt.md)",
+  "### Newest guides",
+  "- [Serving Markdown to AI clients](https://turva.dev/guides/markdown-for-agents.md)",
+  "",
+  "## Blog",
+  "- [Two files called auth.md, and they disagree on the field names](https://turva.dev/blog/two-auth-md-dialects.md)",
+  "- [The twin is the page](https://turva.dev/blog/the-twin-is-the-page.md)",
+  "",
+  "## Agent endpoints",
+  "- Agent registration: https://turva.dev/auth.md",
+  "- MCP Endpoint: https://mcp.turva.dev/mcp",
+  "- OpenAPI: https://turva.dev/openapi.json",
+  "",
+].join("\n");
+
+test("P38: parsePageIndex reads the sections and pages of llms.txt, lists a path once and ignores every line that is not a page", () => {
+  const index = parsePageIndex(LLMS_FIXTURE);
+  assert.deepEqual(index, {
+    source: "/llms.txt",
+    count: 10,
+    skipped_links: 1,
+    sections: [
+      { title: "Services", pages: [
+        { path: "/services.md", title: "Services" },
+        { path: "/agent-readiness-audit.md", title: "Website and API agent-readiness audit" },
+        { path: "/llms-txt-validator.md", title: "llms.txt validator" },
+      ] },
+      { title: "Sample reports", pages: [{ path: "/samples/audit-report.md", title: "Sample audit report" }] },
+      { title: "Contact", pages: [{ path: "/contact.md", title: "Contact page" }] },
+      { title: "Guides", pages: [
+        { path: "/guides.md", title: "Practical guides to agent-readiness" },
+        { path: "/guides/llms-txt.md", title: "llms.txt explained" },
+        { path: "/guides/markdown-for-agents.md", title: "Serving Markdown to AI clients" },
+      ] },
+      { title: "Blog", pages: [
+        { path: "/blog/two-auth-md-dialects.md", title: "Two files called auth.md, and they disagree on the field names" },
+        { path: "/blog/the-twin-is-the-page.md", title: "The twin is the page" },
+      ] },
+    ],
+  });
+  assert.equal(index.count, index.sections.reduce((n, s) => n + s.pages.length, 0), "count is the sum of the listed pages");
+  // Every listed path is one that get_page accepts as it stands.
+  for (const s of index.sections) for (const p of s.pages) assert.ok("url" in pageUrlFor(p.path), p.path + " is accepted by get_page");
+  // The pricing and endpoint sections hold no link of the page form, so they are not sections of the answer.
+  assert.ok(!index.sections.some((s) => /Pricing|Agent endpoints/.test(s.title)));
+});
+
+test("P39: parsePageIndex survives an empty file, links off the site, malformed lines, line endings and a list that is too long", () => {
+  assert.deepEqual(parsePageIndex(""), { source: "/llms.txt", count: 0, skipped_links: 0, sections: [] });
+  assert.deepEqual(parsePageIndex("\n\n   \n"), { source: "/llms.txt", count: 0, skipped_links: 0, sections: [] });
+  assert.deepEqual(parsePageIndex("# turva.dev\n> a summary only\n"), { source: "/llms.txt", count: 0, skipped_links: 0, sections: [] });
+  // A link that leaves turva.dev, or that get_page would refuse, is skipped and counted, never listed.
+  const off = parsePageIndex([
+    "## Elsewhere",
+    "- [other host](https://evil.example/x.md)",
+    "- [lookalike suffix](https://turva.dev.evil.example/x.md)",
+    "- [userinfo](https://turva.dev@evil.example/x.md)",
+    "- [plain http](http://turva.dev/x.md)",
+    "- [protocol relative](//evil.example/x.md)",
+    "- [mail](mailto:info@turva.dev)",
+    "- [script](javascript:void0)",
+    "- [other port](https://turva.dev:8443/x.md)",
+    "- [query](https://turva.dev/x.md?a=1)",
+    "- [fragment](https://turva.dev/x.md#top)",
+    "- [mcp host](https://mcp.turva.dev/mcp)",
+    "- [empty](  )",
+    "- [fine](https://turva.dev/fine.md)",
+  ].join("\n"));
+  assert.deepEqual(off.sections, [{ title: "Elsewhere", pages: [{ path: "/fine.md", title: "fine" }] }]);
+  assert.equal(off.count, 1);
+  assert.equal(off.skipped_links, 11, "the eleven refused links are counted");
+  // Forms the index may use: a relative link, an upper case host, the star bullet, indentation, CRLF line endings, a link before any heading.
+  const forms = parsePageIndex("- [first](/first.md)\r\n## Mixed\r\n* [star](https://TURVA.DEV/star.md)\r\n  - [indented](https://turva.dev/indented.md)\r\n+ [plus](https://turva.dev/plus.md)\r\n");
+  assert.deepEqual(forms.sections.map((s) => [s.title, s.pages.map((p) => p.path)]), [["Index", ["/first.md"]], ["Mixed", ["/star.md", "/indented.md", "/plus.md"]]]);
+  // Malformed or other lines are ignored without a count: no closing parenthesis, no link, a link in the middle of a sentence, a numbered item, a level 1 heading.
+  const loose = parsePageIndex([
+    "# [Heading link](https://turva.dev/heading.md)",
+    "- [no end](https://turva.dev/no-end.md",
+    "- no link at all",
+    "- see [inside](https://turva.dev/inside.md) for more",
+    "1. [numbered](https://turva.dev/numbered.md)",
+    "- [spaced url](https://turva.dev/a b.md)",
+    "[bare](https://turva.dev/bare.md)",
+  ].join("\n"));
+  assert.deepEqual(loose, { source: "/llms.txt", count: 0, skipped_links: 0, sections: [] });
+  // A title that is empty falls back to the path, whitespace is collapsed, and a long title is cut.
+  const titles = parsePageIndex("## T\n- [](https://turva.dev/empty-title.md)\n- [  two   words\t here ](https://turva.dev/ws.md)\n- [" + "x".repeat(300) + "](https://turva.dev/long.md)\n");
+  assert.deepEqual(titles.sections[0]!.pages.map((p) => p.title.length > 40 ? p.title.length : p.title), ["/empty-title.md", "two words here", 200]);
+  // A heading that is long is cut too, and a line of hashes with no text is not a heading.
+  const heads = parsePageIndex("## " + "H".repeat(300) + "\n- [a](https://turva.dev/a.md)\n##   \n- [b](https://turva.dev/b.md)\n");
+  assert.equal(heads.sections[0]!.title.length, 120);
+  // A page linked twice stays in the section that linked it first, whatever section links it later.
+  const dup = parsePageIndex("## One\n- [x](https://turva.dev/x.md)\n## Two\n- [x again](https://turva.dev/x.md)\n- [y](https://turva.dev/y.md)\n");
+  assert.deepEqual(dup.sections.map((s) => [s.title, s.pages.map((p) => p.path)]), [["One", ["/x.md"]], ["Two", ["/y.md"]]]);
+  assert.equal(dup.skipped_links, 1);
+  // The cap: 500 pages are listed and the rest is counted as skipped, so a hostile index cannot make a large answer.
+  const many = parsePageIndex("## Many\n" + Array.from({ length: 600 }, (_, i) => `- [p${i}](https://turva.dev/p${i}.md)`).join("\n"));
+  assert.equal(many.count, 500);
+  assert.equal(many.sections[0]!.pages.length, 500);
+  assert.equal(many.skipped_links, 100);
+});
+
+async function pageIndexCall(env: Env, args: unknown = {}): Promise<Result> {
+  const r = await post({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_page_index", arguments: args, _meta: META } },
+    { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_page_index", ...CALLER_HEADERS }, env);
+  assert.equal(r.status, 200);
+  const body = await readJson(r);
+  assert.equal(body.error, undefined, "a failure is a tool error and not a protocol error");
+  return body.result!;
+}
+
+test("P40: get_page_index reads /llms.txt through the site binding with the two headers of get_page and returns it parsed, as structured content and as the same JSON in text", async () => {
+  const { site, calls } = mockSite(() => markdownAnswer(LLMS_FIXTURE, "text/plain; charset=utf-8"));
+  const res = await pageIndexCall({ SITE: site });
+  assert.notEqual(res.isError, true);
+  assert.deepEqual(res.structuredContent, plain(parsePageIndex(LLMS_FIXTURE)));
+  assert.deepEqual(JSON.parse(res.content[0].text), res.structuredContent, "the text block carries the same JSON");
+  assert.equal(res.resultType, "complete");
+  assert.equal(calls.length, 1, "one call, one subrequest");
+  const c = calls[0]!;
+  assert.equal(c.url, "https://turva.dev/llms.txt", "the only address it can read");
+  assert.equal(c.method, "GET");
+  assert.equal(c.redirect, "manual");
+  assert.deepEqual(Object.keys(c.headers).sort(), ["accept", "cf-connecting-ip"], "nothing of the caller's request is passed on");
+  assert.equal(c.headers.accept, "text/markdown");
+  assert.equal(c.headers["cf-connecting-ip"], "2001:db8::7475", "the constant address, not the caller's 198.51.100.7");
+  // Markdown is accepted as a content type too, and the legacy lane serves the tool as well.
+  const md = mockSite(() => markdownAnswer(LLMS_FIXTURE));
+  assert.equal((await pageIndexCall({ SITE: md.site })).structuredContent.count, 10);
+  const legacy = await readJson(await post({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "get_page_index", arguments: {} } }, { Accept: "application/json, text/event-stream" }, { SITE: site }));
+  assert.equal(legacy.result!.structuredContent.count, 10);
+});
+
+test("P41: get_page_index refuses an argument and answers a status that is not 2xx, a redirect, a wrong type, a long answer, an index without pages, a dead site and a missing binding as tool errors", async () => {
+  const errorText = async (env: Env) => {
+    const res = await pageIndexCall(env);
+    assert.equal(res.isError, true);
+    assert.equal(res.structuredContent, undefined);
+    return res.content[0].text as string;
+  };
+  for (const status of [404, 429, 500, 503]) {
+    const { site } = mockSite(() => markdownAnswer("# Not found\n", "text/plain", status));
+    assert.match(await errorText({ SITE: site }), new RegExp("answered " + status + " for /llms.txt"), String(status));
+  }
+  const moved = mockSite(() => new Response(null, { status: 301, headers: { Location: "https://turva.dev/llms-full.txt" } }));
+  const movedText = await errorText({ SITE: moved.site });
+  assert.match(movedText, /answered 301 for \/llms\.txt: the page is at \/llms-full\.txt\./);
+  assert.doesNotMatch(movedText, /Call get_page again/, "a call without an argument is not told to call again with a path");
+  assert.equal(moved.calls.length, 1, "the redirect is not followed");
+  const away = mockSite(() => new Response(null, { status: 302, headers: { Location: "https://evil.example/x" } }));
+  const awayText = await errorText({ SITE: away.site });
+  assert.match(awayText, /does not follow/);
+  assert.doesNotMatch(awayText, /evil/);
+  const html = mockSite(() => markdownAnswer("<html></html>", "text/html; charset=utf-8"));
+  assert.match(await errorText({ SITE: html.site }), /neither text\/markdown nor text\/plain/);
+  const overCap = mockSite(() => markdownAnswer("a".repeat(262_145), "text/plain"));
+  assert.match(await errorText({ SITE: overCap.site }), /longer than 262144 bytes/);
+  const atCap = mockSite(() => markdownAnswer("- [x](https://turva.dev/x.md)\n" + "a".repeat(262_144 - 30), "text/plain"));
+  assert.equal((await pageIndexCall({ SITE: atCap.site })).structuredContent.count, 1, "an index at the cap is read");
+  const chunked = mockSite(() => new Response(new ReadableStream({ start(c) { for (let i = 0; i < 40; i++) c.enqueue(new Uint8Array(10_000)); c.close(); } }), { status: 200, headers: { "Content-Type": "text/plain" } }));
+  assert.match(await errorText({ SITE: chunked.site }), /longer than 262144 bytes/, "a streamed body is cut off at the cap as well");
+  const broken = mockSite(() => new Response(new ReadableStream({ start(c) { c.enqueue(new Uint8Array(10)); c.error(new Error("stream broke")); } }), { status: 200, headers: { "Content-Type": "text/plain" } }));
+  const brokenText = await errorText({ SITE: broken.site });
+  assert.match(brokenText, /could not be read to the end/);
+  assert.doesNotMatch(brokenText, /stream broke/);
+  // An index that holds no page of turva.dev is an error and not an empty list, and so is one whose only links leave the site.
+  const empty = mockSite(() => markdownAnswer("", "text/plain"));
+  assert.match(await errorText({ SITE: empty.site }), /answered 200 for \/llms\.txt, but the index lists no page of turva\.dev/);
+  const foreign = mockSite(() => markdownAnswer("## Away\n- [x](https://evil.example/x.md)\n", "text/plain"));
+  assert.match(await errorText({ SITE: foreign.site }), /lists no page/);
+  const dead = { async fetch(): Promise<Response> { throw new Error("connection refused"); } };
+  const deadText = await errorText({ SITE: dead });
+  assert.match(deadText, /did not answer \/llms\.txt within 8 seconds/);
+  assert.doesNotMatch(deadText, /connection refused/);
+  assert.match(await errorText({}), /get_page_index is not available on this deployment: the site binding is missing/);
+  // The tool reads no input: any argument is refused before the site is called, like on the five tools with compiled data.
+  const { site, calls } = mockSite(() => markdownAnswer(LLMS_FIXTURE, "text/plain"));
+  for (const args of [{ path: "/services" }, { path: "//evil.example/x" }, { url: "https://evil.example/" }]) {
+    const res = await pageIndexCall({ SITE: site }, args);
+    assert.equal(res.isError, true);
+    assert.match(res.content[0].text, /Input validation error/);
+  }
+  const raw = '{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_page_index","arguments":{"__proto__":{"audit":true}},"_meta":' + JSON.stringify(META) + '}}';
+  const proto = await readJson(await post(raw, { "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "get_page_index" }, { SITE: site }));
+  assert.equal(proto.result!.isError, true);
+  assert.match(proto.result!.content[0].text, /unrecognized key\(s\) in object/);
+  assert.equal(calls.length, 0, "no refused call reached the site");
 });

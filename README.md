@@ -87,7 +87,7 @@ The answer is one JSON-RPC response, and the contact data is in `result.structur
 
 ## Tools
 
-Six read-only tools, each idempotent. Each returns its data as `structuredContent`, which the tool's `outputSchema` describes, and as the same JSON in a text block. Five tools take no arguments: the input schema allows none, and a call that passes one returns a tool error. `get_page` takes one argument, a `path` on turva.dev, and a call with any other argument returns a tool error. There are no write tools or transaction tools.
+Seven read-only tools, each idempotent. Each returns its data as `structuredContent`, which the tool's `outputSchema` describes, and as the same JSON in a text block. Six tools take no arguments: the input schema allows none, and a call that passes one returns a tool error. `get_page` takes one argument, a `path` on turva.dev, and a call with any other argument returns a tool error. There are no write tools or transaction tools.
 
 | Tool | Returns |
 | --- | --- |
@@ -96,11 +96,12 @@ Six read-only tools, each idempotent. Each returns its data as `structuredConten
 | `get_security_evidence` | Public Hardenize and Internet.nl results for turva.dev, with their measurement date |
 | `get_principles` | The principles covering written work, access and verification |
 | `get_contact` | Who runs turva.dev, its business details and legal page, the contact channels, the first-reply time, the first steps to start an audit and every privacy section of the legal page |
-| `get_page` | The markdown of one page on turva.dev, read from the site when the tool is called, by path. A call with `/llms.txt` returns the site's index of pages. The result holds the path, the HTTP status, the content type, the text and its size in bytes |
+| `get_page_index` | The pages of turva.dev, read from the site's `/llms.txt` when the tool is called: the main pages, the sample report, the guides and the blog posts, grouped by the index's own sections, each with its title and a path that `get_page` accepts as it stands. Also the number of pages listed and of links not listed. It takes no arguments |
+| `get_page` | The markdown of one page on turva.dev, read from the site when the tool is called, by path. Find the paths with `get_page_index`; a call with `/llms.txt` returns the raw index. The result holds the path, the HTTP status, the content type, the text and its size in bytes |
 
 ## Evidence
 
-The responses of the five tools that take no arguments come from static TypeScript objects bundled with the Worker. They do not depend on a live upstream request. `get_page` is the exception: it reads one page of turva.dev through a service binding to the main turva.dev Worker when it is called, so its answer is the page as the site serves it at that moment. The measurement tools include a `measured_at` date and public verification links, so compare the recorded values with a fresh scan when current status matters.
+The responses of the five tools that return fixed data come from static TypeScript objects bundled with the Worker. They do not depend on a live upstream request. `get_page` and `get_page_index` are the exception: they read turva.dev through a service binding to the main turva.dev Worker when they are called, so their answer is the page, or the index of pages, as the site serves it at that moment. The measurement tools include a `measured_at` date and public verification links, so compare the recorded values with a fresh scan when current status matters.
 
 The bundled snapshot records 100/100, Level 5 Agent-Native on [isitagentready.com](https://isitagentready.com/), 98/100 on the [Internet.nl website test](https://internet.nl/site/turva.dev/) and 90/100 on its [email test](https://internet.nl/mail/turva.dev/). It also records that all 24 categories passed on [Hardenize](https://www.hardenize.com/report/turva.dev). The isitagentready.com reading is dated 2026-11-25, and the Hardenize and Internet.nl readings are dated 2026-11-15. They come from third parties. This server did not produce any of the scores.
 
@@ -145,7 +146,7 @@ On the current lane nothing checks `Accept`, while the legacy lane answers `406`
 
 `server/discover` is supplied by `@modelcontextprotocol/server`. It declares the `tools` capability with `listChanged: false`, because the tool set changes only on deploy and the server sends no change notifications. It also returns short instructions that say which tool answers which question.
 
-The discovery documents and the data of the five tools that take no arguments are compiled into the Worker. This Worker is separate from the main turva.dev Worker, so changes here do not change the website. The only call this Worker makes to another Worker is the `get_page` read of the site, through the `SITE` service binding in `wrangler.jsonc`.
+The discovery documents and the data of the five tools that return fixed data are compiled into the Worker. This Worker is separate from the main turva.dev Worker, so changes here do not change the website. The only call this Worker makes to another Worker is the read of the site by `get_page` and `get_page_index`, through the `SITE` service binding in `wrangler.jsonc`.
 
 ## Dependencies
 
@@ -158,6 +159,7 @@ This server has no write path and returns only public data. What it has to withs
 - Public and unauthenticated by design. Every exposed value is already public.
 - Read-only MCP annotations on every tool. No destructive or open-world operation is declared, and only `get_page` takes an argument.
 - `get_page` can read turva.dev and nothing else. It calls the site only through the `SITE` service binding, which stays inside Cloudflare and cannot be pointed at another host, and it sends a GET request with `Accept: text/markdown` and a fixed `CF-Connecting-IP` value, so nothing from the caller's request and no caller address is passed on. The `path` must start with a single slash, hold printable ASCII only and no backslash, query string or fragment, and the URL parser must return it unchanged under `https://turva.dev`. The tool does not follow a redirect, answers a status other than 2xx as a tool error with the status, accepts only a `text/markdown` or `text/plain` answer, refuses an answer over 262144 bytes instead of cutting it, and gives up after 8 seconds. All `get_page` calls share one rate-limit bucket on the site, so a burst from anyone can make the next calls answer 429.
+- `get_page_index` reads `/llms.txt` and nothing else, through the same `SITE` service binding and the same code path as `get_page`: the same two headers, no redirect followed, the same 262144-byte cap and 8-second limit, and the same shared rate-limit bucket. It takes no argument. It lists only links to `https://turva.dev` with no query string or fragment whose path `get_page` accepts, so every listed path can be passed to `get_page` unchanged, lists a page once, and stops at 500 pages.
 - Rate limit: about 100 requests per 60 seconds per client IP, with `429` and `Retry-After: 60` after it. An IPv6 client is counted by its /64 prefix and an IPv4 client by its full address. Cloudflare's rate-limiting binding keeps a separate, approximate count in each location, so a burst can pass more requests before the first `429`. The endpoint fails open if the rate-limiter binding is missing or errors.
 - Request size: a body over 64 KiB receives `413` before the handler reads it. A JSON-RPC batch receives `400` on both lanes, so one request cannot carry many tool calls past the rate limit.
 - Browser CORS on `/mcp` accepts an `Origin` whose hostname is `turva.dev`, whatever the scheme or port, and refuses every other origin with `403`. A batch sent as JSON and an oversized body are refused before the origin check. A present `Origin` must also be a serialized origin. A value with a path, user information, a fragment or a trailing slash is refused with `403`, and so is an empty value. The response always carries `Access-Control-Allow-Origin: https://turva.dev`. A browser page on another scheme or port of `turva.dev` therefore passes this check, and the browser's own CORS check then refuses it. Non-browser MCP clients normally send no `Origin` header and can connect directly. Discovery documents use open CORS so directories can read them.
@@ -201,7 +203,7 @@ This repository is MIT licensed and can be adapted for another site. Before depl
 
 1. Replace the static service and evidence objects in `src/index.ts` with your own published data.
 2. Replace the hard-coded `turva.dev` domain, MCP endpoint, browser origin and verification links with values you control.
-3. Point the `SITE` service binding in `wrangler.jsonc` at the Worker of your own site and change `SITE_ORIGIN` in `src/index.ts`, or remove `get_page`.
+3. Point the `SITE` service binding in `wrangler.jsonc` at the Worker of your own site and change `SITE_ORIGIN` in `src/index.ts`, or remove `get_page` and `get_page_index`.
 4. Give the Worker a unique `name` and a rate-limit `namespace_id` that is not shared with another Worker in your Cloudflare account.
 5. Attach your own custom domain. `workers_dev` and `preview_urls` are disabled in `wrangler.jsonc`.
 

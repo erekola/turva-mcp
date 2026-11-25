@@ -646,7 +646,7 @@ const contactOutput = z.strictObject({
 // get_page is the one tool with an input and the one that reads something at call time. The path is
 // checked by pageUrlFor below, and the length limit here is what a client sees in tools/list.
 const pageInput = z.strictObject({
-  path: z.string().max(512).describe("A path on turva.dev that starts with a single slash, has no query string and is in normal form, for example /guides/llms-txt or /agent-readiness-audit. Call get_page with /llms.txt to list the paths."),
+  path: z.string().max(512).describe("A path on turva.dev that starts with a single slash, has no query string and is in normal form, for example /guides/llms-txt or /agent-readiness-audit. Call get_page_index to list the paths."),
 });
 
 const pageOutput = z.strictObject({
@@ -655,6 +655,22 @@ const pageOutput = z.strictObject({
   content_type: z.string().describe("The Content-Type header the site answered with: text/markdown for a page, text/plain for llms.txt."),
   markdown: z.string().describe("The text of the page as the site serves it to a request for text/markdown, at most 262144 bytes."),
   bytes: z.number().describe("The size of that text in bytes."),
+});
+
+// get_page_index (Tek-915) takes no arguments, like the five tools that return compiled data, and reads the site's
+// /llms.txt when it is called. The output is the index parsed into sections, so a client that does not know the
+// paths of turva.dev finds them without reading and parsing the index text itself.
+const pageIndexOutput = z.strictObject({
+  source: z.string().describe("The path of the index that was read, always /llms.txt."),
+  count: z.number().describe("The number of pages listed in sections, which is the sum of the page counts of all sections."),
+  skipped_links: z.number().describe("The number of links in the index that are not listed: a link to another host, a link whose path get_page would refuse, a link with a query string or a fragment, a page the index links twice after its first section, and every link past the limit of 500 pages."),
+  sections: z.array(z.strictObject({
+    title: z.string().describe("The heading of the section in the index, such as Services, Guides or Blog. Links that come before the first heading are listed under Index."),
+    pages: z.array(z.strictObject({
+      path: z.string().describe("The path of the page on turva.dev. Pass it to get_page as it stands. It ends in .md for a page and is served as text/markdown."),
+      title: z.string().describe("The title of the page as the index words it, at most 200 characters."),
+    })).describe("The pages of the section, in the order of the index."),
+  })).describe("The sections of the index in its order. A section with no listed page is left out."),
 });
 
 // Every tool returns its data twice: as structuredContent, which its outputSchema describes,
@@ -667,7 +683,7 @@ function dataResult(data: Record<string, unknown>) {
   };
 }
 
-// Read-only annotations, identical on all six tools. Declared once so the six
+// Read-only annotations, identical on all seven tools. Declared once so the seven
 // registrations cannot drift apart, which is the same failure class the signed
 // server card has already produced twice. openWorldHint is false for get_page too: it
 // reads turva.dev's own site through a service binding and nothing else, so the set of
@@ -679,7 +695,8 @@ const READ_ONLY = {
   openWorldHint: false,
 } as const;
 
-// get_page (Tek-908). The five other tools return objects compiled into this Worker. This one reads a page of
+// get_page (Tek-908) and get_page_index (Tek-915). The five other tools return objects compiled into this Worker.
+// These two read the site when they are called and share readSiteText, which reads a page of
 // turva.dev when it is called, and the design below keeps that from becoming a general fetch:
 // - The only thing it can call is the SITE service binding, which wrangler.jsonc points at the turva-worker
 //   Worker. A service binding never leaves Cloudflare and cannot be pointed at another host, so nothing the
@@ -767,10 +784,15 @@ async function discard(res: Response): Promise<void> {
   }
 }
 
-export async function readSitePage(site: SiteBinding | undefined, path: unknown) {
+// What readSiteText hands back on success. A failure is the tool error that pageError builds, which has isError.
+type SiteText = { path: string; status: number; contentType: string; body: Uint8Array };
+
+// The one place that reads the site, for get_page and get_page_index: the guarded path, no redirect followed, the
+// body cap, the timeout, the content type check and the constant client address all live here and nowhere else.
+async function readSiteText(site: SiteBinding | undefined, path: unknown, tool: "get_page" | "get_page_index"): Promise<SiteText | ReturnType<typeof pageError>> {
   const target = pageUrlFor(path);
   if ("refusal" in target) return pageError(`Refused: ${target.refusal}.`);
-  if (site === undefined) return pageError("get_page is not available on this deployment: the site binding is missing.");
+  if (site === undefined) return pageError(`${tool} is not available on this deployment: the site binding is missing.`);
   let res: Response;
   try {
     res = await site.fetch(new Request(target.url.href, {
@@ -798,7 +820,7 @@ export async function readSitePage(site: SiteBinding | undefined, path: unknown)
     }
     return pageError(moved === undefined
       ? `The site answered ${res.status} for ${shownPath} with a redirect that this tool does not follow.`
-      : `The site answered ${res.status} for ${shownPath}: the page is at ${moved}. Call get_page again with that path.`);
+      : `The site answered ${res.status} for ${shownPath}: the page is at ${moved}.${tool === "get_page" ? " Call get_page again with that path." : ""}`);
   }
   if (res.status < 200 || res.status > 299) {
     await discard(res);
@@ -819,13 +841,88 @@ export async function readSitePage(site: SiteBinding | undefined, path: unknown)
     return pageError(`The answer for ${shownPath} could not be read to the end.`);
   }
   if (body === undefined) return pageError(`The answer for ${shownPath} is longer than ${PAGE_BODY_MAX_BYTES} bytes, so it is not returned.`);
+  return { path: shownPath, status: res.status, contentType, body };
+}
+
+export async function readSitePage(site: SiteBinding | undefined, path: unknown) {
+  const read = await readSiteText(site, path, "get_page");
+  if ("isError" in read) return read;
   return dataResult({
-    path: shownPath,
-    status: res.status,
-    content_type: contentType,
-    markdown: new TextDecoder().decode(body),
-    bytes: body.byteLength,
+    path: read.path,
+    status: read.status,
+    content_type: read.contentType,
+    markdown: new TextDecoder().decode(read.body),
+    bytes: read.body.byteLength,
   });
+}
+
+// The path of the index that get_page_index reads, and the limits of its parser. The index of turva.dev lists about
+// 90 pages, so 500 is far above any real index and keeps a hostile or broken one from producing a large answer.
+const PAGE_INDEX_PATH = "/llms.txt";
+const PAGE_INDEX_MAX_PAGES = 500;
+const PAGE_INDEX_TITLE_MAX = 200;
+const PAGE_INDEX_SECTION_TITLE_MAX = 120;
+const PAGE_INDEX_UNSECTIONED = "Index";
+
+// A link of the index as a path that get_page accepts, or undefined. Only an address on https://turva.dev passes,
+// without a query string or a fragment, and the path must pass pageUrlFor, so every listed path can be given to
+// get_page unchanged. A relative link is read against the site, and a link to another host, another scheme or
+// another origin of any kind is refused, because the origin is compared after the URL parser has normalised it.
+function pageIndexPath(href: string): string | undefined {
+  if (href === "") return undefined;
+  let url: URL;
+  try {
+    url = new URL(href, SITE_ORIGIN);
+  } catch {
+    return undefined;
+  }
+  if (url.origin !== SITE_ORIGIN || url.search !== "" || url.hash !== "") return undefined;
+  return "url" in pageUrlFor(url.pathname) ? url.pathname : undefined;
+}
+
+const tidyIndexText = (text: string, max: number) => text.replace(/\s+/g, " ").trim().slice(0, max);
+
+// Parses the text of llms.txt: a level 2 heading opens a section, and a list item that starts with a markdown link
+// is a page. Every other line is ignored, including the blockquote, the plain "Label: address" lines of the endpoint
+// section and level 1 and level 3 headings. A page that is linked twice is listed once, under its first section.
+export function parsePageIndex(text: string) {
+  const sections: { title: string; pages: { path: string; title: string }[] }[] = [];
+  const seen = new Set<string>();
+  let sectionTitle = PAGE_INDEX_UNSECTIONED;
+  let section: (typeof sections)[number] | undefined;
+  let count = 0;
+  let skipped = 0;
+  for (const line of text.split(/\r?\n/)) {
+    const heading = /^##[ \t]+(\S.*)$/.exec(line);
+    if (heading !== null) {
+      sectionTitle = tidyIndexText(heading[1]!, PAGE_INDEX_SECTION_TITLE_MAX) || PAGE_INDEX_UNSECTIONED;
+      section = undefined;
+      continue;
+    }
+    const link = /^[ \t]*[-*+][ \t]+\[([^\]]*)\]\(([^()\s]*)\)/.exec(line);
+    if (link === null) continue;
+    const path = pageIndexPath(link[2]!);
+    if (path === undefined || seen.has(path) || count >= PAGE_INDEX_MAX_PAGES) {
+      skipped += 1;
+      continue;
+    }
+    seen.add(path);
+    if (section === undefined) {
+      section = { title: sectionTitle, pages: [] };
+      sections.push(section);
+    }
+    section.pages.push({ path, title: tidyIndexText(link[1]!, PAGE_INDEX_TITLE_MAX) || path });
+    count += 1;
+  }
+  return { source: PAGE_INDEX_PATH, count, skipped_links: skipped, sections };
+}
+
+export async function readSitePageIndex(site: SiteBinding | undefined) {
+  const read = await readSiteText(site, PAGE_INDEX_PATH, "get_page_index");
+  if ("isError" in read) return read;
+  const index = parsePageIndex(new TextDecoder().decode(read.body));
+  if (index.count === 0) return pageError(`The site answered ${read.status} for ${PAGE_INDEX_PATH}, but the index lists no page of turva.dev.`);
+  return dataResult(index);
 }
 
 // A fresh server per request. The 2026-07-28 revision is stateless, and stateless here
@@ -855,7 +952,7 @@ export async function readSitePage(site: SiteBinding | undefined, path: unknown)
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.14.1",
+  version: "1.15.0",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, engagement principles: async-only, no calls and no calendar links, the contact and privacy details, and the markdown of pages on turva.dev. No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -867,14 +964,14 @@ const SERVER_INFO = {
 // Each tool description repeats the routing to its neighbours, and this says it once for a
 // client that reads server/discover, or initialize on the 2025-era lane, before it lists the
 // tools.
-const INSTRUCTIONS = "Six read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the access an engagement needs, the full contract terms and the outline of the published sample report. For the standing principles behind every engagement and the reason for each, call get_principles. Call get_contact for who runs turva.dev, its business details, how to reach it and how it handles personal data, quoted from every privacy section of the legal page. get_agent_readiness returns turva.dev's own agent-readiness score from the independent scanner isitagentready.com. get_security_evidence returns its own web and email security scan results, which are a separate measurement. For evidence in general, call both. For any other page of turva.dev, such as a guide or a blog post, call get_page with its path: it reads that page's markdown from the site when you call it, and get_page with /llms.txt returns the index of the site's pages. The other five tools take no arguments, and their data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. get_page takes one path and sends one request to turva.dev and to no other host. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
+const INSTRUCTIONS = "Seven read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the access an engagement needs, the full contract terms and the outline of the published sample report. For the standing principles behind every engagement and the reason for each, call get_principles. Call get_contact for who runs turva.dev, its business details, how to reach it and how it handles personal data, quoted from every privacy section of the legal page. get_agent_readiness returns turva.dev's own agent-readiness score from the independent scanner isitagentready.com. get_security_evidence returns its own web and email security scan results, which are a separate measurement. For evidence in general, call both. To find out which other pages turva.dev has, such as its guides and blog posts, call get_page_index: it lists them by section, each with its title and a path. To read one of them, or any other page of turva.dev, call get_page with its path: it reads that page's markdown from the site when you call it. The five tools that return compiled data take no arguments, and their data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. get_page_index takes no arguments either and reads the site's /llms.txt when you call it. get_page takes one path. Each of the two sends one request to turva.dev and to no other host. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
 
 function createServer(site?: SiteBinding): McpServer {
   const server = new McpServer(
     SERVER_INFO,
     {
       // listChanged is false because this server never sends notifications/tools/list_changed:
-      // the six tools are compiled in and change only on deploy, and no request outlives its
+      // the seven tools are declared in the code and change only on deploy, and no request outlives its
       // response. @modelcontextprotocol/server set the flag to true at the first
       // registerTool unless the code that creates the server passes a value (measured on
       // 2.0.0 on 2026-09-23; protocol.test.ts P1 and P6 hold the outcome on the pinned
@@ -887,8 +984,8 @@ function createServer(site?: SiteBinding): McpServer {
       // tool declarations compiled into the Worker, so the answer is byte-identical for
       // every caller and changes only on deploy: public is a true statement about this
       // server, not an optimization, and one hour is well inside how often it is
-      // redeployed. A tools/call answer is not covered by these hints, so get_page, which
-      // reads the site when it is called, is not cached by them.
+      // redeployed. A tools/call answer is not covered by these hints, so get_page and get_page_index, which
+      // read the site when they are called, are not cached by them.
       cacheHints: {
         "tools/list": { ttlMs: 3_600_000, cacheScope: "public" },
         "server/discover": { ttlMs: 3_600_000, cacheScope: "public" },
@@ -957,10 +1054,22 @@ function createServer(site?: SiteBinding): McpServer {
   );
 
   server.registerTool(
+    "get_page_index",
+    {
+      title: "Index of the pages of turva.dev",
+      description: "Lists the pages of turva.dev, read from the site's /llms.txt index when you call it: the main pages, the sample report, the guides and the blog posts, grouped under the index's own section headings, each with its title and a path. Every listed path works as it stands in get_page. Use this when you do not know which pages exist or which path a guide or a blog post has. To read one of the listed pages, call get_page with its path. For the services and their prices, and for the contract terms, use get_services, and for who runs turva.dev and how personal data is handled use get_contact. The result holds the source path, the number of pages listed, the number of links not listed and the sections with their pages. It lists only links to turva.dev itself, and a page that the index links twice appears once, under its first section. It takes no arguments. Read-only: it sends one GET request to turva.dev's own site through a service binding that cannot reach any other host, passes on nothing from your request, and changes nothing. It returns a tool error when the site answers a status that is not 2xx, an answer longer than 262144 bytes or an index that lists no page, and it does not follow a redirect.",
+      annotations: READ_ONLY,
+      inputSchema: noArguments,
+      outputSchema: pageIndexOutput,
+    },
+    async () => readSitePageIndex(site),
+  );
+
+  server.registerTool(
     "get_page",
     {
       title: "Page of turva.dev as markdown",
-      description: "Returns the markdown of one page on turva.dev, read from the site when you call it: the text that the site serves to a request for text/markdown. The path argument is a path on turva.dev that starts with a single slash and has no query string, for example /guides/llms-txt or /agent-readiness-audit. To find paths, call get_page with /llms.txt: it returns the site's index, which lists the main pages, the sample report, the guides and the blog posts, each as a markdown address ending in .md, and the path part of such an address works as it stands. The result holds the path, the HTTP status, the content type, the text and its size in bytes. Use this when a user asks about a guide, a blog post or a page that the other five tools do not cover, or wants a page's own wording. For the services and their prices, and for the contract terms, use get_services, and for who runs turva.dev and how personal data is handled use get_contact. Read-only: it sends one GET request to turva.dev's own site through a service binding that cannot reach any other host, passes on nothing from your request, and changes nothing. It refuses a path outside turva.dev, an answer longer than 262144 bytes and any status that is not 2xx, and it does not follow a redirect: it names the new path and you call again. The markdown holds the main content of the page without the frame around it, so it is not the HTML page byte for byte.",
+      description: "Returns the markdown of one page on turva.dev, read from the site when you call it: the text that the site serves to a request for text/markdown. The path argument is a path on turva.dev that starts with a single slash and has no query string, for example /guides/llms-txt or /agent-readiness-audit. To find paths, call get_page_index, which lists the main pages, the sample report, the guides and the blog posts by section, each with a path that works here as it stands. A call with /llms.txt returns the raw index that get_page_index reads, with each page as a markdown address ending in .md. The result holds the path, the HTTP status, the content type, the text and its size in bytes. Use this when a user asks about a guide, a blog post or a page that the other tools do not cover, or wants a page's own wording. For the services and their prices, and for the contract terms, use get_services, and for who runs turva.dev and how personal data is handled use get_contact. Read-only: it sends one GET request to turva.dev's own site through a service binding that cannot reach any other host, passes on nothing from your request, and changes nothing. It refuses a path outside turva.dev, an answer longer than 262144 bytes and any status that is not 2xx, and it does not follow a redirect: it names the new path and you call again. The markdown holds the main content of the page without the frame around it, so it is not the HTML page byte for byte.",
       annotations: READ_ONLY,
       inputSchema: pageInput,
       outputSchema: pageOutput,
@@ -1317,10 +1426,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// The five names server.registerTool gives to the tools with noArguments as their
-// inputSchema, and the six names of every tool. protocol.test.ts asserts that the second
+// The six names server.registerTool gives to the tools with noArguments as their
+// inputSchema, and the seven names of every tool. protocol.test.ts asserts that the second
 // list matches tools/list's own names, so the two cannot drift apart silently.
-export const NO_ARGUMENT_TOOL_NAMES = ["get_services", "get_agent_readiness", "get_security_evidence", "get_principles", "get_contact"] as const;
+export const NO_ARGUMENT_TOOL_NAMES = ["get_services", "get_agent_readiness", "get_security_evidence", "get_principles", "get_contact", "get_page_index"] as const;
 export const TOOL_NAMES = [...NO_ARGUMENT_TOOL_NAMES, "get_page"] as const;
 const KNOWN_TOOLS = new Set<string>(TOOL_NAMES);
 
@@ -1388,7 +1497,7 @@ function argumentKeysExceedEchoLimits(keys: string[]): boolean {
   return keys.length > MAX_ECHOED_ARGUMENT_KEYS || keys.some((k) => k.length > MAX_ECHOED_ARGUMENT_KEY_LENGTH);
 }
 
-// T-04 (Astra audit 2026-09-26): five tools took noArguments, z.strictObject({}), and get_page takes one
+// T-04 (Astra audit 2026-09-26): five tools took noArguments, z.strictObject({}), get_page_index (Tek-915) joined them, and get_page takes one
 // path (Tek-908), but a JSON body whose arguments object has "__proto__" as its only key got past that check,
 // although README and every other extra key promise a tool error. Test P13 still fails without
 // this branch (measured 2026-11-04). The SDK's spread of the raw params, "{ ...request.params }",
@@ -1421,7 +1530,7 @@ function toolArgumentError(id: string | number, toolName: string, keys: string[]
   }, { status: 200 }));
 }
 
-// P19 (Astra audit 2026-09-26, 32/T2-03): pre-checks a tools/call name against the six
+// P19 (Astra audit 2026-09-26, 32/T2-03): pre-checks a tools/call name against the seven
 // tools this server registers (TOOL_NAMES above), before the SDK reaches it
 // and echoes an unrecognised name verbatim into "Tool <name> not found". The caller's
 // name is capped at MAX_ECHOED_TOOL_NAME_LENGTH and carried in its own data field, never
