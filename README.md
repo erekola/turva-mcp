@@ -175,7 +175,7 @@ The two checks below are separate tools. They are not MCP tools, and this server
 - [turva-llms-txt-validator](https://www.npmjs.com/package/turva-llms-txt-validator) checks llms.txt structure and home-page discovery declarations. Its [browser version](https://turva.dev/llms-txt-validator) accepts any public domain.
 - [markdown-parity-check](https://www.npmjs.com/package/markdown-parity-check) compares the main content of HTML and Markdown pages. Its [browser version](https://turva.dev/markdown-parity-check) checks turva.dev's own published pages only.
 
-Both run with `npx`. Both need Node.js 22 or newer. Their [validator instructions](https://github.com/erekola/llms-txt-validator#quick-start) and [comparison instructions](https://github.com/erekola/markdown-parity-check#readme) explain the arguments and exit codes.
+Both run with `npx`. Both need Node.js 22 or newer. Their [validator instructions](https://github.com/turva-dev/llms-txt-validator#quick-start) and [comparison instructions](https://github.com/turva-dev/markdown-parity-check#readme) explain the arguments and exit codes.
 
 ## Develop and test
 
