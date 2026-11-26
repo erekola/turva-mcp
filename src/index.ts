@@ -952,7 +952,7 @@ export async function readSitePageIndex(site: SiteBinding | undefined) {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.15.2",
+  version: "1.15.3",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, engagement principles: async-only, no calls and no calendar links, the contact and privacy details, and the markdown of pages on turva.dev. No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -1033,7 +1033,7 @@ function createServer(site?: SiteBinding): McpServer {
     "get_principles",
     {
       title: "Engagement principles",
-      description: "Returns the four principles turva.dev applies to every engagement, each with its reason: async-only, least access, each fix checked with a scanner or a direct test, and open and verifiable. Use this when a user asks what turva.dev stands by or why it works the way it does, for example why there are no calls. For an engagement's terms and prices use get_services, and to start one use get_contact. It makes no network request: the principles are compiled into the server, are the same on every call and change only on deploy. They state the policy for every engagement, not the terms of a particular one.",
+      description: "Returns the four principles turva.dev applies to every engagement, each with its reason: async-only, least access, each fix checked with a scanner or a direct test, and open and verifiable. Use this when a user asks what turva.dev stands by or why it works the way it does, for example why an engagement runs in writing, with no calls and no calendar links. For an engagement's terms and prices use get_services, and to start one use get_contact. It makes no network request: the principles are compiled into the server, are the same on every call and change only on deploy. They state the policy for every engagement, not the terms of a particular one.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: principlesOutput,

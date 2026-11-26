@@ -181,6 +181,10 @@ test("P3: tools/list declares seven read-only tools, six that take no arguments 
     assert.match(d, /same on every call/, name + " says its data is the same on every call");
   }
   assert.match(described.find((t) => t.name === "get_services")!.description, /in general what turva\.dev does/, "get_services is the home of the general question");
+  // 1.15.3: the example in get_principles names the policy the way the page does, not the unclear "no calls".
+  const principles = described.find((t) => t.name === "get_principles")!.description;
+  assert.match(principles, /runs in writing, with no calls and no calendar links/, "get_principles says what an engagement without calls means");
+  assert.doesNotMatch(principles, /why there are no calls/, "the unclear old example is gone");
   assert.match(described.find((t) => t.name === "get_security_evidence")!.description, /runs no scan/, "get_security_evidence says a call runs no scan");
   assert.match(described.find((t) => t.name === "get_contact")!.description, /sends no message for the user/, "get_contact says a call sends no message");
 });
