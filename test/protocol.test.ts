@@ -133,7 +133,7 @@ test("P3: tools/list declares seven read-only tools, six that take no arguments 
   assert.equal(page.inputSchema.additionalProperties, false, "get_page names its one argument and refuses others");
   assert.deepEqual(Object.keys(page.outputSchema!.properties), ["path", "status", "content_type", "markdown", "bytes"]);
   assert.equal(page.outputSchema!.additionalProperties, false);
-  assert.match(page.description, /\/llms\.txt/, "the description says how to find paths");
+  assert.match(page.description, /text\/markdown/, "the description says what the page text is");
   assert.match(page.description, /262144 bytes/, "the description names the cap the code applies");
   assert.match(page.description, /does not follow a redirect/);
   assert.match(page.description, /not the HTML page byte for byte/, "it does not claim byte equality with the HTML page");
@@ -196,7 +196,7 @@ test("P4b: get_services returns active security testing as a quoted add-on that 
 
 // Tek-886: the contract terms, the sample report and the privacy notice travel over the wire, and the tool descriptions
 // name the fields that carry them, so a client that reads only tools/list learns where the answer is.
-test("P4c: get_services returns contract_terms and sample_report, get_contact returns privacy, and the descriptions name them", async () => {
+test("P4c: get_services returns contract_terms and sample_report, get_contact returns privacy, and the descriptions route between the tools", async () => {
   const s = await call("tools/call", { name: "get_services", arguments: {} });
   assert.notEqual(s.isError, true);
   const sc = s.structuredContent as { contract_terms?: Record<string, unknown>; sample_report?: Record<string, unknown> };
@@ -211,10 +211,10 @@ test("P4c: get_services returns contract_terms and sample_report, get_contact re
   assert.ok(Array.isArray(privacy?.cookies) && privacy.cookies.length > 0);
   const { tools } = await call("tools/list") as { tools: Array<Tool & { description?: string }> };
   const text = (n: string) => tools.find((t) => t.name === n)!.description!;
-  assert.match(text("get_services"), /contract_terms/);
-  assert.match(text("get_services"), /sample_report/);
-  assert.match(text("get_contact"), /privacy/);
-  assert.match(text("get_contact"), /AI tools in security work, where the work runs/, "get_contact names the two sections it now quotes");
+  assert.match(text("get_services"), /get_principles/, "get_services routes the principles to get_principles");
+  assert.match(text("get_services"), /get_contact/, "get_services routes the operator and privacy questions to get_contact");
+  assert.match(text("get_contact"), /privacy sections of the legal page/, "get_contact says it quotes the privacy sections of the legal page");
+  assert.match(text("get_contact"), /get_services/, "get_contact routes the services and terms to get_services");
   assert.doesNotMatch(text("get_contact"), /left out/, "get_contact no longer says a privacy section is left out");
   assert.match(text("get_agent_readiness"), /get_security_evidence/, "the two proof tools point at each other");
   assert.match(text("get_security_evidence"), /get_agent_readiness/, "the two proof tools point at each other");
