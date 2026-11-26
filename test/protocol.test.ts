@@ -104,6 +104,7 @@ test("P1: server/discover declares what the server does and nothing it does not"
   for (const name of ALL_TOOLS) {
     assert.match(d.instructions, new RegExp("\\b" + name + "\\b"), "the instructions route to " + name);
   }
+  assert.match(d.instructions, /A general question about what turva\.dev does starts there too\./, "the instructions give the general question the same home as the get_services description");
 });
 
 test("P2: subscriptions/listen acknowledges no tools filter, because none can fire", async () => {
@@ -167,6 +168,21 @@ test("P3: tools/list declares seven read-only tools, six that take no arguments 
   assert.match(index.description, /does not follow a redirect/);
   assert.match(page.description, /get_page_index/, "get_page points to get_page_index to find the paths");
   assert.doesNotMatch(page.description + " " + (page.inputSchema.properties.path as { description?: string }).description, /Call get_page with \/llms\.txt to list/, "the old way of finding paths is not the advice");
+  // 1.15.2: the empty input schema already says a zero-argument tool takes no arguments, so no description repeats it, and the three
+  // tools that state no behaviour of their own say that they make no network request and return the same data on every call.
+  const described = tools as Array<Tool & { description: string }>;
+  for (const t of described) {
+    if (t.name === "get_page") continue;
+    assert.doesNotMatch(t.description, /Takes no arguments/, t.name + " does not restate its empty input schema");
+  }
+  for (const name of ["get_security_evidence", "get_principles", "get_contact"]) {
+    const d = described.find((t) => t.name === name)!.description;
+    assert.match(d, /makes no network request/, name + " says it makes no network request");
+    assert.match(d, /same on every call/, name + " says its data is the same on every call");
+  }
+  assert.match(described.find((t) => t.name === "get_services")!.description, /in general what turva\.dev does/, "get_services is the home of the general question");
+  assert.match(described.find((t) => t.name === "get_security_evidence")!.description, /runs no scan/, "get_security_evidence says a call runs no scan");
+  assert.match(described.find((t) => t.name === "get_contact")!.description, /sends no message for the user/, "get_contact says a call sends no message");
 });
 
 test("P4: every tool returns its data as structuredContent and as the same JSON in text", async () => {

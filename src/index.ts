@@ -952,7 +952,7 @@ export async function readSitePageIndex(site: SiteBinding | undefined) {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.15.1",
+  version: "1.15.2",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, engagement principles: async-only, no calls and no calendar links, the contact and privacy details, and the markdown of pages on turva.dev. No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -964,7 +964,7 @@ const SERVER_INFO = {
 // Each tool description repeats the routing to its neighbours, and this says it once for a
 // client that reads server/discover, or initialize on the 2025-era lane, before it lists the
 // tools.
-const INSTRUCTIONS = "Seven read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the access an engagement needs, the full contract terms and the outline of the published sample report. For the standing principles behind every engagement and the reason for each, call get_principles. Call get_contact for who runs turva.dev, its business details, how to reach it and how it handles personal data, quoted from every privacy section of the legal page. get_agent_readiness returns turva.dev's own agent-readiness score from the independent scanner isitagentready.com. get_security_evidence returns its own web and email security scan results, which are a separate measurement. For evidence in general, call both. To find out which other pages turva.dev has, such as its guides and blog posts, call get_page_index: it lists them by section, each with its title and a path. To read one of them, or any other page of turva.dev, call get_page with its path: it reads that page's markdown from the site when you call it. The five tools that return compiled data take no arguments, and their data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. get_page_index takes no arguments either and reads the site's /llms.txt when you call it. get_page takes one path. Each of the two sends one request to turva.dev and to no other host. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
+const INSTRUCTIONS = "Seven read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the access an engagement needs, the full contract terms and the outline of the published sample report. A general question about what turva.dev does starts there too. For the standing principles behind every engagement and the reason for each, call get_principles. Call get_contact for who runs turva.dev, its business details, how to reach it and how it handles personal data, quoted from every privacy section of the legal page. get_agent_readiness returns turva.dev's own agent-readiness score from the independent scanner isitagentready.com. get_security_evidence returns its own web and email security scan results, which are a separate measurement. For evidence in general, call both. To find out which other pages turva.dev has, such as its guides and blog posts, call get_page_index: it lists them by section, each with its title and a path. To read one of them, or any other page of turva.dev, call get_page with its path: it reads that page's markdown from the site when you call it. The five tools that return compiled data take no arguments, and their data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. get_page_index takes no arguments either and reads the site's /llms.txt when you call it. get_page takes one path. Each of the two sends one request to turva.dev and to no other host. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
 
 function createServer(site?: SiteBinding): McpServer {
   const server = new McpServer(
@@ -997,7 +997,7 @@ function createServer(site?: SiteBinding): McpServer {
     "get_services",
     {
       title: "Service catalog and pricing",
-      description: "Returns turva.dev's service catalog with prices, the working terms of an engagement, the contract terms of the legal page and an outline of the published sample audit report. Use this when a user asks what turva.dev offers or costs, what access an engagement needs, what the contract says or what a delivered report contains. For the principles behind every engagement use get_principles, and for who runs turva.dev, how to reach it and how personal data is handled use get_contact. Takes no arguments. It makes no network request: the data is compiled into the server, is the same on every call and changes only on deploy. The contract terms are quoted in full, not summarized.",
+      description: "Returns turva.dev's service catalog with prices, the working terms of an engagement, the contract terms of the legal page and an outline of the published sample audit report. Use this when a user asks what turva.dev offers or costs, what access an engagement needs, what the contract says or what a delivered report contains. Start here too when a user asks in general what turva.dev does. For the principles behind every engagement use get_principles, and for who runs turva.dev, how to reach it and how personal data is handled use get_contact. It makes no network request: the data is compiled into the server, is the same on every call and changes only on deploy. The contract terms are quoted in full, not summarized.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: servicesOutput,
@@ -1009,7 +1009,7 @@ function createServer(site?: SiteBinding): McpServer {
     "get_agent_readiness",
     {
       title: "Agent-readiness score",
-      description: "Returns turva.dev's own agent-readiness reading from the independent scanner isitagentready.com, with the overall score and level, the category sub-scores and the measurement date. Use this when a user asks for turva.dev's agent-readiness score or level, or wants to check the claim behind the audit service. For web and email security scan results use get_security_evidence, and when a user asks for evidence in general, call both. Takes no arguments. The reading is compiled into the server and changes only on deploy, so check its date. The scanner link in the result opens the scanner's start page, where anyone can run a new check, and not the recorded reading.",
+      description: "Returns turva.dev's own agent-readiness reading from the independent scanner isitagentready.com, with the overall score and level, the category sub-scores and the measurement date. Use this when a user asks for turva.dev's agent-readiness score or level, or wants to check the claim behind the audit service. For web and email security scan results use get_security_evidence, and when a user asks for evidence in general, call both. The reading is compiled into the server and changes only on deploy, so check its date. The scanner link in the result opens the scanner's start page, where anyone can run a new check, and not the recorded reading.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: readinessOutput,
@@ -1021,7 +1021,7 @@ function createServer(site?: SiteBinding): McpServer {
     "get_security_evidence",
     {
       title: "Web-security scan evidence",
-      description: "Returns the security scan results for turva.dev's own domain from Hardenize and two Internet.nl tests, one for the website and one for its mail, covering HTTPS, DNSSEC, RPKI, IPv6 and email authentication. Use this when a user asks how turva.dev's own domain is secured or configured. For the agent-readiness score use get_agent_readiness, and when a user asks for evidence in general, call both. Takes no arguments. The results are compiled into the server and are not scanned again when you call: each scan carries its own date and a link to the provider's public report.",
+      description: "Returns the security scan results for turva.dev's own domain from Hardenize and two Internet.nl tests, one for the website and one for its mail, covering HTTPS, DNSSEC, RPKI, IPv6 and email authentication. Use this when a user asks how turva.dev's own domain is secured or configured. For the agent-readiness score use get_agent_readiness, and when a user asks for evidence in general, call both. It makes no network request and runs no scan: the results are compiled into the server, are the same on every call and change only on deploy. Each scan carries its own date and a link to the provider's public report, so check the date before you quote a result.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: securityOutput,
@@ -1033,7 +1033,7 @@ function createServer(site?: SiteBinding): McpServer {
     "get_principles",
     {
       title: "Engagement principles",
-      description: "Returns the four principles turva.dev applies to every engagement, each with its reason: async-only, least access, each fix checked with a scanner or a direct test, and open and verifiable. Use this when a user asks what turva.dev stands by or why it works the way it does, for example why there are no calls. For an engagement's terms and prices use get_services, and to start one use get_contact. Takes no arguments. The principles are compiled into the server and change only on deploy. They state the policy for every engagement, not the terms of a particular one.",
+      description: "Returns the four principles turva.dev applies to every engagement, each with its reason: async-only, least access, each fix checked with a scanner or a direct test, and open and verifiable. Use this when a user asks what turva.dev stands by or why it works the way it does, for example why there are no calls. For an engagement's terms and prices use get_services, and to start one use get_contact. It makes no network request: the principles are compiled into the server, are the same on every call and change only on deploy. They state the policy for every engagement, not the terms of a particular one.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: principlesOutput,
@@ -1045,7 +1045,7 @@ function createServer(site?: SiteBinding): McpServer {
     "get_contact",
     {
       title: "Contact and operator details",
-      description: "Returns who runs turva.dev, how to reach it and how it handles personal data: the operator's legal and business details, the contact channels with their reply times, the first steps to start an engagement, and the privacy sections of the legal page quoted in full. Use this when a user asks who is behind turva.dev, for its legal details, how to contact it or start an audit, or how personal data is handled. For the services, prices, the access an engagement needs and the contract terms use get_services. Takes no arguments. The data is compiled into the server and changes only on deploy. Engagements run in writing, so the result offers no call or meeting booking.",
+      description: "Returns who runs turva.dev, how to reach it and how it handles personal data: the operator's legal and business details, the contact channels with their reply times, the first steps to start an engagement, and the privacy sections of the legal page quoted in full. Use this when a user asks who is behind turva.dev, for its legal details, how to contact it or start an audit, or how personal data is handled. For the services, prices, the access an engagement needs and the contract terms use get_services. It makes no network request and sends no message for the user: the data is compiled into the server, is the same on every call and changes only on deploy. Engagements run in writing, so the result offers no call or meeting booking.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: contactOutput,
@@ -1057,7 +1057,7 @@ function createServer(site?: SiteBinding): McpServer {
     "get_page_index",
     {
       title: "Index of the pages of turva.dev",
-      description: "Lists the pages of turva.dev, read from the site's /llms.txt when you call it: the main pages, the sample report, the guides and the blog posts, grouped under the index's sections, each with a title and a path that get_page accepts as it stands. Use this when you do not know which pages exist or which path a page has, then call get_page with the path. For the services and prices use get_services, and for who runs turva.dev use get_contact. Takes no arguments. Each call sends one GET request to turva.dev through a service binding that reaches no other host and forwards nothing from your request. It lists only turva.dev's own pages, each once, and it does not follow a redirect. A tool error comes back when the site answers with a status other than 2xx or with more than 262144 bytes, or when the index lists no pages.",
+      description: "Lists the pages of turva.dev, read from the site's /llms.txt when you call it: the main pages, the sample report, the guides and the blog posts, grouped under the index's sections, each with a title and a path that get_page accepts as it stands. Use this when you do not know which pages exist or which path a page has, then call get_page with the path. For the services and prices use get_services, and for who runs turva.dev use get_contact. Each call sends one GET request to turva.dev through a service binding that reaches no other host and forwards nothing from your request. It lists only turva.dev's own pages, each once, and it does not follow a redirect. A tool error comes back when the site answers with a status other than 2xx or with more than 262144 bytes, or when the index lists no pages.",
       annotations: READ_ONLY,
       inputSchema: noArguments,
       outputSchema: pageIndexOutput,
