@@ -488,7 +488,7 @@ export const CONTACT = {
 // not name, and test/protocol.test.ts calls every tool: a field added above without its
 // schema fails the tests before it can fail a client.
 //
-// No tool reads its input. noArguments makes the published inputSchema say so with
+// The six tools other than get_page read no input. noArguments makes their published inputSchema say so with
 // additionalProperties false, and a call that passes an argument anyway gets a tool error, a
 // result with isError set to true, which is how the SDK reports every input validation failure.
 const noArguments = z.strictObject({});
@@ -643,7 +643,7 @@ const contactOutput = z.strictObject({
   }).describe("The privacy sections of the legal page, every paragraph of every section listed, quoted as the page words them. A markdown link is reduced to its text."),
 });
 
-// get_page is the one tool with an input and the one that reads something at call time. The path is
+// get_page is the one tool with an input, and get_page and get_page_index are the two that read something at call time. The path is
 // checked by pageUrlFor below, and the length limit here is what a client sees in tools/list.
 const pageInput = z.strictObject({
   path: z.string().max(512).describe("A path on turva.dev that starts with a single slash, has no query string and is in normal form, for example /guides/llms-txt or /agent-readiness-audit. Call get_page_index to list the paths."),
@@ -952,7 +952,7 @@ export async function readSitePageIndex(site: SiteBinding | undefined) {
 const SERVER_INFO = {
   name: "turva-mcp",
   title: "turva.dev",
-  version: "1.15.3",
+  version: "1.15.4",
   description: "Public read-only MCP server for turva.dev. Exposes the service catalog (audit, advisory, implementation, MCP server security test, agent operations, MCP server design) with prices, the active security testing add-on to the audit quoted on request, own-domain agent-readiness and web-security scan evidence, engagement principles: async-only, no calls and no calendar links, the contact and privacy details, and the markdown of pages on turva.dev. No authentication, no write operations.",
   websiteUrl: "https://turva.dev/",
   icons: [
@@ -964,7 +964,7 @@ const SERVER_INFO = {
 // Each tool description repeats the routing to its neighbours, and this says it once for a
 // client that reads server/discover, or initialize on the 2025-era lane, before it lists the
 // tools.
-const INSTRUCTIONS = "Seven read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the access an engagement needs, the full contract terms and the outline of the published sample report. A general question about what turva.dev does starts there too. For the standing principles behind every engagement and the reason for each, call get_principles. Call get_contact for who runs turva.dev, its business details, how to reach it and how it handles personal data, quoted from every privacy section of the legal page. get_agent_readiness returns turva.dev's own agent-readiness score from the independent scanner isitagentready.com. get_security_evidence returns its own web and email security scan results, which are a separate measurement. For evidence in general, call both. To find out which other pages turva.dev has, such as its guides and blog posts, call get_page_index: it lists them by section, each with its title and a path. To read one of them, or any other page of turva.dev, call get_page with its path: it reads that page's markdown from the site when you call it. The five tools that return compiled data take no arguments, and their data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. get_page_index takes no arguments either and reads the site's /llms.txt when you call it. get_page takes one path. Each of the two sends one request to turva.dev and to no other host. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
+const INSTRUCTIONS = "Seven read-only tools answer questions about turva.dev itself. get_services answers for the services, their prices, the access an engagement needs, the full contract terms and the outline of the published sample report. A general question about what turva.dev does starts there too. For the standing principles behind every engagement and the reason for each, call get_principles. Call get_contact for who runs turva.dev, its business details, how to reach it and how it handles personal data, quoted from every privacy section of the legal page. get_agent_readiness returns turva.dev's own agent-readiness score from the independent scanner isitagentready.com. get_security_evidence returns its own web and email security scan results, which are a separate measurement. For evidence in general, call both. To find out which other pages turva.dev has, such as its guides and blog posts, call get_page_index: it lists them by section, each with its title and a path. To read one of them, or any other page of turva.dev, call get_page with its path: it reads that page's markdown from the site when you call it. The five tools that return compiled data take no arguments, and their data is compiled into the server, carries a date where it is a measurement, and changes only on deploy. get_page_index takes no arguments either and reads the site's /llms.txt when you call it. get_page takes one path. get_page_index always sends one request to turva.dev, and get_page sends one for an accepted path and none for a refused path; neither reaches any other host. This server does not scan or audit any site: for a fresh reading of a domain, turva.dev included, run the check on isitagentready.com itself.";
 
 function createServer(site?: SiteBinding): McpServer {
   const server = new McpServer(
@@ -1069,7 +1069,7 @@ function createServer(site?: SiteBinding): McpServer {
     "get_page",
     {
       title: "Page of turva.dev as markdown",
-      description: "Returns the markdown of one page on turva.dev, read from the site when you call it. The markdown is the main content the site serves to a request for text/markdown, without the frame around it, so it is not the HTML page byte for byte. Use this when a user asks about a guide, a blog post or a page the other tools do not cover, or wants a page's own wording. If you do not know the path, call get_page_index first. For the services and prices use get_services, and for who runs turva.dev use get_contact. Each call sends one GET request to turva.dev through a service binding that reaches no other host and forwards nothing from your request. It refuses a path outside turva.dev, an answer longer than 262144 bytes and any status other than 2xx. It does not follow a redirect: when the new path is on turva.dev, the error names it and you call again with it.",
+      description: "Returns the markdown of one page on turva.dev, read from the site when you call it. The markdown is the main content the site serves to a request for text/markdown, without the frame around it, so it is not the HTML page byte for byte. Use this when a user asks about a guide, a blog post or a page the other tools do not cover, or wants a page's own wording. If you do not know the path, call get_page_index first. For the services and prices use get_services, and for who runs turva.dev use get_contact. Each call with an accepted path sends one GET request to turva.dev through a service binding that reaches no other host and forwards nothing from your request; a refused path sends none. It refuses a path outside turva.dev, an answer longer than 262144 bytes and any status other than 2xx. It does not follow a redirect: when the new path is on turva.dev, the error names it and you call again with it.",
       annotations: READ_ONLY,
       inputSchema: pageInput,
       outputSchema: pageOutput,
